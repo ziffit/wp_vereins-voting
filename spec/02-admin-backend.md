@@ -29,7 +29,10 @@ löschen.
 - **[FU002#AK05]** Alle Backend-Masken (Abstimmung, CSV-Import,
   Einladungsversand) bieten neben der Hauptaktion einen Abbrechen-Link ohne
   Datenänderung; nach dem Speichern bzw. Löschen erscheint eine
-  Bestätigungsmeldung.
+  Bestätigungsmeldung. Eingabefehler der Abstimmungsmaske (fehlende
+  Pflichtfelder, Ende vor dem Start) werden als Meldung in der Maske
+  angezeigt; die eingegebenen Werte bleiben erhalten und die Admin-Seite
+  wird nicht durch `wp_die()` ersetzt.
 
 - **[FU002#AK06]** Der Admin-Handler verarbeitet ausschließlich POSTs mit der
   plugin-eigenen Aktion `vv_action`. Fremde Admin-Anfragen (z. B. Heartbeat

@@ -175,9 +175,14 @@ function vv_save_poll() {
 	$start   = sanitize_text_field( wp_unslash( $_POST['start_dt'] ?? '' ) );
 	$end     = sanitize_text_field( wp_unslash( $_POST['end_dt'] ?? '' ) );
 	$status  = sanitize_key( $_POST['status'] ?? 'draft' );
+	$start_raw = $start; // Unnormalisiert für das erneute Rendern der Maske.
+	$end_raw   = $end;
 
+	// [FU002#AK05] Eingabefehler beenden die Seite nicht (wp_die): Die Maske
+	// rendert gleich erneut – mit Meldung und den hier eingegebenen Werten.
+	$error = '';
 	if ( '' === $title || '' === $start || '' === $end ) {
-		wp_die( 'Titel, Start und Ende sind Pflichtfelder.' );
+		$error = 'Titel, Start und Ende sind Pflichtfelder.';
 	}
 
 	// datetime-local ('YYYY-MM-DDTHH:MM') auf MySQL-Format normalisieren,
@@ -188,14 +193,29 @@ function vv_save_poll() {
 	// [FU002#AK01] Ein Ende vor dem Start ergäbe eine Wahl, die nie starten kann.
 	// [FU002#AK02] Bei aktiven/geschlossenen Abstimmungen sind die Zeitfelder
 	// gesperrt und werden ignoriert – dann gilt die Prüfung nicht.
-	$existing = $poll_id
-		? $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$wpdb->prefix}voting_polls WHERE id = %d", $poll_id ) )
-		: null;
-	if ( $poll_id && ! $existing ) {
-		wp_die( 'Abstimmung nicht gefunden.' );
+	$existing = null;
+	if ( $poll_id && '' === $error ) {
+		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$wpdb->prefix}voting_polls WHERE id = %d", $poll_id ) );
+		if ( ! $existing ) {
+			wp_die( 'Abstimmung nicht gefunden.' );
+		}
 	}
-	if ( ( ! $existing || 'draft' === $existing->status ) && $end <= $start ) {
-		wp_die( 'Das Ende muss nach dem Start liegen.' );
+	if ( '' === $error && ( ! $existing || 'draft' === $existing->status ) && $end <= $start ) {
+		$error = 'Das Ende muss nach dem Start liegen.';
+	}
+
+	if ( '' !== $error ) {
+		$GLOBALS['vv_poll_form_flash'] = [
+			'error' => $error,
+			'data'  => [
+				'poll_id'  => $poll_id,
+				'title'    => $title,
+				'question' => $question,
+				'start_dt' => $start_raw,
+				'end_dt'   => $end_raw,
+			],
+		];
+		return;
 	}
 
 	if ( ! $poll_id ) {
@@ -406,18 +426,32 @@ function vv_render_poll_form( $poll_id = 0 ) {
 		: null;
 	$locked = $poll && 'draft' !== $poll->status;
 
+	// [FU002#AK05] Nach einem Eingabefehler die nicht gespeicherten Werte zeigen.
+	$flash = $GLOBALS['vv_poll_form_flash'] ?? null;
+	unset( $GLOBALS['vv_poll_form_flash'] );
+	if ( $flash && (int) $flash['data']['poll_id'] !== (int) $poll_id ) {
+		$flash = null;
+	}
+	$title_val    = $flash['data']['title'] ?? ( $poll->title ?? '' );
+	$question_val = $flash['data']['question'] ?? ( $poll->question ?? '' );
+	$start_val    = str_replace( ' ', 'T', $flash['data']['start_dt'] ?? ( $poll ? substr( (string) $poll->start_dt, 0, 16 ) : '' ) );
+	$end_val      = str_replace( ' ', 'T', $flash['data']['end_dt'] ?? ( $poll ? substr( (string) $poll->end_dt, 0, 16 ) : '' ) );
+
 	echo '<form method="post">';
 	wp_nonce_field( 'vv_admin', 'vv_nonce' );
 	echo '<input type="hidden" name="vv_action" value="save_poll">';
 	echo '<input type="hidden" name="poll_id" value="' . (int) $poll_id . '">';
+	if ( $flash ) {
+		echo '<div class="notice notice-error"><p>' . esc_html( $flash['error'] ) . '</p></div>';
+	}
 	if ( $locked ) {
 		echo '<div class="notice notice-warning"><p>Diese Abstimmung läuft oder ist beendet – Titel/Fristen sind gesperrt.</p></div>';
 	}
 	echo '<table class="form-table">';
-	echo '<tr><th><label for="vv-title">Titel</label></th><td><input name="title" id="vv-title" type="text" class="regular-text" maxlength="190" value="' . esc_attr( isset( $poll->title ) ? $poll->title : '' ) . '" ' . ( $locked ? 'readonly' : '' ) . ' required></td></tr>';
-	echo '<tr><th><label for="vv-question">Frage / Beschreibung</label></th><td><textarea name="question" id="vv-question" rows="4" class="large-text" ' . ( $locked ? 'readonly' : '' ) . '>' . esc_textarea( isset( $poll->question ) ? $poll->question : '' ) . '</textarea></td></tr>';
-	echo '<tr><th><label for="vv-start">Start</label></th><td><input name="start_dt" id="vv-start" type="datetime-local" value="' . esc_attr( isset( $poll->start_dt ) ? str_replace( ' ', 'T', substr( $poll->start_dt, 0, 16 ) ) : '' ) . '" ' . ( $locked ? 'readonly' : '' ) . ' required></td></tr>';
-	echo '<tr><th><label for="vv-end">Ende</label></th><td><input name="end_dt" id="vv-end" type="datetime-local" value="' . esc_attr( isset( $poll->end_dt ) ? str_replace( ' ', 'T', substr( $poll->end_dt, 0, 16 ) ) : '' ) . '" ' . ( $locked ? 'readonly' : '' ) . ' required></td></tr>';
+	echo '<tr><th><label for="vv-title">Titel</label></th><td><input name="title" id="vv-title" type="text" class="regular-text" maxlength="190" value="' . esc_attr( $title_val ) . '" ' . ( $locked ? 'readonly' : '' ) . ' required></td></tr>';
+	echo '<tr><th><label for="vv-question">Frage / Beschreibung</label></th><td><textarea name="question" id="vv-question" rows="4" class="large-text" ' . ( $locked ? 'readonly' : '' ) . '>' . esc_textarea( $question_val ) . '</textarea></td></tr>';
+	echo '<tr><th><label for="vv-start">Start</label></th><td><input name="start_dt" id="vv-start" type="datetime-local" value="' . esc_attr( $start_val ) . '" ' . ( $locked ? 'readonly' : '' ) . ' required></td></tr>';
+	echo '<tr><th><label for="vv-end">Ende</label></th><td><input name="end_dt" id="vv-end" type="datetime-local" value="' . esc_attr( $end_val ) . '" ' . ( $locked ? 'readonly' : '' ) . ' required></td></tr>';
 
 	if ( $poll ) {
 		echo '<tr><th>Status</th><td>';

@@ -80,8 +80,13 @@ return [
 
 	'test_02_fu002_ak02_plichtfelder' => function () {
 		vv_fx_http( [], [ 'vv_action' => 'save_poll', 'poll_id' => 0, 'title' => '', 'start_dt' => '', 'end_dt' => '' ] );
-		[ $kind, $msg ] = vv_fx_run( 'vv_save_poll' );
-		vv_check( 'die' === $kind && str_contains( (string) $msg, 'Pflichtfelder' ), '[FU002#AK01] fehlende Titel/Zeiten abgewesen' );
+		[ $kind, ] = vv_fx_run( 'vv_save_poll' );
+		vv_check( null === $kind, '[FU002#AK01] fehlende Pflichtfelder brechen die Seite nicht ab (kein wp_die)' );
+
+		ob_start();
+		vv_render_poll_form( 0 );
+		$html = (string) ob_get_clean();
+		vv_check( str_contains( $html, 'Pflichtfelder' ), '[FU002#AK05] Pflichtfeld-Meldung erscheint in der Maske' );
 	},
 
 	'test_02_fu002_ak02_loeschen_draft_nur' => function () {
@@ -219,17 +224,25 @@ return [
 	'test_02_fu002_ak01_zeitraum_und_titellaenge' => function () {
 		global $wpdb;
 		$before = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . vv_tbl( 'voting_polls' ) );
+		$start  = date( 'Y-m-d\TH:i', strtotime( '+2 days' ) );
+		$end    = date( 'Y-m-d\TH:i', strtotime( '+1 day' ) );
 
-		// Ende vor Start wird abgewiesen und nichts gespeichert:
+		// Ende vor Start wird abgewiesen – Meldung in der Maske, nichts gespeichert:
 		vv_fx_http( [], [
 			'vv_action' => 'save_poll', 'poll_id' => 0, 'title' => 'Verdreht', 'question' => 'Q',
-			'start_dt' => date( 'Y-m-d\TH:i', strtotime( '+2 days' ) ),
-			'end_dt'   => date( 'Y-m-d\TH:i', strtotime( '+1 day' ) ), 'status' => 'draft',
+			'start_dt' => $start, 'end_dt' => $end, 'status' => 'draft',
 		] );
-		[ $kind, $msg ] = vv_fx_run( 'vv_save_poll' );
-		vv_check( 'die' === $kind && str_contains( (string) $msg, 'Ende' ), '[FU002#AK01] Ende vor Start wird abgewiesen' );
+		[ $kind, ] = vv_fx_run( 'vv_save_poll' );
 		$after = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . vv_tbl( 'voting_polls' ) );
-		vv_check( $before === $after, '[FU002#AK01] verdrehter Zeitraum wird nicht gespeichert' );
+		vv_check( null === $kind && $before === $after, '[FU002#AK01] verdrehter Zeitraum wird nicht gespeichert' );
+
+		// [FU002#AK05] Fehler und Eingaben bleiben in der Maske:
+		ob_start();
+		vv_render_poll_form( 0 );
+		$html = (string) ob_get_clean();
+		vv_check( str_contains( $html, 'Ende muss nach dem Start liegen' ), '[FU002#AK05] Meldung erscheint in der Maske' );
+		vv_check( str_contains( $html, 'value="Verdreht"' ), '[FU002#AK05] eingegebener Titel bleibt erhalten' );
+		vv_check( str_contains( $html, 'value="' . $start . '"' ) && str_contains( $html, 'value="' . $end . '"' ), '[FU002#AK05] eingegebene Zeiten bleiben erhalten' );
 
 		// Zu langer Titel wird auf 190 Zeichen gekürzt statt still zu scheitern:
 		vv_fx_http( [], [
