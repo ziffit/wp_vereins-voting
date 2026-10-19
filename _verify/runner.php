@@ -174,17 +174,17 @@ switch ( $step ) {
 		// [FU007#AK02] Richtiger Token, Mitglied-Nr + E-Mail falsch.
 		$_SERVER['REQUEST_METHOD'] = 'POST';
 		$_GET    = [ 'poll' => $alice->poll_id, 'token' => $alice->activation_token ];
-		$_POST   = [ 'member_no' => '999', 'email' => 'alice@example.com', 'pin' => '123456', 'pin2' => '123456' ];
+		$_POST   = [ 'vv_frontend_nonce' => wp_create_nonce( 'vv_frontend' ), 'member_no' => '999', 'email' => 'alice@example.com', 'pin' => '123456', 'pin2' => '123456' ];
 		$html    = vv_shortcode_activate();
 		vv_assert( str_contains( $html, 'nicht mit der Einladung überein' ), '[FU007#AK02] Datencheck schlägt fehl' );
 
 		// [FU007#AK02] PINs ungleich.
-		$_POST = [ 'member_no' => (string) $alice->member_no, 'email' => 'alice@example.com', 'pin' => '123456', 'pin2' => '234567' ];
+		$_POST = [ 'vv_frontend_nonce' => wp_create_nonce( 'vv_frontend' ), 'member_no' => (string) $alice->member_no, 'email' => 'alice@example.com', 'pin' => '123456', 'pin2' => '234567' ];
 		$html  = vv_shortcode_activate();
 		vv_assert( str_contains( $html, 'Die PIN muss 6-stellig' ), '[FU007#AK02] PIN-Wiederholung wird geprüft' );
 
 		// [FU007#AK03] Erfolgreiche Aktivierung: PIN gehasht, Token verbraucht.
-		$_POST = [ 'member_no' => (string) $alice->member_no, 'email' => 'alice@example.com', 'pin' => '123456', 'pin2' => '123456' ];
+		$_POST = [ 'vv_frontend_nonce' => wp_create_nonce( 'vv_frontend' ), 'member_no' => (string) $alice->member_no, 'email' => 'alice@example.com', 'pin' => '123456', 'pin2' => '123456' ];
 		$html  = vv_shortcode_activate();
 		vv_assert( str_contains( $html, 'Erfolgreich' ), '[FU007#AK03] PIN erfolgreich gesetzt' );
 		$alice = vv_row( 'voting_voters', "WHERE id = {$alice->id}" );
@@ -194,7 +194,7 @@ switch ( $step ) {
 		// Wiederholter Versuch mit altem Link → abgelehnt.
 		$_SERVER['REQUEST_METHOD'] = 'POST';
 		$_GET    = [ 'poll' => $alice->poll_id, 'token' => $alice->activation_token ];
-		$_POST   = [ 'member_no' => (string) $alice->member_no, 'email' => 'alice@example.com', 'pin' => '654321', 'pin2' => '654321' ];
+		$_POST   = [ 'vv_frontend_nonce' => wp_create_nonce( 'vv_frontend' ), 'member_no' => (string) $alice->member_no, 'email' => 'alice@example.com', 'pin' => '654321', 'pin2' => '654321' ];
 		$html    = vv_shortcode_activate();
 		vv_assert( str_contains( $html, 'Ungültiger oder bereits benutzter Aktivierungslink' ), '[FU007#AK03] zweitverwendung abgelehnt' );
 		break;
@@ -312,7 +312,7 @@ switch ( $step ) {
 		$bob = vv_row( 'voting_voters', "WHERE email = 'bob@example.org'" );
 		$_SERVER['REQUEST_METHOD'] = 'POST';
 		$_GET  = [ 'poll' => $poll->id, 'token' => $bob->activation_token ];
-		$_POST = [ 'member_no' => (string) $bob->member_no, 'email' => 'bob@example.org', 'pin' => '654321', 'pin2' => '654321' ];
+		$_POST = [ 'vv_frontend_nonce' => wp_create_nonce( 'vv_frontend' ), 'member_no' => (string) $bob->member_no, 'email' => 'bob@example.org', 'pin' => '654321', 'pin2' => '654321' ];
 		$html  = vv_shortcode_activate();
 		vv_assert( str_contains( $html, 'Erfolgreich' ), 'bob aktiviert für Ergebnisfall' );
 		$r2 = vv_cast_vote( $poll->id, (string) $bob->member_no, 'bob@example.org', '654321', 'nein' );
@@ -405,7 +405,7 @@ switch ( $step ) {
 
 		// [FU008#AK01] [FU008#AK04] POST-Ablauf über den Shortcode:
 		$_GET  = [ 'poll' => $pid ];
-		$_POST = [ 'member_no' => '\777', 'email' => 'e2e@example.org', 'pin' => '111111', 'option' => 'ja' ];
+		$_POST = [ 'vv_frontend_nonce' => wp_create_nonce( 'vv_frontend' ), 'member_no' => '\777', 'email' => 'e2e@example.org', 'pin' => '111111', 'option' => 'ja' ];
 		$html  = vv_shortcode_form();
 		vv_assert( (bool) preg_match( '/vv-receipt[^<]*<\/?code[^>]*>[0-9a-f]{64}/', strip_tags( $html, '<code>' ) ) || str_contains( $html, 'vv-receipt' ), '[FU008#AK04] Shortcode zeigt Receipt-Hash im Browser an' );
 		vv_assert( (int) $wpdb->get_var( "SELECT COUNT(*) FROM wpx_voting_ballots WHERE poll_id = $pid" ) === 1, '[FU008#AK04] Formular-POST hat Urne befüllt (genau 1 Stimme)' );

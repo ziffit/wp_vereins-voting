@@ -50,6 +50,16 @@ return [
 		vv_check( 1 === vv_fx_voter_count( $pid2 ), '[FU003#AK02] Duplikat nur innerhalb der Abstimmung eingeschränkt, nicht global' );
 	},
 
+	'test_03_fu003_ak01_header_erkennung_alphanumerisch' => function () {
+		// Mitgliedsnummern können alphanumerisch sein — nur die erste Zeile
+		// mit nicht-E-Mail zweiter Spalte gilt als Kopfzeile.
+		$pid = vv_fx_poll();
+		vv_fx_http( [], [ 'vv_action' => 'import_csv', 'poll' => $pid ],
+			vv_fx_csv_upload( "ABC;abc@example.org\nDEF;def@example.org\n" ) );
+		vv_fx_run( 'vv_import_csv' );
+		vv_check( 2 === vv_fx_voter_count( $pid ), '[FU003#AK01] CSV ohne Kopfzeile mit alphanumerischen Mitgliedsnummern wird vollständig importiert' );
+	},
+
 	'test_03_fu003_ak01_delimiter_erkennung' => function () {
 		$pid = vv_fx_poll();
 		// Komma ohne Header:
@@ -71,5 +81,15 @@ return [
 		vv_fx_http( [], [ 'vv_action' => 'import_csv', 'poll' => $pid ], vv_fx_csv_upload( "1;x@y.org\n" ) );
 		[ $kind, $msg ] = vv_fx_run( 'vv_import_csv' );
 		vv_check( 'die' === $kind && str_contains( (string) $msg, 'Entwurf' ), '[FU003#AK02] Import nur während draft erlaubt' );
+	},
+
+	'test_03_fu003_ak01_utf8_bom_wird_entfernt' => function () {
+		// Excel schreibt UTF-8-CSVs mit BOM — der darf nicht in der Mitgliedsnummer landen.
+		$pid = vv_fx_poll();
+		vv_fx_http( [], [ 'vv_action' => 'import_csv', 'poll' => $pid ],
+			vv_fx_csv_upload( "\xEF\xBB\xBF42;bom@example.org\n" ) );
+		vv_fx_run( 'vv_import_csv' );
+		$v = vv_fx_voter_row( 'bom@example.org' );
+		vv_check( $v && '42' === $v->member_no, '[FU003#AK01] UTF-8-BOM wird aus der ersten Spalte entfernt' );
 	},
 ];

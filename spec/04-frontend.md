@@ -20,6 +20,10 @@ persönlichen Wahl-PIN festlegt.
   `pin_hash` (`password_hash()`) gespeichert, der `activation_token`
   gelöscht (Einmalverwendung) und eine Erfolgsmeldung ausgegeben.
 
+- **[FU007#AK04]** Das Formular ist durch ein Nonce gegen CSRF geschützt;
+  nach 5 Fehlversuchen (falsche Mitgliedsdaten oder PIN) ist die Aktivierung
+  für 15 Minuten gesperrt.
+
 ## [FU008] Shortcode 2: `[verein_voting_form]` (Die Stimmabgabe)
 
 ### Beschreibung
@@ -51,6 +55,10 @@ Das eigentliche Wahlformular während des aktiven Wahlzeitraums.
   anonyme `receipt_hash` auf dem Bildschirm angezeigt mit dem Hinweis,
   diesen für die spätere Überprüfung zu sichern. Das Formular wird
   ausgeblendet.
+
+- **[FU008#AK05]** Das Stimmformular ist durch ein Nonce gegen CSRF
+  geschützt; nach 5 falschen PIN-Eingaben ist die Stimmabgabe für diese
+  Person 15 Minuten gesperrt (Brute-Force-Schutz).
 
 ## [FU009] Shortcode 3: `[verein_voting_results]` (Ergebnisse & Prüfliste)
 

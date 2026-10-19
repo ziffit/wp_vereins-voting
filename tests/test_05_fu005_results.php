@@ -64,4 +64,42 @@ return [
 		vv_check( str_contains( $html, 'Gesamtergebnis' ), '[FU005#AK03] aggregiertes Ergebnis sichtbar nach Wahlende' );
 		vv_check( str_contains( $html, 'Enthaltung' ), '[FU005#AK03] Aggregatzeile für Enthaltung angezeigt' );
 	},
+
+	'test_05_fu005_ak01_uebersicht_zaehler' => function () {
+		$pid = vv_fx_poll( [ 'title' => 'Zählwahl' ] );
+		vv_fx_voter( $pid, '1', 'x@example.org', 'tt1' );
+		vv_fx_voter( $pid, '2', 'y@example.org', 'tt2' );
+		vv_fx_ballot( $pid, 'ja' );
+
+		vv_fx_http( [] );
+		ob_start();
+		vv_render_admin_page();
+		$html = (string) ob_get_clean();
+
+		vv_check( str_contains( $html, 'Zählwahl' ), '[FU005#AK01] Übersicht listet die Abstimmung' );
+		vv_check( str_contains( $html, '<td>2</td>' ) && str_contains( $html, '<td>1</td>' ),
+			'[FU005#AK01] Übersicht zeigt Teilnehmer- und Stimmenzahl (eine Abfrage statt N+1)' );
+	},
+
+	'test_05_fu005_ak01_paginierung' => function () {
+		$pid = vv_fx_poll();
+		for ( $i = 1; $i <= 105; $i++ ) {
+			vv_fx_voter( $pid, sprintf( '%03d', $i ), "m{$i}@example.org", null );
+		}
+
+		vv_fx_http( [] );
+		ob_start();
+		vv_render_members_table( vv_fx_poll_row( $pid ) );
+		$p1 = (string) ob_get_clean();
+		vv_check( str_contains( $p1, 'Seite 1 von 2' ), '[FU005#AK01] Teilnehmerliste zeigt Seite 1 von 2' );
+		vv_check( str_contains( $p1, '001' ) && ! str_contains( $p1, '105' ),
+			'[FU005#AK01] Seite 1 ist auf 100 Einträge begrenzt' );
+
+		vv_fx_http( [ 'vv_page' => 2 ] );
+		ob_start();
+		vv_render_members_table( vv_fx_poll_row( $pid ) );
+		$p2 = (string) ob_get_clean();
+		vv_check( str_contains( $p2, '105' ) && ! str_contains( $p2, '>001<' ),
+			'[FU005#AK01] Seite 2 zeigt die restlichen Einträge' );
+	},
 ];

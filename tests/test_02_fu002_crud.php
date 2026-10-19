@@ -102,4 +102,58 @@ return [
 		vv_check( null === vv_fx_poll_row( $pid ), '[FU002#AK02] Enturf-Abstimmung gelöscht' );
 		vv_check( 0 === vv_fx_voter_count( $pid ) && 0 === vv_fx_ballots_count( $pid ), '[FU002#AK02] Teilnehmer + Urne sauber mitgelöscht' );
 	},
+
+	'test_02_fu002_ak01_datetime_normalisierung' => function () {
+		$start = '2026-10-19T14:30';
+		$end   = '2026-10-20T18:45';
+		vv_fx_http( [], [
+			'vv_action' => 'save_poll', 'poll_id' => 0, 'title' => 'DT-Normalisierung',
+			'question' => 'Q', 'start_dt' => $start, 'end_dt' => $end, 'status' => 'draft',
+		] );
+		vv_fx_run( 'vv_save_poll' );
+		global $wpdb;
+		$poll = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . vv_tbl( 'voting_polls' ) . ' WHERE title = %s', 'DT-Normalisierung' ) );
+		vv_check( '2026-10-19 14:30:00' === $poll->start_dt, '[FU002#AK01] datetime-local (T) wird auf MySQL-Format normalisiert (Start)' );
+		vv_check( '2026-10-20 18:45:00' === $poll->end_dt, '[FU002#AK01] datetime-local (T) wird auf MySQL-Format normalisiert (Ende)' );
+	},
+
+	'test_02_fu002_ak03_aktivierung_nur_im_zeitraum' => function () {
+		// Start in der Zukunft: Statuswechsel auf active wird ignoriert.
+		$pid = vv_fx_poll( [ 'start_off' => '+1 day', 'end_off' => '+2 days', 'status' => 'draft' ] );
+		vv_fx_http( [], [
+			'vv_action' => 'save_poll', 'poll_id' => $pid, 'title' => 'T', 'question' => 'Q',
+			'start_dt' => date( 'Y-m-d\TH:i', strtotime( '+1 day' ) ),
+			'end_dt'   => date( 'Y-m-d\TH:i', strtotime( '+2 days' ) ), 'status' => 'active',
+		] );
+		vv_fx_run( 'vv_save_poll' );
+		vv_check( 'draft' === vv_fx_poll_row( $pid )->status, '[FU002#AK03] Aktivierung außerhalb des Zeitraums verweigert' );
+
+		// Formular bietet keinen Aktivieren-Radio an, solange der Zeitraum nicht läuft:
+		ob_start();
+		vv_render_poll_form( $pid );
+		$form = (string) ob_get_clean();
+		vv_check( ! str_contains( $form, 'value="active"' ), '[FU002#AK03] Aktivieren-Radio außerhalb des Zeitraums ausgeblendet' );
+
+		// Gleiche Wahl, jetzt im Zeitraum: Wechsel erlaubt.
+		vv_fx_http( [], [
+			'vv_action' => 'save_poll', 'poll_id' => $pid, 'title' => 'T', 'question' => 'Q',
+			'start_dt' => date( 'Y-m-d\TH:i', strtotime( '-1 hour' ) ),
+			'end_dt'   => date( 'Y-m-d\TH:i', strtotime( '+2 days' ) ), 'status' => 'active',
+		] );
+		vv_fx_run( 'vv_save_poll' );
+		vv_check( 'active' === vv_fx_poll_row( $pid )->status, '[FU002#AK03] Aktivierung im Zeitraum erlaubt' );
+	},
+
+	'test_02_fu002_ak04_zeitzonen_hinweis' => function () {
+		ob_start();
+		vv_timezone_notice();
+		$html = (string) ob_get_clean();
+		vv_check( str_contains( $html, 'Zeitzone' ), '[FU002#AK04] Hinweis bei UTC ohne Zeitzone' );
+
+		update_option( 'timezone_string', 'Europe/Berlin' );
+		ob_start();
+		vv_timezone_notice();
+		$html = (string) ob_get_clean();
+		vv_check( '' === $html, '[FU002#AK04] kein Hinweis, wenn eine Zeitzone gesetzt ist' );
+	},
 ];

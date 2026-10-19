@@ -116,7 +116,7 @@ return [
 	'test_07_fu008_ak04_formular_erfolgsanzeige' => function () {
 		$pid = vv_fx_poll();
 		vv_fx_voter( $pid, '101', 'a@b.org', 't1', '123456' );
-		vv_fx_http( [ 'poll' => $pid ], [ 'member_no' => '101', 'email' => 'a@b.org', 'pin' => '123456', 'option' => 'nein' ] );
+		vv_fx_http( [ 'poll' => $pid ], [ 'vv_frontend_nonce' => vv_fx_nonce(), 'member_no' => '101', 'email' => 'a@b.org', 'pin' => '123456', 'option' => 'nein' ] );
 		$html = vv_shortcode_form();
 		vv_check( str_contains( $html, 'vv-receipt' ) && str_contains( $html, 'Stimme wurde gezählt' ),
 			'[FU008#AK04] Shortcode zeigt Receipt-Hash nach Erfolg im Browser' );
@@ -126,9 +126,57 @@ return [
 		// Fehlerfall zeigt Formular wieder + Nachbericht:
 		$pid2 = vv_fx_poll();
 		vv_fx_voter( $pid2, '202', 'c@d.org', 't2', '654321' );
-		vv_fx_http( [ 'poll' => $pid2 ], [ 'member_no' => '202', 'email' => 'c@d.org', 'pin' => '000000', 'option' => 'ja' ] );
+		vv_fx_http( [ 'poll' => $pid2 ], [ 'vv_frontend_nonce' => vv_fx_nonce(), 'member_no' => '202', 'email' => 'c@d.org', 'pin' => '000000', 'option' => 'ja' ] );
 		$html2 = vv_shortcode_form();
 		vv_check( str_contains( $html2, '<form' ) && str_contains( $html2, 'PIN ist falsch' ),
 			'[FU008#AK04] Fehler: Formular bleibt mit Fehlermeldung' );
+	},
+
+	'test_07_fu008_ak02_datetime_t_format' => function () {
+		global $wpdb;
+		// Poll mit T-Format-Datum (wie vom Admin-Formular gespeichert) — muss trotzdem funktionieren.
+		$pid = vv_fx_poll( [ 'start_off' => '-1 hour', 'end_off' => '+1 day', 'status' => 'draft' ] );
+		$wpdb->query( $wpdb->prepare(
+			"UPDATE " . vv_tbl( 'voting_polls' ) . " SET start_dt = %s, end_dt = %s WHERE id = %d",
+			date( 'Y-m-d\\TH:i', strtotime( '-1 hour' ) ),
+			date( 'Y-m-d\\TH:i', strtotime( '+1 day' ) ),
+			$pid
+		) );
+		vv_fx_voter( $pid, '101', 'a@b.org', 't1', '123456' );
+		$receipt = vv_cast_vote( $pid, '101', 'a@b.org', '123456', 'ja' );
+		vv_check( (bool) preg_match( '/^[0-9a-f]{64}$/', $receipt ), '[FU008#AK02] Abstimmung funktioniert auch mit T-Format-Datum' );
+	},
+
+	'test_07_fu008_ak05_csrf_nonce_pflicht' => function () {
+		$pid = vv_fx_poll();
+		vv_fx_voter( $pid, '101', 'a@b.org', 't1', '123456' );
+
+		// POST ohne Nonce darf keine Stimme zählen.
+		vv_fx_http( [ 'poll' => $pid ], [ 'member_no' => '101', 'email' => 'a@b.org', 'pin' => '123456', 'option' => 'ja' ] );
+		$html = vv_shortcode_form();
+		vv_check( str_contains( $html, 'Sicherheitsprüfung' ), '[FU008#AK05] POST ohne Nonce abgelehnt' );
+		vv_check( 0 === vv_fx_ballots_count( $pid ), '[FU008#AK05] ohne Nonce landet keine Stimme in der Urne' );
+		vv_check( 0 === (int) vv_fx_voter_row( 'a@b.org' )->has_voted, '[FU008#AK05] has_voted bleibt 0' );
+	},
+
+	'test_07_fu008_ak05_rate_limit_voting' => function () {
+		$pid = vv_fx_poll();
+		vv_fx_voter( $pid, '101', 'a@b.org', 't1', '123456' );
+
+		for ( $i = 0; $i < 5; $i++ ) {
+			try {
+				vv_cast_vote( $pid, '101', 'a@b.org', '999999', 'ja' );
+			} catch ( RuntimeException $e ) {
+				// erwartet: Wahl-PIN ist falsch
+			}
+		}
+
+		try {
+			vv_cast_vote( $pid, '101', 'a@b.org', '123456', 'ja' );
+			vv_check( false, 'sechste Stimme trotz Sperre durchgelassen ?!' );
+		} catch ( RuntimeException $e ) {
+			vv_check( str_contains( $e->getMessage(), 'Zu viele Fehlversuche' ), '[FU008#AK05] Brute-Force-Bremse nach 5 Fehlversuchen aktiv' );
+		}
+		vv_check( 0 === vv_fx_ballots_count( $pid ), '[FU008#AK05] gesperrte Stimme landet nicht in der Urne' );
 	},
 ];

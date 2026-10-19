@@ -41,6 +41,7 @@ return [
 		vv_fx_http( [ 'poll' => $pid ] );
 		$html = vv_shortcode_results();
 		vv_check( str_contains( $html, 'Prüfliste' ), '[FU009#AK02] Ergebnis erscheint nach Zeitraum-Ende auch ohne admin-status closed' );
+		vv_check( str_contains( $html, 'Wahlzeitraum abgelaufen' ), '[FU009#AK02] Label weist auf abgelaufenen Zeitraum hin' );
 	},
 
 	'test_08_fu009_ak03_pruefliste_vollstandig_und_anonym' => function () {

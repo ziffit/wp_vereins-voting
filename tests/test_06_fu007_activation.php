@@ -32,13 +32,13 @@ return [
 
 		// falsche Mitgliedsnummer:
 		vv_fx_http( [ 'poll' => $pid, 'token' => 'tokmm' ],
-			[ 'member_no' => '999', 'email' => 'a@b.org', 'pin' => '123456', 'pin2' => '123456' ] );
+			[ 'vv_frontend_nonce' => vv_fx_nonce(), 'member_no' => '999', 'email' => 'a@b.org', 'pin' => '123456', 'pin2' => '123456' ] );
 		$html = vv_shortcode_activate();
 		vv_check( str_contains( $html, 'nicht mit der Einladung' ), '[FU007#AK02] falsche Mitgliedsnummer abgelehnt' );
 
 		// falsche E-Mail:
 		vv_fx_http( [ 'poll' => $pid, 'token' => 'tokmm' ],
-			[ 'member_no' => '101', 'email' => 'fremd@b.org', 'pin' => '123456', 'pin2' => '123456' ] );
+			[ 'vv_frontend_nonce' => vv_fx_nonce(), 'member_no' => '101', 'email' => 'fremd@b.org', 'pin' => '123456', 'pin2' => '123456' ] );
 		$html = vv_shortcode_activate();
 		vv_check( str_contains( $html, 'nicht mit der Einladung' ), '[FU007#AK02] falsche E-Mail abgelehnt' );
 
@@ -52,7 +52,7 @@ return [
 		$pid = vv_fx_poll();
 		vv_fx_voter( $pid, '101', 'a@b.org', 'tokpin' );
 		vv_fx_http( [ 'poll' => $pid, 'token' => 'tokpin' ],
-			[ 'member_no' => '101', 'email' => 'a@b.org', 'pin' => '123456', 'pin2' => '654321' ] );
+			[ 'vv_frontend_nonce' => vv_fx_nonce(), 'member_no' => '101', 'email' => 'a@b.org', 'pin' => '123456', 'pin2' => '654321' ] );
 		$html = vv_shortcode_activate();
 		vv_check( str_contains( $html, '6-stellig' ) && str_contains( $html, 'gleich' ),
 			'[FU007#AK02] PIN-Wiederholung muss exakt übereinstimmen' );
@@ -65,7 +65,7 @@ return [
 		vv_fx_voter( $pid, '101', 'a@b.org', $tok );
 
 		vv_fx_http( [ 'poll' => $pid, 'token' => $tok ],
-			[ 'member_no' => '101', 'email' => 'a@b.org', 'pin' => '123456', 'pin2' => '123456' ] );
+			[ 'vv_frontend_nonce' => vv_fx_nonce(), 'member_no' => '101', 'email' => 'a@b.org', 'pin' => '123456', 'pin2' => '123456' ] );
 		$html = vv_shortcode_activate();
 		vv_check( str_contains( $html, 'Erfolgreich' ), '[FU007#AK03] Erfolgsmeldung angezeigt' );
 
@@ -76,9 +76,45 @@ return [
 
 		// Erneuter Versuch mit gleichem Token:
 		vv_fx_http( [ 'poll' => $pid, 'token' => $tok ],
-			[ 'member_no' => '101', 'email' => 'a@b.org', 'pin' => '654321', 'pin2' => '654321' ] );
+			[ 'vv_frontend_nonce' => vv_fx_nonce(), 'member_no' => '101', 'email' => 'a@b.org', 'pin' => '654321', 'pin2' => '654321' ] );
 		$html = vv_shortcode_activate();
 		vv_check( str_contains( $html, 'Ungültiger oder bereits benutzter' ), '[FU007#AK03] Zweitverwendung abgelehnt' );
 		vv_check( '123456' !== password_verify( '654321', $row->pin_hash ), '[FU007#AK03] PIN bleibt unverändert' );
+	},
+
+	'test_06_fu007_ak04_csrf_nonce_pflicht' => function () {
+		global $wpdb;
+		$pid = vv_fx_poll();
+		vv_fx_voter( $pid, '101', 'a@b.org', 'tokcsrf' );
+
+		// POST ohne Nonce:
+		vv_fx_http( [ 'poll' => $pid, 'token' => 'tokcsrf' ],
+			[ 'member_no' => '101', 'email' => 'a@b.org', 'pin' => '123456', 'pin2' => '123456' ] );
+		$html = vv_shortcode_activate();
+		vv_check( str_contains( $html, 'Sicherheitsprüfung' ), '[FU007#AK04] POST ohne Nonce abgelehnt' );
+
+		$t = $wpdb->get_var( 'SELECT activation_token FROM ' . vv_tbl( 'voting_voters' ) . " WHERE poll_id = $pid" );
+		vv_check( 'tokcsrf' === $t, '[FU007#AK04] ohne Nonce wird kein PIN gesetzt/Token verbraucht' );
+	},
+
+	'test_06_fu007_ak04_rate_limit_aktivierung' => function () {
+		global $wpdb;
+		$pid = vv_fx_poll();
+		vv_fx_voter( $pid, '101', 'a@b.org', 'tokrl' );
+
+		for ( $i = 0; $i < 5; $i++ ) {
+			vv_fx_http( [ 'poll' => $pid, 'token' => 'tokrl' ],
+				[ 'vv_frontend_nonce' => vv_fx_nonce(), 'member_no' => '999', 'email' => 'a@b.org', 'pin' => '123456', 'pin2' => '123456' ] );
+			vv_shortcode_activate();
+		}
+
+		// Sechster Versuch, jetzt mit korrekten Daten → gesperrt.
+		vv_fx_http( [ 'poll' => $pid, 'token' => 'tokrl' ],
+			[ 'vv_frontend_nonce' => vv_fx_nonce(), 'member_no' => '101', 'email' => 'a@b.org', 'pin' => '123456', 'pin2' => '123456' ] );
+		$html = vv_shortcode_activate();
+		vv_check( str_contains( $html, 'Zu viele Fehlversuche' ), '[FU007#AK04] Brute-Force-Bremse nach 5 Fehlversuchen aktiv' );
+
+		$t = $wpdb->get_var( 'SELECT activation_token FROM ' . vv_tbl( 'voting_voters' ) . " WHERE poll_id = $pid" );
+		vv_check( 'tokrl' === $t, '[FU007#AK04] gesperrter Versuch verbraucht den Token nicht' );
 	},
 ];

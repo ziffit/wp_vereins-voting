@@ -110,6 +110,11 @@ function vv_fx_mails() {
 	return $GLOBALS['vv_mails'] ?? [];
 }
 
+/** Gültiger Frontend-Nonce für Shortcode-POSTs. */
+function vv_fx_nonce() {
+	return wp_create_nonce( 'vv_frontend' );
+}
+
 /** Schreibt eine CSV-Datei ins Temp-Verzeichnis und übergibt sie als Upload. */
 function vv_fx_csv_upload( $content ) {
 	$path = tempnam( sys_get_temp_dir(), 'vv' );

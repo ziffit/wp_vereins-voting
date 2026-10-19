@@ -7,6 +7,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Falsche PIN als eigener Fehlertyp: Der Fehlversuch wird erst nach dem
+ * ROLLBACK gezählt, weil Transienten in der Options-Tabelle liegen und
+ * sonst mit der Stimm-Transaktion zurückgerollt würden.
+ */
+class VV_PinFail extends RuntimeException {}
+
 /** Gemeinsame Helfer: Datenzugriff und Validierung; einheitliche Meldungen. */
 function vv_get_results( $poll_id ) {
 	global $wpdb;
@@ -31,10 +38,45 @@ function vv_get_results( $poll_id ) {
 	}
 	if ( $total > 0 ) {
 		foreach ( $results as $option => $data ) {
-			$results[ $option ]['percent'] = round( $data['count'] / $total * 100, 1 );
+			// Rohanteil; die Anzeige rundet einmalig mit number_format(x, 1).
+			$results[ $option ]['percent'] = $data['count'] / $total * 100;
 		}
 	}
 	return $results;
+}
+
+/** Normalisiert datetime-local/ISO-Eingaben auf das MySQL-Format 'YYYY-MM-DD HH:MM:SS'. */
+function vv_normalize_dt( $dt ) {
+	$dt = trim( (string) $dt );
+	if ( '' === $dt ) {
+		return '';
+	}
+	$dt = str_replace( 'T', ' ', $dt );
+	if ( 16 === strlen( $dt ) ) { // 'YYYY-MM-DD HH:MM' ohne Sekunden
+		$dt .= ':00';
+	}
+	return $dt;
+}
+
+/**
+ * Einfache Brute-Force-Bremse: höchstens 5 Fehlversuche je 15 Minuten.
+ * Schlüssel sind gehasht, damit keine E-Mail/Token in Optionsnamen landet.
+ */
+function vv_rate_key( $scope, $id ) {
+	return 'vv_rl_' . $scope . '_' . md5( (string) $id );
+}
+
+function vv_rate_blocked( $scope, $id ) {
+	return (int) get_transient( vv_rate_key( $scope, $id ) ) >= 5;
+}
+
+function vv_rate_fail( $scope, $id ) {
+	$key = vv_rate_key( $scope, $id );
+	set_transient( $key, (int) get_transient( $key ) + 1, 15 * MINUTE_IN_SECONDS );
+}
+
+function vv_rate_clear( $scope, $id ) {
+	delete_transient( vv_rate_key( $scope, $id ) );
 }
 
 /** [FU006#AK01] Einladungstext-Vorlage mit Platzhalter-Syntax. */
@@ -63,24 +105,39 @@ function vv_cast_vote( $poll_id, $member_no, $email, $pin, $option ) {
 		throw new RuntimeException( 'Bitte wähle Ja, Nein oder Enthaltung.' );
 	}
 
+	// [FU008#AK05] Brute-Force-Bremse vor der PIN-Prüfung.
+	$rate_id = $poll_id . '|' . strtolower( trim( (string) $member_no ) );
+	if ( vv_rate_blocked( 'vote', $rate_id ) ) {
+		throw new RuntimeException( 'Zu viele Fehlversuche. Bitte in 15 Minuten erneut versuchen.' );
+	}
+
 	$wpdb->query( 'START TRANSACTION' );
 	try {
-		// [FU008#AK02] Zeitraum prüfen; Entwurf wird beim ersten gültigen Versuch automatisch „active“.
-		$now = current_time( 'mysql' );
-		$wpdb->query( $wpdb->prepare(
-			"UPDATE {$wpdb->prefix}voting_polls SET status = 'active'
-			 WHERE id = %d AND status = 'draft' AND start_dt <= %s AND end_dt > %s",
-			$poll_id,
-			$now,
-			$now
-		) );
+		$now  = current_time( 'mysql' );
 		$poll = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}voting_polls WHERE id = %d", $poll_id ) );
 
 		if ( ! $poll ) {
 			throw new RuntimeException( 'Abstimmung nicht gefunden.' );
 		}
+
+		// [FU008#AK02] Entwurf wird beim ersten gültigen Versuch innerhalb des
+		// Zeitraums automatisch „active“ (atomare bedingte Aktualisierung).
+		if ( 'draft' === $poll->status ) {
+			$ns = vv_normalize_dt( $poll->start_dt );
+			$ne = vv_normalize_dt( $poll->end_dt );
+			if ( '' !== $ns && '' !== $ne && $ns <= $now && $now < $ne ) {
+				$wpdb->query( $wpdb->prepare(
+					"UPDATE {$wpdb->prefix}voting_polls SET status = 'active' WHERE id = %d AND status = 'draft'",
+					$poll_id
+				) );
+			}
+			$poll = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}voting_polls WHERE id = %d", $poll_id ) );
+		}
+
+		$ns = vv_normalize_dt( $poll->start_dt );
+		$ne = vv_normalize_dt( $poll->end_dt );
 		// Status „active“ gilt nur innerhalb des Zeitraums – egal wie er gesetzt wurde.
-		if ( 'active' !== $poll->status || $poll->start_dt > $now || $now >= $poll->end_dt ) {
+		if ( 'active' !== $poll->status || '' === $ns || '' === $ne || $ns > $now || $now >= $ne ) {
 			throw new RuntimeException( 'Die Abstimmung ist derzeit nicht aktiv (Status oder Zeitraum).' );
 		}
 
@@ -102,17 +159,18 @@ function vv_cast_vote( $poll_id, $member_no, $email, $pin, $option ) {
 		}
 
 		if ( empty( $voter->pin_hash ) || ! password_verify( (string) $pin, $voter->pin_hash ) ) {
-			throw new RuntimeException( 'Wahl-PIN ist falsch.' );
+			throw new VV_PinFail( 'Wahl-PIN ist falsch.' );
 		}
 
 		// [FU008#AK03] Nur Urnen-Spalten befüllen – keine Personenbeziehung in der Urne.
 		$receipt = hash( 'sha256', 'vvreceipt|' . $poll_id . '|' . microtime( true ) . '|' . bin2hex( random_bytes( 16 ) ) );
-		$ok1     = false !== $wpdb->update(
+		$affected = $wpdb->update(
 			"{$wpdb->prefix}voting_voters",
 			[ 'has_voted' => 1, 'voted_at' => $now ],
 			[ 'id' => $voter->id ]
 		);
-		$ok2     = false !== $wpdb->insert(
+		$ok1 = ( false !== $affected ) && ( (int) $affected >= 1 );
+		$ok2 = false !== $wpdb->insert(
 			"{$wpdb->prefix}voting_ballots",
 			[ 'poll_id' => $poll_id, 'vote_option' => $option, 'receipt_hash' => $receipt ]
 		);
@@ -121,9 +179,16 @@ function vv_cast_vote( $poll_id, $member_no, $email, $pin, $option ) {
 		}
 
 		$wpdb->query( 'COMMIT' );
+		vv_rate_clear( 'vote', $rate_id );
 		return $receipt;
-	} catch ( RuntimeException $e ) {
+	} catch ( \Throwable $e ) {
 		$wpdb->query( 'ROLLBACK' );
-		throw $e;
+		if ( $e instanceof VV_PinFail ) {
+			vv_rate_fail( 'vote', $rate_id );
+		}
+		if ( $e instanceof RuntimeException ) {
+			throw $e;
+		}
+		throw new RuntimeException( 'Stimmabgabe fehlgeschlagen (Datenbank). Bitte später erneut versuchen.' );
 	}
 }

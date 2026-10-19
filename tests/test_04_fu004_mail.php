@@ -89,4 +89,29 @@ return [
 		[ $kind, $msg ] = vv_fx_run( 'vv_send_invites' );
 		vv_check( 'die' === $kind, '[FU004#AK02] ohne Aktivierungs-URL bricht Versand ab' );
 	},
+
+	'test_04_fu006_ak03_vorlage_wird_gespeichert' => function () {
+		$pid = vv_fx_poll();
+		vv_fx_voter( $pid, '1', 'm@example.org', 't1' );
+		vv_fx_http( [], [
+			'vv_action'    => 'send_invites',
+			'poll'         => $pid,
+			'activate_url' => 'https://x.example.org/a/',
+			'subject'      => 'Eigener Betreff {poll_title}',
+			'body'         => "Hallo {member_no},\r\n{link}",
+		] );
+		vv_fx_run( 'vv_send_invites' );
+
+		vv_check( 'Eigener Betreff {poll_title}' === get_option( 'vv_invite_subject' ),
+			'[FU006#AK03] Betreff wird als Vorlage gespeichert' );
+		vv_check( "Hallo {member_no},\r\n{link}" === get_option( 'vv_invite_body' ),
+			'[FU006#AK03] Text wird als Vorlage gespeichert' );
+
+		// Formular zeigt die gespeicherte Vorlage wieder an:
+		ob_start();
+		vv_render_invite_form( vv_fx_poll_row( $pid ) );
+		$html = (string) ob_get_clean();
+		vv_check( str_contains( $html, 'Eigener Betreff {poll_title}' ),
+			'[FU006#AK03] Formular verwendet gespeicherte Vorlage' );
+	},
 ];

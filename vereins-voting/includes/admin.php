@@ -19,6 +19,20 @@ add_action( 'admin_menu', function () {
 	);
 } );
 
+/** [FU002#AK04] Warnung, wenn WordPress keine Zeitzone kennt (UTC) – sonst weichen Wahlzeiten ab. */
+function vv_timezone_notice() {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		return;
+	}
+	if ( get_option( 'timezone_string' ) || (float) get_option( 'gmt_offset' ) ) {
+		return;
+	}
+	echo '<div class="notice notice-warning"><p>Vereinsvoting: WordPress nutzt UTC ohne Zeitzone. '
+		. 'Start- und Endzeiten werden als UTC interpretiert – bitte unter Einstellungen → Allgemein '
+		. 'eine Zeitzone wählen.</p></div>';
+}
+add_action( 'admin_notices', 'vv_timezone_notice' );
+
 // ---------------------------------------------------------------------------
 // Rendering
 // ---------------------------------------------------------------------------
@@ -28,7 +42,14 @@ function vv_render_admin_page() {
 	global $wpdb;
 
 	$view  = isset( $_GET['view'] ) ? sanitize_key( $_GET['view'] ) : 'list';
-	$polls = $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}voting_polls ORDER BY created_at DESC" );
+	// Eine Abfrage statt zwei COUNTs pro Abstimmung (N+1).
+	$polls = $wpdb->get_results(
+		"SELECT p.*,
+			(SELECT COUNT(*) FROM {$wpdb->prefix}voting_voters v WHERE v.poll_id = p.id) AS member_count,
+			(SELECT COUNT(*) FROM {$wpdb->prefix}voting_ballots b WHERE b.poll_id = p.id) AS ballot_count
+		 FROM {$wpdb->prefix}voting_polls p
+		 ORDER BY p.created_at DESC"
+	);
 
 	echo '<div class="wrap"><h1>Vereinsvoting</h1>';
 
@@ -57,14 +78,8 @@ function vv_render_admin_page() {
 			. '<th>Titel</th><th>Status</th><th>Zeitraum</th><th>Teilnehmer</th><th>Eingegangene Stimmen</th><th>Aktionen</th>'
 			. '</tr></thead><tbody>';
 		foreach ( $polls as $poll ) {
-			$member_count = (int) $wpdb->get_var( $wpdb->prepare(
-				"SELECT COUNT(*) FROM {$wpdb->prefix}voting_voters WHERE poll_id = %d",
-				$poll->id
-			) );
-			$ballot_count = (int) $wpdb->get_var( $wpdb->prepare(
-				"SELECT COUNT(*) FROM {$wpdb->prefix}voting_ballots WHERE poll_id = %d",
-				$poll->id
-			) );
+			$member_count = (int) $poll->member_count;
+			$ballot_count = (int) $poll->ballot_count;
 
 			$edit_url = admin_url( 'admin.php?page=vereins-voting&view=edit&poll=' . (int) $poll->id );
 			$mem_url  = admin_url( 'admin.php?page=vereins-voting&view=members&poll=' . (int) $poll->id );
@@ -133,9 +148,11 @@ function vv_delete_poll() {
 		wp_die( 'Löschen ist nur bei Abstimmungen im Status Entwurf möglich.' );
 	}
 
+	$wpdb->query( 'START TRANSACTION' );
 	$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}voting_ballots WHERE poll_id = %d", $poll_id ) );
 	$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}voting_voters WHERE poll_id = %d", $poll_id ) );
 	$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}voting_polls WHERE id = %d", $poll_id ) );
+	$wpdb->query( 'COMMIT' );
 
 	wp_safe_redirect( admin_url( 'admin.php?page=vereins-voting&deleted=' . $poll_id ) );
 	exit;
@@ -155,6 +172,11 @@ function vv_save_poll() {
 	if ( '' === $title || '' === $start || '' === $end ) {
 		wp_die( 'Titel, Start und Ende sind Pflichtfelder.' );
 	}
+
+	// datetime-local ('YYYY-MM-DDTHH:MM') auf MySQL-Format normalisieren,
+	// damit String-Vergleiche in vv_cast_vote/vv_shortcode_results konsistent sind.
+	$start = vv_normalize_dt( $start );
+	$end   = vv_normalize_dt( $end );
 
 	if ( ! $poll_id ) {
 		// Neu anlegen – Status beginnt als Entwurf; aktiv wird er beim Start.
@@ -179,9 +201,11 @@ function vv_save_poll() {
 				'start_dt' => $start,
 				'end_dt'   => $end,
 			], [ 'id' => $poll_id ] );
-			// Aktivierung (draft -> active) geschieht über vv_cast_vote automatisch beim ersten gültigen Versuch
-			// oder unter b) hier ausdrücklich per Statuswahl.
-			if ( 'active' === $status ) {
+			// Aktivierung (draft -> active) nur innerhalb des Zeitraums; sonst
+			// startet die Wahl automatisch beim ersten gültigen Votum.
+			$now       = current_time( 'mysql' );
+			$in_window = $start <= $now && $now < $end;
+			if ( 'active' === $status && $in_window ) {
 				$wpdb->update( "{$wpdb->prefix}voting_polls", [ 'status' => 'active' ], [ 'id' => $poll_id ] );
 			}
 		} else {
@@ -230,7 +254,7 @@ function vv_import_csv() {
 		if ( ! is_array( $row ) || count( $row ) < 2 ) {
 			return;
 		}
-		$member_no = sanitize_text_field( $row[0] );
+		$member_no = sanitize_text_field( preg_replace( '/^\xEF\xBB\xBF/', '', (string) $row[0] ) );
 		$email     = sanitize_email( $row[1] );
 
 		// Überschriftszeile (keine Ziffern in der Mitgliedsnummer) nicht als Fehler zählen.
@@ -263,10 +287,13 @@ function vv_import_csv() {
 	};
 
 	$is_header_row = null;
+	$wpdb->query( 'START TRANSACTION' );
 	while ( ( $row = fgetcsv( $handle, 0, $delim ) ) !== false ) {
 		if ( null === $is_header_row ) {
 			$is_header_row = is_array( $row ) && count( $row ) >= 2
-				&& preg_match( '/[a-zA-Z]/', (string) $row[0] ) && ! preg_match( '/\d/', (string) $row[0] );
+				&& preg_match( '/[a-zA-Z]/', (string) $row[0] )
+				&& ! preg_match( '/\d/', (string) $row[0] )
+				&& ! is_email( (string) $row[1] );
 			if ( $is_header_row ) {
 				continue;
 			}
@@ -274,6 +301,7 @@ function vv_import_csv() {
 		$process_row( $row );
 	}
 	fclose( $handle );
+	$wpdb->query( 'COMMIT' );
 
 	wp_safe_redirect( admin_url( 'admin.php?page=vereins-voting&view=members&poll=' . $poll_id
 		. '&imported=' . $imported . '&skipped=' . $skipped ) );
@@ -286,18 +314,11 @@ function vv_send_invites() {
 
 	$poll_id = isset( $_POST['poll'] ) ? absint( $_POST['poll'] ) : 0;
 
-	// [FU006#AK01] Betreff/Text mit Platzhaltern; Vorgabe speichert der Admin über sich selbst.
-	$default_subject = 'Einladung zur Abstimmung: {poll_title}';
-	$default_body    = "Hallo,\r\n\r\n"
-		. '{site_name} bittet zur Abstimmung „{poll_title}“.' . "\r\n"
-		. 'Wahlzeitraum: {start} – {end}.' . "\r\n\r\n"
-		. 'Rufe den folgenden Link auf, um deine persönliche Wahl-PIN (6 Ziffern) zu setzen:' . "\r\n"
-		. '{link}' . "\r\n\r\n"
-		. 'Halte Mitgliedsnummer ({member_no}) und deine E-Mail-Adresse bereit.' . "\r\n\r\n"
-		. 'Viele Grüße\r\n{site_name}';
+	// [FU006#AK01] Betreff/Text mit Platzhaltern; Vorlage wird beim Versand gespeichert.
+	$defaults = vv_invite_body_defaults();
 
-	$subject = sanitize_text_field( wp_unslash( $_POST['subject'] ?? $default_subject ) );
-	$body    = sanitize_textarea_field( wp_unslash( $_POST['body'] ?? $default_body ) );
+	$subject = sanitize_text_field( wp_unslash( $_POST['subject'] ?? $defaults['subject'] ) );
+	$body    = sanitize_textarea_field( wp_unslash( $_POST['body'] ?? $defaults['body'] ) );
 
 	// Basis-URL der Aktivierungsseite muss der Admin mitgeben (Seite mit Shortcode [verein_voting_activate]).
 	$activate_url = esc_url_raw( wp_unslash( $_POST['activate_url'] ?? '' ) );
@@ -309,6 +330,10 @@ function vv_send_invites() {
 	if ( ! $poll ) {
 		wp_die( 'Abstimmung nicht gefunden.' );
 	}
+
+	// [FU006#AK03] Zuletzt verwendete Vorlage bleibt erhalten.
+	update_option( 'vv_invite_subject', $subject );
+	update_option( 'vv_invite_body', $body );
 
 	$headers = [ 'Content-Type: text/plain; charset=UTF-8' ];
 	$sent    = 0;
@@ -369,17 +394,22 @@ function vv_render_poll_form( $poll_id = 0 ) {
 		echo '<div class="notice notice-warning"><p>Diese Abstimmung läuft oder ist beendet – Titel/Fristen sind gesperrt.</p></div>';
 	}
 	echo '<table class="form-table">';
-	echo '<tr><th><label for="vv-title">Titel</label></th><td><input name="title" id="vv-title" type="text" class="regular-text" value="' . esc_attr( $poll->title ?? '' ) . '" ' . ( $locked ? 'readonly' : '' ) . ' required></td></tr>';
-	echo '<tr><th><label for="vv-question">Frage / Beschreibung</label></th><td><textarea name="question" id="vv-question" rows="4" class="large-text" ' . ( $locked ? 'readonly' : '' ) . '>' . esc_textarea( $poll->question ?? '' ) . '</textarea></td></tr>';
+	echo '<tr><th><label for="vv-title">Titel</label></th><td><input name="title" id="vv-title" type="text" class="regular-text" value="' . esc_attr( isset( $poll->title ) ? $poll->title : '' ) . '" ' . ( $locked ? 'readonly' : '' ) . ' required></td></tr>';
+	echo '<tr><th><label for="vv-question">Frage / Beschreibung</label></th><td><textarea name="question" id="vv-question" rows="4" class="large-text" ' . ( $locked ? 'readonly' : '' ) . '>' . esc_textarea( isset( $poll->question ) ? $poll->question : '' ) . '</textarea></td></tr>';
 	echo '<tr><th><label for="vv-start">Start</label></th><td><input name="start_dt" id="vv-start" type="datetime-local" value="' . esc_attr( isset( $poll->start_dt ) ? str_replace( ' ', 'T', substr( $poll->start_dt, 0, 16 ) ) : '' ) . '" ' . ( $locked ? 'readonly' : '' ) . ' required></td></tr>';
 	echo '<tr><th><label for="vv-end">Ende</label></th><td><input name="end_dt" id="vv-end" type="datetime-local" value="' . esc_attr( isset( $poll->end_dt ) ? str_replace( ' ', 'T', substr( $poll->end_dt, 0, 16 ) ) : '' ) . '" ' . ( $locked ? 'readonly' : '' ) . ' required></td></tr>';
 
 	if ( $poll ) {
 		echo '<tr><th>Status</th><td>';
 		if ( ! $locked ) {
-			// Nur draft->active vor dem Start, administrativ.
-			echo '<label><input type="radio" name="status" value="draft" checked> Entwurf</label> ';
-			echo '<label><input type="radio" name="status" value="active"> Läuft (startet die Wahl jetzt)</label>';
+			$now       = current_time( 'mysql' );
+			$in_window = vv_normalize_dt( $poll->start_dt ) <= $now && $now < vv_normalize_dt( $poll->end_dt );
+			if ( $in_window ) {
+				echo '<label><input type="radio" name="status" value="draft" checked> Entwurf</label> ';
+				echo '<label><input type="radio" name="status" value="active"> Läuft (startet die Wahl jetzt)</label>';
+			} else {
+				echo '<p>Die Abstimmung startet automatisch beim ersten gültigen Votum innerhalb des Zeitraums.</p>';
+			}
 		} else {
 			echo 'Aktueller Status: <strong>' . esc_html( [ 'draft' => 'Entwurf', 'active' => 'läuft', 'closed' => 'beendet' ][ $poll->status ] ?? $poll->status ) . '</strong>';
 			if ( 'active' === $poll->status ) {
@@ -450,9 +480,20 @@ function vv_render_invite_form( $poll ) {
 function vv_render_members_table( $poll ) {
 	global $wpdb;
 
-	$voters = $wpdb->get_results( $wpdb->prepare(
-		"SELECT member_no, email, has_voted, voted_at FROM {$wpdb->prefix}voting_voters WHERE poll_id = %d ORDER BY member_no",
+	$per_page = 100;
+	$total    = (int) $wpdb->get_var( $wpdb->prepare(
+		"SELECT COUNT(*) FROM {$wpdb->prefix}voting_voters WHERE poll_id = %d",
 		$poll->id
+	) );
+	$pages = max( 1, (int) ceil( $total / $per_page ) );
+	$page  = min( $pages, max( 1, isset( $_GET['vv_page'] ) ? absint( $_GET['vv_page'] ) : 1 ) );
+
+	$voters = $wpdb->get_results( $wpdb->prepare(
+		"SELECT member_no, email, has_voted, voted_at FROM {$wpdb->prefix}voting_voters
+		 WHERE poll_id = %d ORDER BY member_no LIMIT %d OFFSET %d",
+		$poll->id,
+		$per_page,
+		( $page - 1 ) * $per_page
 	) );
 
 	echo '<h2>Beteiligung</h2>';
@@ -479,6 +520,20 @@ function vv_render_members_table( $poll ) {
 			. '</tr>';
 	}
 	echo '</tbody></table>';
+
+	// [FU005#AK01] Seitenweise Anzeige, damit große Vereine nicht alles auf einmal laden.
+	if ( $pages > 1 ) {
+		$base = admin_url( 'admin.php?page=vereins-voting&view=members&poll=' . (int) $poll->id );
+		echo '<p class="vv-pagination">';
+		if ( $page > 1 ) {
+			echo '<a class="button" href="' . esc_url( add_query_arg( [ 'vv_page' => $page - 1 ], $base ) ) . '">« Zurück</a> ';
+		}
+		echo 'Seite ' . (int) $page . ' von ' . (int) $pages;
+		if ( $page < $pages ) {
+			echo ' <a class="button" href="' . esc_url( add_query_arg( [ 'vv_page' => $page + 1 ], $base ) ) . '">Weiter »</a>';
+		}
+		echo '</p>';
+	}
 
 	// [FU005#AK03] Aggregiertes Ergebnis nach Wahlende.
 	if ( 'closed' === $poll->status ) {

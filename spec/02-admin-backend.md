@@ -16,6 +16,14 @@ löschen.
   sie den Status `draft` haben. Bei aktiven oder geschlossenen Abstimmungen
   sind sicherheitsrelevante Felder gesperrt.
 
+- **[FU002#AK03]** Der Statuswechsel `draft → active` ist nur innerhalb des
+  Zeitraums möglich; außerhalb wird er verworfen und die Abstimmung startet
+  automatisch beim ersten gültigen Votum im Zeitraum.
+
+- **[FU002#AK04]** Ist in WordPress keine Zeitzone gesetzt (UTC ohne
+  `timezone_string`/`gmt_offset`), erscheint im Backend ein Warnhinweis,
+  damit Wahlzeiten nicht unbemerkt verschoben werden.
+
 ## [FU003] Mitglieder-CSV-Import & Token-Generierung
 
 ### Beschreibung
@@ -25,7 +33,8 @@ Import einer Mitgliederliste per CSV-Upload pro Abstimmung.
 ### Akzeptanzkriterien
 
 - **[FU003#AK01]** Der Admin kann eine CSV-Datei mit den Spalten
-  *Mitgliedsnummer* und *E-Mail* hochladen.
+  *Mitgliedsnummer* und *E-Mail* hochladen. Trennzeichen (`,` oder `;`) und
+  Überschriftszeile werden automatisch erkannt; ein UTF-8-BOM wird entfernt.
 
 - **[FU003#AK02]** Das System validiert die E-Mail-Adressen, verhindert
   Duplikate pro Abstimmung und generiert für jeden Datensatz einen
@@ -47,6 +56,9 @@ Abstimmung.
   E-Mails mit einem Aktivierungslink, der den `activation_token` als
   URL-Parameter enthält.
 
+- **[FU004#AK03]** Betreff und Text werden beim Versand als Vorlage
+  gespeichert und beim nächsten Aufruf wieder vorbelegt.
+
 ## [FU005] Admin-Audit- & Beteiligungs-Übersicht
 
 ### Beschreibung
@@ -57,7 +69,9 @@ Stimmgeheimnisses.
 ### Akzeptanzkriterien
 
 - **[FU005#AK01]** Der Admin sieht eine Liste aller importierten Mitglieder
-  mit Status (*Hat gewählt: Ja/Nein* und *Gewählt am: [Zeitstempel]*).
+  mit Status (*Hat gewählt: Ja/Nein* und *Gewählt am: [Zeitstempel]*). Die
+  Liste wird seitenweise angezeigt (100 Einträge pro Seite); die
+  Abstimmungsübersicht zeigt Teilnehmer- und Stimmenzahl je Abstimmung.
 
 - **[FU005#AK02]** Es ist technisch unmöglich, im Backend einzusehen, welche
   Option (ja, nein, enthaltung) ein spezifisches Mitglied gewählt hat.

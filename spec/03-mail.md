@@ -13,3 +13,6 @@ Bereitstellung anpassbarer E-Mail-Texte für Einladung und Bestätigung.
 
 - **[FU006#AK02]** Bestätigungs-E-Mail (optional oder direkt im Browser)
   enthält den anonymen `receipt_hash` nach erfolgreicher Stimmabgabe.
+
+- **[FU006#AK03]** Betreff und Text der Einladung sind im Backend editierbar
+  und bleiben als Vorlage für den nächsten Versand gespeichert.

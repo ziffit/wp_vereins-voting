@@ -29,8 +29,9 @@ function vv_db_reset() {
 		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}$t" );
 	}
 	( $GLOBALS['vv_activation_hook'] ?? null )();
-	$GLOBALS['vv_mails']   = [];
-	$GLOBALS['vv_options'] = [];
+	$GLOBALS['vv_mails']      = [];
+	$GLOBALS['vv_options']    = [];
+	$GLOBALS['vv_transients'] = [];
 	$_GET  = [];
 	$_POST = [];
 	unset( $_FILES );

@@ -195,7 +195,44 @@ function wp_safe_redirect( $url ) { throw new VVRedirectFound( $url ); }
 function wp_die( $msg = '' ) { throw new VVWpDie( (string) $msg ); }
 function check_admin_referer( $a = '', $b = '' ) { return true; }
 function current_user_can( $cap ) { return true; }
-function wp_nonce_field( $a = '', $b = '' ) { echo '<input type="hidden" name="vv_nonce" value="x">'; }
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) {
+	define( 'MINUTE_IN_SECONDS', 60 );
+}
+
+/** Nonces im Shim deterministisch pro Aktion (echtes WP nutzt Nutzer+Sitzung+Tick). */
+function wp_create_nonce( $action = -1 ) { return md5( 'vvshim|' . $action ); }
+function wp_verify_nonce( $nonce, $action = -1 ) {
+	return hash_equals( wp_create_nonce( $action ), (string) $nonce ) ? 1 : false;
+}
+function wp_nonce_field( $action = -1, $name = '_wpnonce', $referer = true, $echo = true ) {
+	$field = '<input type="hidden" name="' . esc_attr( $name ) . '" value="' . esc_attr( wp_create_nonce( $action ) ) . '">';
+	if ( $echo ) {
+		echo $field;
+	}
+	return $field;
+}
+
+/** Transients im Speicher mit Ablauf, damit Rate-Limits testbar sind. */
+$GLOBALS['vv_transients'] = [];
+function get_transient( $key ) {
+	$t = $GLOBALS['vv_transients'][ $key ] ?? false;
+	if ( false === $t ) {
+		return false;
+	}
+	if ( $t['exp'] && $t['exp'] < time() ) {
+		unset( $GLOBALS['vv_transients'][ $key ] );
+		return false;
+	}
+	return $t['val'];
+}
+function set_transient( $key, $value, $ttl = 0 ) {
+	$GLOBALS['vv_transients'][ $key ] = [ 'val' => $value, 'exp' => $ttl ? time() + (int) $ttl : 0 ];
+	return true;
+}
+function delete_transient( $key ) {
+	unset( $GLOBALS['vv_transients'][ $key ] );
+	return true;
+}
 function wp_enqueue_style( $id, $src = '', $deps = [], $ver = '' ) {}
 function wp_register_style( $id, $src = '', $deps = [], $ver = '' ) {}
 function wp_enqueue_scripts() {}

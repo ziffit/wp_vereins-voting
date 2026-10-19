@@ -48,33 +48,44 @@ function vv_shortcode_activate() {
 
 	// [FU007#AK02] Formular-Proposal: Mitgliedsnummer + E-Mail müssen zum Token passen.
 	if ( ( $_SERVER['REQUEST_METHOD'] ?? 'GET' ) === 'POST' && $voter ) {
-		$member_no = sanitize_text_field( wp_unslash( $_POST['member_no'] ?? '' ) );
-		$email     = sanitize_email( wp_unslash( $_POST['email'] ?? '' ) );
-		$pin       = preg_replace( '/\D/', '', wp_unslash( $_POST['pin'] ?? '' ) );
-		$pin2      = preg_replace( '/\D/', '', wp_unslash( $_POST['pin2'] ?? '' ) );
-
-		if ( ! hash_equals( (string) $voter->member_no, $member_no ) || ! hash_equals( strtolower( $voter->email ), strtolower( $email ) ) ) {
-			$error = 'Mitgliedsnummer oder E-Mail stimmen nicht mit der Einladung überein.';
-		} elseif ( strlen( $pin ) !== 6 || $pin !== $pin2 ) {
-			$error = 'Die PIN muss 6-stellig sein und in beiden Feldern gleich lauten.';
-		} elseif ( ! empty( $voter->pin_hash ) ) {
-			$error = 'Für diese Einladung wurde bereits eine PIN gesetzt. Nutze direkt das Stimmformular.';
+		$rate_id = 'activate|' . $token;
+		if ( vv_rate_blocked( 'activate', $rate_id ) ) {
+			$error = 'Zu viele Fehlversuche. Bitte in 15 Minuten erneut versuchen.';
+		} elseif ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['vv_frontend_nonce'] ?? '' ) ), 'vv_frontend' ) ) {
+			// [FU007#AK04] CSRF-Schutz.
+			$error = 'Sicherheitsprüfung fehlgeschlagen. Bitte Seite neu laden und erneut versuchen.';
 		} else {
-			$ok = $wpdb->update(
-				"{$wpdb->prefix}voting_voters",
-				[
-					'pin_hash'         => password_hash( $pin, PASSWORD_DEFAULT ),
-					'activation_token' => null,
-				],
-				[ 'id' => $voter->id ]
-			);
-			if ( $ok ) {
-				// [FU007#AK03] Erfolg + Token einmalig verbraucht.
-				return '<div class="vv-box vv-success"><strong>Erfolgreich – deine Wahl-PIN ist gesetzt.</strong><br>'
-					. 'Nutze während des Wahlzeitraums die Seite mit dem Stimmformular, um abzustimmen. '
-					. 'Halte Mitgliedsnummer, E-Mail und deine 6-stellige PIN bereit.</div>';
+			$member_no = sanitize_text_field( wp_unslash( $_POST['member_no'] ?? '' ) );
+			$email     = sanitize_email( wp_unslash( $_POST['email'] ?? '' ) );
+			$pin       = preg_replace( '/\D/', '', wp_unslash( $_POST['pin'] ?? '' ) );
+			$pin2      = preg_replace( '/\D/', '', wp_unslash( $_POST['pin2'] ?? '' ) );
+
+			if ( ! hash_equals( (string) $voter->member_no, $member_no ) || ! hash_equals( strtolower( $voter->email ), strtolower( $email ) ) ) {
+				vv_rate_fail( 'activate', $rate_id );
+				$error = 'Mitgliedsnummer oder E-Mail stimmen nicht mit der Einladung überein.';
+			} elseif ( strlen( $pin ) !== 6 || $pin !== $pin2 ) {
+				vv_rate_fail( 'activate', $rate_id );
+				$error = 'Die PIN muss 6-stellig sein und in beiden Feldern gleich lauten.';
+			} elseif ( ! empty( $voter->pin_hash ) ) {
+				$error = 'Für diese Einladung wurde bereits eine PIN gesetzt. Nutze direkt das Stimmformular.';
+			} else {
+				$ok = $wpdb->update(
+					"{$wpdb->prefix}voting_voters",
+					[
+						'pin_hash'         => password_hash( $pin, PASSWORD_DEFAULT ),
+						'activation_token' => null,
+					],
+					[ 'id' => $voter->id ]
+				);
+				if ( $ok ) {
+					vv_rate_clear( 'activate', $rate_id );
+					// [FU007#AK03] Erfolg + Token einmalig verbraucht.
+					return '<div class="vv-box vv-success"><strong>Erfolgreich – deine Wahl-PIN ist gesetzt.</strong><br>'
+						. 'Nutze während des Wahlzeitraums die Seite mit dem Stimmformular, um abzustimmen. '
+						. 'Halte Mitgliedsnummer, E-Mail und deine 6-stellige PIN bereit.</div>';
+				}
+				$error = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
 			}
-			$error = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
 		}
 	}
 
@@ -87,6 +98,7 @@ function vv_shortcode_activate() {
 	ob_start();
 	?>
 	<form method="post" class="vv-form">
+		<?php wp_nonce_field( 'vv_frontend', 'vv_frontend_nonce' ); ?>
 		<p><strong>Abstimmung:</strong> <?php echo esc_html( vv_poll_title( $poll_id ) ); ?></p>
 		<label for="vv-member-no">Mitgliedsnummer
 			<input type="text" id="vv-member-no" name="member_no" required value="">
@@ -123,21 +135,26 @@ function vv_shortcode_form() {
 	}
 
 	if ( ( $_SERVER['REQUEST_METHOD'] ?? 'GET' ) === 'POST' ) {
-		try {
-			$receipt = vv_cast_vote(
-				$poll_id,
-				sanitize_text_field( wp_unslash( $_POST['member_no'] ?? '' ) ),
-				sanitize_email( wp_unslash( $_POST['email'] ?? '' ) ),
-				preg_replace( '/\D/', '', wp_unslash( $_POST['pin'] ?? '' ) ),
-				sanitize_key( wp_unslash( $_POST['option'] ?? '' ) )
-			);
+		if ( ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['vv_frontend_nonce'] ?? '' ) ), 'vv_frontend' ) ) {
+			// [FU008#AK05] CSRF-Schutz.
+			$error = 'Sicherheitsprüfung fehlgeschlagen. Bitte Seite neu laden und erneut versuchen.';
+		} else {
+			try {
+				$receipt = vv_cast_vote(
+					$poll_id,
+					sanitize_text_field( wp_unslash( $_POST['member_no'] ?? '' ) ),
+					sanitize_email( wp_unslash( $_POST['email'] ?? '' ) ),
+					preg_replace( '/\D/', '', wp_unslash( $_POST['pin'] ?? '' ) ),
+					sanitize_key( wp_unslash( $_POST['option'] ?? '' ) )
+				);
 
-			// [FU008#AK04] Formular ausblenden, ReceiptHash anzeigen.
-			return '<div class="vv-box vv-success"><strong>Deine Stimme wurde gezählt. Danke!</strong><br>'
-				. 'Dein persönlicher Prüfcode (Receipt-Hash):<br><code class="vv-receipt">' . esc_html( $receipt ) . '</code><br>'
-				. '<small>Bitte sichere diesen Code. Damit kannst du nach Wahlende prüfen, dass deine Stimme in der Urne liegt.</small></div>';
-		} catch ( \Throwable $e ) {
-			$error = $e->getMessage();
+				// [FU008#AK04] Formular ausblenden, ReceiptHash anzeigen.
+				return '<div class="vv-box vv-success"><strong>Deine Stimme wurde gezählt. Danke!</strong><br>'
+					. 'Dein persönlicher Prüfcode (Receipt-Hash):<br><code class="vv-receipt">' . esc_html( $receipt ) . '</code><br>'
+					. '<small>Bitte sichere diesen Code. Damit kannst du nach Wahlende prüfen, dass deine Stimme in der Urne liegt.</small></div>';
+			} catch ( \Throwable $e ) {
+				$error = $e->getMessage();
+			}
 		}
 	}
 
@@ -149,6 +166,7 @@ function vv_shortcode_form() {
 	ob_start();
 	?>
 	<form method="post" class="vv-form">
+		<?php wp_nonce_field( 'vv_frontend', 'vv_frontend_nonce' ); ?>
 		<p><strong>Abstimmung:</strong> <?php echo esc_html( $poll->title ); ?></p>
 		<?php if ( ! empty( $poll->question ) ) { ?>
 			<p><?php echo esc_html( $poll->question ); ?></p>
@@ -199,13 +217,13 @@ function vv_shortcode_results() {
 
 	// Wirkt geschlossen, sobald der Zeitraum vorbei ist (auch wenn der Admin
 	// vergessen hatte, den Status zu setzen).
-	$expired = $poll->end_dt <= current_time( 'mysql' );
+	$expired = vv_normalize_dt( $poll->end_dt ) <= current_time( 'mysql' );
 	$show_results = ( 'closed' === $poll->status ) || ( 'active' === $poll->status && $expired );
 
 	if ( $show_results ) {
 		// [FU009#AK02] Endgültiges Ergebnis.
 		$results = vv_get_results( $poll_id );
-		$label   = 'closed' === $poll->status || $expired ? 'Ergebnis' : 'Zwischenstand (Wahlzeitraum abgelaufen)';
+		$label   = 'closed' === $poll->status ? 'Ergebnis' : 'Ergebnis (Wahlzeitraum abgelaufen)';
 		$html = '<h3>' . esc_html( $label ) . ': ' . esc_html( $poll->title ) . '</h3>';
 		if ( ! empty( $poll->question ) ) {
 			$html .= '<p>' . esc_html( $poll->question ) . '</p>';
@@ -247,7 +265,14 @@ function vv_shortcode_results() {
 
 /** Datumsformat für Frontend. $dt = 'YYYY-MM-DD HH:MM:SS'. */
 function vv_fmt( $dt ) {
+	$dt = vv_normalize_dt( $dt );
+	if ( '' === $dt ) {
+		return '–';
+	}
 	$ts = mysql2date( 'U', $dt );
+	if ( ! $ts ) {
+		return '–';
+	}
 	return date_i18n( 'd.m.Y, H:i', $ts );
 }
 
