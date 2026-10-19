@@ -282,7 +282,7 @@ function vv_import_csv() {
 	$imported = 0;
 	$skipped  = 0;
 
-	// Trennzeichen erkennen (Komma oder Semikolon) und Überschriftszeile überspringen.
+	// Trennzeichen aus der ersten Zeile ableiten (Komma oder Semikolon).
 	$delim   = ',';
 	$preview = fgets( $handle );
 	if ( is_string( $preview ) && strpos( $preview, ';' ) !== false ) {
@@ -290,54 +290,103 @@ function vv_import_csv() {
 	}
 	rewind( $handle );
 
-	$process_row = function ( $row ) use ( $wpdb, $poll_id, &$imported, &$skipped ) {
-		if ( ! is_array( $row ) || count( $row ) < 2 ) {
-			return;
+	// [FU003#AK01] Kopfzeile ist Pflicht: Spalten werden über ihre Namen
+	// zugeordnet (Reihenfolge frei); weitere Spalten werden ignoriert.
+	$header = fgetcsv( $handle, 0, $delim );
+	if ( false === $header ) {
+		fclose( $handle );
+		wp_die( 'CSV-Datei ist leer.' );
+	}
+	$map = [];
+	foreach ( (array) $header as $i => $label ) {
+		$key = preg_replace( '/[^a-z0-9]/', '', strtolower( preg_replace( '/^\xEF\xBB\xBF/', '', (string) $label ) ) );
+		if ( in_array( $key, [ 'mitgliedsnummer', 'email', 'vorname', 'name', 'nachname' ], true ) && ! isset( $map[ $key ] ) ) {
+			$map[ $key ] = $i;
 		}
-		$member_no = sanitize_text_field( preg_replace( '/^\xEF\xBB\xBF/', '', (string) $row[0] ) );
-		$email     = sanitize_email( $row[1] );
+	}
+	// „Name“ und „Nachname“ sind gleichwertig; bei beiden gilt Nachname.
+	$map['nachname'] = $map['nachname'] ?? ( $map['name'] ?? null );
+	$labels = [
+		'mitgliedsnummer' => 'Mitgliedsnummer',
+		'email'           => 'E-Mail',
+		'vorname'         => 'Vorname',
+		'nachname'        => 'Name (oder Nachname)',
+	];
+	$missing = [];
+	foreach ( $labels as $key => $label ) {
+		if ( ! isset( $map[ $key ] ) ) {
+			$missing[] = $label;
+		}
+	}
+	if ( $missing ) {
+		fclose( $handle );
+		wp_die(
+			'CSV-Kopfzeile unvollständig. Fehlende Spalten: ' . implode( ', ', $missing )
+			. '. Gefundene Kopfzeile: ' . implode( ', ', array_map( 'esc_html', array_map( 'trim', (array) $header ) ) )
+			. '. Erwartet werden die Spalten Mitgliedsnummer, E-Mail, Vorname und Name (oder Nachname).'
+		);
+	}
 
-		// Überschriftszeile (keine Ziffern in der Mitgliedsnummer) nicht als Fehler zählen.
-		if ( '' === $member_no || '' === $email ) {
+	// Kurze Zeilen und Leerzeilen dürfen den Import nicht abbrechen.
+	$cell = fn( $row, $i ) => isset( $row[ $i ] ) ? (string) $row[ $i ] : '';
+
+	$process_row = function ( $row ) use ( $wpdb, $poll_id, $cell, $map, &$imported, &$skipped ) {
+		if ( ! is_array( $row ) ) {
 			return;
 		}
-		if ( ! is_email( $email ) ) {
+		$member_no = sanitize_text_field( $cell( $row, $map['mitgliedsnummer'] ) );
+		$email     = sanitize_email( $cell( $row, $map['email'] ) );
+		$first     = mb_substr( sanitize_text_field( $cell( $row, $map['vorname'] ) ), 0, 100 ); // DB-Spalte VARCHAR(100).
+		$last      = mb_substr( sanitize_text_field( $cell( $row, $map['nachname'] ) ), 0, 100 );
+
+		if ( '' === $member_no && '' === $email && '' === $first && '' === $last ) {
+			return; // Leerzeile: still überspringen, nicht als Fehler zählen.
+		}
+		// [FU003#AK03] Pflichtwerte (inkl. beider Namen) und E-Mail-Syntax prüfen.
+		if ( '' === $member_no || '' === $first || '' === $last || ! is_email( $email ) ) {
 			++$skipped;
 			return;
 		}
 
-		// Duplikatschutz pro Abstimmung, E-Mail-Fall fällt hier normalisiert zusammen.
-		$exists = $wpdb->get_var( $wpdb->prepare(
-			"SELECT id FROM {$wpdb->prefix}voting_voters WHERE poll_id = %d AND LOWER(email) = %s",
+		// Duplikatschutz pro Abstimmung (E-Mail case-insensitiv, wie bisher).
+		// [FU003#AK02] Bei Altdaten ohne Namen werden leere Namensfelder nachgetragen,
+		// vorhandene Werte bleiben unangetastet.
+		$exists = $wpdb->get_row( $wpdb->prepare(
+			"SELECT id, first_name, last_name FROM {$wpdb->prefix}voting_voters WHERE poll_id = %d AND LOWER(email) = %s",
 			$poll_id,
 			strtolower( $email )
 		) );
 		if ( $exists ) {
+			$fill = [];
+			if ( '' === (string) $exists->first_name ) {
+				$fill['first_name'] = $first;
+			}
+			if ( '' === (string) $exists->last_name ) {
+				$fill['last_name'] = $last;
+			}
+			if ( $fill ) {
+				$wpdb->update( "{$wpdb->prefix}voting_voters", $fill, [ 'id' => (int) $exists->id ] );
+			}
 			++$skipped;
 			return;
 		}
 
-		$wpdb->insert( "{$wpdb->prefix}voting_voters", [
+		if ( ! $wpdb->insert( "{$wpdb->prefix}voting_voters", [
 			'poll_id'          => $poll_id,
 			'member_no'        => $member_no,
 			'email'            => $email,
+			'first_name'       => $first,
+			'last_name'        => $last,
 			'activation_token' => bin2hex( random_bytes( 16 ) ),
-		] );
+		] ) ) {
+			++$skipped; // DB-Fehler (z. B. Länge/Zeichensatz) nicht als importiert melden.
+			return;
+		}
 		++$imported;
 	};
 
-	$is_header_row = null;
 	$wpdb->query( 'START TRANSACTION' );
 	while ( ( $row = fgetcsv( $handle, 0, $delim ) ) !== false ) {
-		if ( null === $is_header_row ) {
-			$is_header_row = is_array( $row ) && count( $row ) >= 2
-				&& preg_match( '/[a-zA-Z]/', (string) $row[0] )
-				&& ! preg_match( '/\d/', (string) $row[0] )
-				&& ! is_email( (string) $row[1] );
-			if ( $is_header_row ) {
-				continue;
-			}
-		}
 		$process_row( $row );
 	}
 	fclose( $handle );
@@ -378,10 +427,11 @@ function vv_send_invites() {
 	$headers = [ 'Content-Type: text/plain; charset=UTF-8' ];
 	$sent    = 0;
 
-	// [FU006#AK01] Vereinsname, Titel, Fristen, personalisierter Link.
+	// [FU006#AK01/#AK04] Vereinsname, Titel, Fristen, personalisierter Link, Namen.
 	foreach ( (array) $wpdb->get_results( $wpdb->prepare(
-		"SELECT id, member_no, email, activation_token FROM {$wpdb->prefix}voting_voters
-		 WHERE poll_id = %d AND activation_token IS NOT NULL",
+		"SELECT id, member_no, email, first_name, last_name, activation_token FROM {$wpdb->prefix}voting_voters
+		 WHERE poll_id = %d AND activation_token IS NOT NULL
+		 ORDER BY id",
 		$poll_id
 	) ) as $voter ) {
 		$link = add_query_arg(
@@ -392,7 +442,7 @@ function vv_send_invites() {
 			$activate_url
 		);
 
-		$find = [ '{site_name}', '{poll_title}', '{start}', '{end}', '{link}', '{member_no}' ];
+		$find = [ '{site_name}', '{poll_title}', '{start}', '{end}', '{link}', '{member_no}', '{first_name}', '{last_name}' ];
 		$replace = [
 			get_bloginfo( 'name' ),
 			$poll->title,
@@ -400,6 +450,8 @@ function vv_send_invites() {
 			vv_fmt( $poll->end_dt ),
 			$link,
 			$voter->member_no,
+			(string) $voter->first_name,
+			(string) $voter->last_name,
 		];
 		$mail_subject = str_replace( $find, $replace, $subject );
 		$mail_body    = str_replace( $find, $replace, $body );
@@ -487,7 +539,9 @@ function vv_render_poll_form( $poll_id = 0 ) {
 
 function vv_render_import_form( $poll ) {
 	echo '<h2>Teilnehmer (CSV-Import)</h2>';
-	echo '<p>CSV mit zwei Spalten: <code>Mitgliedsnummer;E-Mail</code> — eine Person pro Zeile, erste Zeile = Überschrift wird übersprungen.</p>';
+	echo '<p>CSV mit Kopfzeile, z. B. <code>Mitgliedsnummer;E-Mail;Vorname;Name</code> — Spaltenreihenfolge frei, '
+		. '<code>Nachname</code> statt <code>Name</code> möglich, weitere Spalten werden ignoriert. '
+		. 'Trennzeichen <code>,</code> oder <code>;</code>, eine Person pro Zeile.</p>';
 	echo '<form method="post" enctype="multipart/form-data">';
 	wp_nonce_field( 'vv_admin', 'vv_nonce' );
 	echo '<input type="hidden" name="vv_action" value="import_csv">';
@@ -513,7 +567,7 @@ function vv_render_invite_form( $poll ) {
 	$body     = get_option( 'vv_invite_body', $defaults['body'] );
 	?>
 	<h2>Einladungen versenden</h2>
-	<p>Link-Templates im Text: <code>{site_name} {poll_title} {start} {end} {member_no} {link}</code>.
+	<p>Link-Templates im Text: <code>{site_name} {poll_title} {start} {end} {member_no} {first_name} {last_name} {link}</code>.
 		{link} ist der persönliche Aktivierungslink.</p>
 	<form method="post" onsubmit="return confirm('Massenversand starten? Empfänger ohne PIN: <?php echo (int) $pending; ?>');">
 		<?php wp_nonce_field( 'vv_admin', 'vv_nonce' ); ?>
@@ -553,7 +607,7 @@ function vv_render_members_table( $poll ) {
 	$page  = min( $pages, max( 1, isset( $_GET['vv_page'] ) ? absint( $_GET['vv_page'] ) : 1 ) );
 
 	$voters = $wpdb->get_results( $wpdb->prepare(
-		"SELECT member_no, email, has_voted, voted_at FROM {$wpdb->prefix}voting_voters
+		"SELECT member_no, first_name, last_name, email, has_voted, voted_at FROM {$wpdb->prefix}voting_voters
 		 WHERE poll_id = %d ORDER BY member_no LIMIT %d OFFSET %d",
 		$poll->id,
 		$per_page,
@@ -577,10 +631,12 @@ function vv_render_members_table( $poll ) {
 		echo '<p>Noch keine Teilnehmer importiert.</p>';
 		return;
 	}
-	echo '<table class="widefat striped"><thead><tr><th>Mitgliedsnummer</th><th>E-Mail</th><th>Hat gewählt</th><th>Gewählt am</th></tr></thead><tbody>';
+	echo '<table class="widefat striped"><thead><tr><th>Mitgliedsnummer</th><th>Name</th><th>E-Mail</th><th>Hat gewählt</th><th>Gewählt am</th></tr></thead><tbody>';
 	foreach ( $voters as $v ) {
+		$name = trim( (string) $v->first_name . ' ' . (string) $v->last_name );
 		echo '<tr>'
 			. '<td>' . esc_html( $v->member_no ) . '</td>'
+			. '<td>' . esc_html( '' === $name ? '–' : $name ) . '</td>'
 			. '<td>' . esc_html( $v->email ) . '</td>'
 			. '<td>' . ( (int) $v->has_voted ? 'Ja' : 'Nein' ) . '</td>'
 			. '<td>' . ( $v->voted_at ? esc_html( vv_fmt( $v->voted_at ) ) : '–' ) . '</td>'

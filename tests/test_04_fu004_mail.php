@@ -42,7 +42,7 @@ return [
 
 	'test_04_fu006_ak01_einladungstext_platzhalter' => function () {
 		$pid = vv_fx_poll( [ 'title' => 'Satzungsänderung', 'question' => 'Stimmt zu?' ] );
-		vv_fx_voter( $pid, '101', 'empf@example.org', 'tok1' );
+		vv_fx_voter( $pid, '101', 'empf@example.org', 'tok1', null, 'Erika', 'Muster' );
 
 		vv_fx_http( [], [
 			'vv_action'    => 'send_invites',
@@ -58,6 +58,7 @@ return [
 			vv_check( str_contains( $mail['body'], 'Satzungsänderung' ), '[FU006#AK01] Mailtext enthält Abstimmungstitel' );
 			vv_check( str_contains( $mail['body'], 'Wahlzeitraum' ), '[FU006#AK01] Mailtext enthält Fristen' );
 			vv_check( str_contains( $mail['body'], '101' ), '[FU006#AK01] Mailtext enthält Mitgliedsnummer' );
+			vv_check( str_contains( $mail['body'], 'Hallo Erika,' ), '[FU006#AK04] Standardtext begrüßt mit dem Vornamen' );
 			vv_check( ! str_contains( $mail['body'], '{link}' ), 'Platzhalter {link} ist ersetzt' );
 			vv_check( ! str_contains( $mail['body'], '{poll_title}' ), 'Platzhalter {poll_title} ist ersetzt' );
 		} else {
@@ -113,5 +114,29 @@ return [
 		$html = (string) ob_get_clean();
 		vv_check( str_contains( $html, 'Eigener Betreff {poll_title}' ),
 			'[FU006#AK03] Formular verwendet gespeicherte Vorlage' );
+	},
+
+	'test_04_fu006_ak04_namens_platzhalter' => function () {
+		$pid = vv_fx_poll( [ 'title' => 'Namenswahl' ] );
+		vv_fx_voter( $pid, '101', 'erika@example.org', 'tok1', null, 'Erika', 'Muster' );
+		vv_fx_voter( $pid, '102', 'max@example.org', 'tok2', null, 'Max', 'Beispiel' );
+
+		vv_fx_http( [], [
+			'vv_action'    => 'send_invites',
+			'poll'         => $pid,
+			'activate_url' => 'https://seite.example.org/aktivieren/',
+			'subject'      => 'Einladung für {first_name}',
+			'body'         => "Hallo {first_name} {last_name},\r\n{link}",
+		] );
+		vv_fx_run( 'vv_send_invites' );
+
+		$all = '';
+		foreach ( vv_fx_mails() as $m ) {
+			$all .= $m['subject'] . "\n" . $m['body'] . "\n";
+		}
+		vv_check( str_contains( $all, 'Hallo Erika Muster,' ) && str_contains( $all, 'Hallo Max Beispiel,' ),
+			'[FU006#AK04] {first_name}/{last_name} werden je Empfänger ersetzt' );
+		vv_check( ! str_contains( $all, '{first_name}' ) && ! str_contains( $all, '{last_name}' ),
+			'[FU006#AK04] keine Platzhalter-Reste in den Mails' );
 	},
 ];

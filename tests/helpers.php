@@ -43,13 +43,13 @@ function vv_fx_poll( $o = [] ) {
 }
 
 /** Erzeugt Wähler-Zeile; token null = bereits verbraucht; pin als Klartext→Hash. Gibt [id, token]. */
-function vv_fx_voter( $pid, $member = '101', $email = 'wahl@example.org', $token = 'aa11', $pin = null ) {
+function vv_fx_voter( $pid, $member = '101', $email = 'wahl@example.org', $token = 'aa11', $pin = null, $first = '', $last = '' ) {
 	global $wpdb;
 	$pin_hash = $pin ? password_hash( (string) $pin, PASSWORD_DEFAULT ) : '';
 	$wpdb->query( $wpdb->prepare(
-		"INSERT INTO " . vv_tbl( 'voting_voters' ) . " (poll_id, member_no, email, activation_token, pin_hash, created_at)
-		 VALUES (%d, %s, %s, %s, %s, NOW())",
-		$pid, (string) $member, $email, $token, $pin_hash
+		"INSERT INTO " . vv_tbl( 'voting_voters' ) . " (poll_id, member_no, email, first_name, last_name, activation_token, pin_hash, created_at)
+		 VALUES (%d, %s, %s, %s, %s, %s, %s, NOW())",
+		$pid, (string) $member, $email, $first, $last, $token, $pin_hash
 	) );
 	return [ (int) $wpdb->insert_id, $token ];
 }

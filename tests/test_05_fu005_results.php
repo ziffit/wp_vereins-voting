@@ -42,7 +42,7 @@ return [
 	'test_05_fu005_ak02_backend_zeigt_keine_stimminhalte' => function () {
 		global $wpdb;
 		$pid     = vv_fx_poll( [ 'status' => 'closed' ] );
-		$member  = vv_fx_voter( $pid, '55', 'ein@beispiel.org', 'tokx' );
+		$member  = vv_fx_voter( $pid, '55', 'ein@beispiel.org', 'tokx', null, 'Erika', 'Muster' );
 		vv_fx_pin( $member[0], '123456' );
 		$wpdb->query( "UPDATE " . vv_tbl( 'voting_voters' ) . " SET has_voted = 1, voted_at = NOW() WHERE id = " . (int) $member[0] );
 		vv_fx_ballot( $pid, 'ja' );  // diese Person hat für JA gestimmt (Backend darf das NICHT anzeigen können).
@@ -55,6 +55,7 @@ return [
 		vv_check( str_contains( $html, 'Hat gewählt' ), '[FU005#AK01] Spalte "Hat gewählt" vorhanden' );
 		vv_check( str_contains( $html, 'Gewählt am' ), '[FU005#AK01] Spalte "Gewählt am" vorhanden' );
 		vv_check( str_contains( $html, 'ein@beispiel.org' ), '[FU005#AK01] Mitglieder in Tabelle' );
+		vv_check( str_contains( $html, 'Erika Muster' ), '[FU005#AK01] Spalte Name zeigt Vorname/Nachname' );
 
 		// [FU005#AK02] Urnen-Spalten (Werte klein) dürfen nie personenbezogen sichtbar sein.
 		vv_check( ! str_contains( $html, 'ja' ), '[FU005#AK02] kein Urnen-Optionswert "ja" (kleingeschrieben) im Backend sichtbar' );

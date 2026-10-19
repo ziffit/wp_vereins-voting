@@ -79,11 +79,11 @@ function vv_rate_clear( $scope, $id ) {
 	delete_transient( vv_rate_key( $scope, $id ) );
 }
 
-/** [FU006#AK01] Einladungstext-Vorlage mit Platzhalter-Syntax. */
+/** [FU006#AK01/#AK04] Einladungstext-Vorlage mit Platzhalter-Syntax. */
 function vv_invite_body_defaults() {
 	return [
 		'subject' => 'Einladung zur Abstimmung: {poll_title}',
-		'body'    => "Hallo,\r\n\r\n"
+		'body'    => "Hallo {first_name},\r\n\r\n"
 			. "{site_name} bittet zur Abstimmung „{poll_title}“.\r\n"
 			. "Wahlzeitraum: {start} – {end}.\r\n\r\n"
 			. "Rufe den folgenden Link auf, um deine persönliche 6-stellige Wahl-PIN zu setzen:\r\n"

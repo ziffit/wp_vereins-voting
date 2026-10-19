@@ -56,9 +56,16 @@ switch ( $step ) {
 			vv_assert( in_array( $need, $pcols, true ), "[FU001#AK01] polls-Spalte $need" );
 		}
 		$vcols = array_map( fn( $r ) => $r->Field, $wpdb->get_results( "SHOW COLUMNS FROM wpx_voting_voters" ) );
-		foreach ( [ 'poll_id', 'member_no', 'email', 'activation_token', 'pin_hash', 'has_voted', 'voted_at' ] as $need ) {
+		foreach ( [ 'poll_id', 'member_no', 'email', 'first_name', 'last_name', 'activation_token', 'pin_hash', 'has_voted', 'voted_at' ] as $need ) {
 			vv_assert( in_array( $need, $vcols, true ), "[FU001#AK01] voters-Spalte $need" );
 		}
+
+		// [FU001#AK03] Bestandsinstallation ohne Namensspalten: Upgrade ergänzt additiv.
+		$wpdb->query( 'ALTER TABLE wpx_voting_voters DROP COLUMN first_name, DROP COLUMN last_name' );
+		vv_maybe_upgrade();
+		$vcols = array_map( fn( $r ) => $r->Field, $wpdb->get_results( "SHOW COLUMNS FROM wpx_voting_voters" ) );
+		vv_assert( in_array( 'first_name', $vcols, true ) && in_array( 'last_name', $vcols, true ),
+			'[FU001#AK03] Upgrade zieht fehlende Namensspalten nach' );
 		$bcols = array_map( fn( $r ) => $r->Field, $wpdb->get_results( "SHOW COLUMNS FROM wpx_voting_ballots" ) );
 		foreach ( [ 'poll_id', 'vote_option', 'receipt_hash' ] as $need ) {
 			vv_assert( in_array( $need, $bcols, true ), "[FU001#AK01] ballots-Spalte $need" );
@@ -119,7 +126,7 @@ switch ( $step ) {
 	// ---------------------------------------------------------------
 	case 'import_csv': {
 		$poll = vv_row( 'voting_polls', "ORDER BY id DESC LIMIT 1" );
-		$csv  = "Mitgliedsnummer;E-Mail\n101;alice@example.com\n102;bob@example.org\n103;keine-mail\n101;ALICE@example.COM\n";
+		$csv  = "Mitgliedsnummer;E-Mail;Vorname;Name\n101;alice@example.com;Alice;Anders\n102;bob@example.org;Bob;Beispiel\n103;keine-mail;Karla;Kaputt\n101;ALICE@example.COM;Alice;Anders\n";
 		file_put_contents( sys_get_temp_dir() . '/vv.csv', $csv );
 
 		$_SERVER['REQUEST_METHOD'] = 'POST';
@@ -129,11 +136,12 @@ switch ( $step ) {
 
 		$c   = (int) $wpdb->get_var( "SELECT COUNT(*) FROM wpx_voting_voters WHERE poll_id = {$poll->id}" );
 		vv_assert( 2 === $c, "[FU003#AK01/02] CSV-import: 2 Zeilen korrekt importiert (ist $c)" );
-		$toks = $wpdb->get_results( "SELECT member_no, email, activation_token FROM wpx_voting_voters WHERE poll_id = {$poll->id}" );
+		$toks = $wpdb->get_results( "SELECT member_no, email, first_name, last_name, activation_token FROM wpx_voting_voters WHERE poll_id = {$poll->id} ORDER BY id" );
 		foreach ( $toks as $t ) {
 			vv_assert( (bool) preg_match( '/^[0-9a-f]{32}$/', $t->activation_token ), "[FU003#AK02] sicherer token für {$t->member_no}" );
 		}
 		vv_assert( 'alice@example.com' === strtolower( $toks[0]->email ), '[FU003#AK02] Duplikat-Zeile übersprungen (Groß/Klein-Schreibung der E-Mail)' );
+		vv_assert( 'Alice' === $toks[0]->first_name && 'Anders' === $toks[0]->last_name, '[FU003#AK01] Vorname/Name importiert' );
 		break;
 	}
 
@@ -145,6 +153,8 @@ switch ( $step ) {
 			'vv_action'    => 'send_invites',
 			'poll'         => $poll->id,
 			'activate_url' => 'https://example.org/aktivierungen/',
+			'subject'      => 'Einladung: {poll_title}',
+			'body'         => "Hallo {first_name} {last_name},\r\n\r\n{site_name} bittet zur Abstimmung „{poll_title}“.\r\nWahlzeitraum: {start} – {end}.\r\n{link}\r\nMitgliedsnummer: {member_no}",
 		];
 		try { vv_send_invites(); } catch ( VVRedirectFound $r ) {}
 
@@ -155,6 +165,9 @@ switch ( $step ) {
 		vv_assert( str_contains( $mail['body'], 'Testverein e.V.' ), '[FU006#AK01] Mail enthält Vereinsnamen' );
 		vv_assert( str_contains( $mail['body'], 'Wahlzeitraum' ), '[FU006#AK01] Mail enthält Frist' );
 		vv_assert( (bool) preg_match( '/https:\/\/example\.org\/aktivierungen\/\?poll=\d+&token=[0-9a-f]{32}/', $mail['body'] ), '[FU006#AK01] Mail enthält personalisierten Aktivierungslink' );
+		// [FU006#AK04] Namen je Empfänger ersetzt:
+		$all = implode( "\n", array_map( fn( $m ) => $m['body'], $GLOBALS['vv_mails'] ) );
+		vv_assert( str_contains( $all, 'Hallo Alice Anders,' ), '[FU006#AK04] {first_name}/{last_name} je Empfänger ersetzt' );
 		// Aktivierungslink passt zum Empfänger:
 		$v   = vv_row( 'voting_voters', "WHERE email = 'alice@example.com'" );
 		vv_assert( str_contains( $GLOBALS['vv_mails'][0]['body'], 'token=' . $v->activation_token ), '[FU004#AK02] Aktivierungslink passend zum Empfänger (Farbdoppelcheck)' );

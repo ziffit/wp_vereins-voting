@@ -47,13 +47,24 @@ Import einer Mitgliederliste per CSV-Upload pro Abstimmung.
 
 ### Akzeptanzkriterien
 
-- **[FU003#AK01]** Der Admin kann eine CSV-Datei mit den Spalten
-  *Mitgliedsnummer* und *E-Mail* hochladen. Trennzeichen (`,` oder `;`) und
-  Überschriftszeile werden automatisch erkannt; ein UTF-8-BOM wird entfernt.
+- **[FU003#AK01]** Der Admin kann eine CSV-Datei mit Kopfzeile hochladen.
+  Pflichtspalten sind *Mitgliedsnummer*, *E-Mail*, *Vorname* und *Name*
+  (alternativ *Nachname*); die Zuordnung erfolgt über die Spaltennamen
+  (Reihenfolge frei, Groß-/Kleinschreibung und Leerzeichen egal). Weitere
+  Spalten werden ignoriert. Trennzeichen (`,` oder `;`) und ein UTF-8-BOM
+  werden automatisch behandelt. Fehlt eine Pflichtspalte, bricht der Import
+  mit einer Meldung ab, die die erkannten Spalten nennt.
 
 - **[FU003#AK02]** Das System validiert die E-Mail-Adressen, verhindert
   Duplikate pro Abstimmung und generiert für jeden Datensatz einen
-  eindeutigen, sicheren `activation_token`.
+  eindeutigen, sicheren `activation_token`. Vorname und Nachname werden als
+  `first_name`/`last_name` gespeichert (max. 100 Zeichen). Bei einem erneuten
+  Import werden leere Namensfelder bestehender Zeilen nachgetragen, ohne
+  vorhandene Werte zu überschreiben.
+
+- **[FU003#AK03]** Zeilen ohne Pflichtwert (Mitgliedsnummer, Vorname, Name
+  oder gültige E-Mail) werden übersprungen und im Ergebnis als übersprungen
+  gezählt; der Import läuft weiter. Leerzeilen zählen nicht als Fehler.
 
 ## [FU004] E-Mail-Versand-Tool (Einladungen)
 
@@ -85,9 +96,11 @@ Stimmgeheimnisses.
 ### Akzeptanzkriterien
 
 - **[FU005#AK01]** Der Admin sieht eine Liste aller importierten Mitglieder
-  mit Status (*Hat gewählt: Ja/Nein* und *Gewählt am: [Zeitstempel]*). Die
-  Liste wird seitenweise angezeigt (100 Einträge pro Seite); die
-  Abstimmungsübersicht zeigt Teilnehmer- und Stimmenzahl je Abstimmung.
+  (Mitgliedsnummer, Name aus Vor-/Nachname, E-Mail) mit Status
+  (*Hat gewählt: Ja/Nein* und *Gewählt am: [Zeitstempel]*); fehlt der Name,
+  steht dort „–“. Die Liste wird seitenweise angezeigt (100 Einträge pro
+  Seite); die Abstimmungsübersicht zeigt Teilnehmer- und Stimmenzahl je
+  Abstimmung.
 
 - **[FU005#AK02]** Es ist technisch unmöglich, im Backend einzusehen, welche
   Option (ja, nein, enthaltung) ein spezifisches Mitglied gewählt hat.

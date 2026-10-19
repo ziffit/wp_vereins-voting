@@ -24,7 +24,7 @@ return [
 
 	'test_01_fu001_ak01_voters_spalten' => function () {
 		$cols = vv_cols( 'voting_voters' );
-		foreach ( [ 'poll_id', 'member_no', 'email', 'activation_token', 'pin_hash', 'has_voted', 'voted_at' ] as $c ) {
+		foreach ( [ 'poll_id', 'member_no', 'email', 'first_name', 'last_name', 'activation_token', 'pin_hash', 'has_voted', 'voted_at' ] as $c ) {
 			vv_check( in_array( $c, $cols, true ), "[FU001#AK01] voters-Spalte $c vorhanden" );
 		}
 	},
@@ -81,5 +81,23 @@ return [
 		( $GLOBALS['vv_activation_hook'] ?? null )();
 		vv_check( vv_fx_poll_row( $pid ) && 1 === vv_fx_voter_count( $pid ) && 1 === vv_fx_ballots_count( $pid ),
 			'[FU001#AK02] Daten bleiben nach wiederholter Aktivierung erhalten' );
+	},
+
+	'test_01_fu001_ak03_upgrade_ergaenzt_spalten_ohne_datenverlust' => function () {
+		global $wpdb;
+		$pid = vv_fx_poll();
+		vv_fx_voter( $pid, '101', 'alt@example.org', 'tok1' );
+
+		// Bestandsinstallation vor 1.2.0 simulieren: Namensspalten fehlen.
+		$wpdb->query( 'ALTER TABLE ' . vv_tbl( 'voting_voters' ) . ' DROP COLUMN first_name, DROP COLUMN last_name' );
+		vv_check( ! in_array( 'first_name', vv_cols( 'voting_voters' ), true ), '[FU001#AK03] Ausgangslage: first_name fehlt' );
+
+		vv_maybe_upgrade();
+
+		$cols = vv_cols( 'voting_voters' );
+		vv_check( in_array( 'first_name', $cols, true ) && in_array( 'last_name', $cols, true ),
+			'[FU001#AK03] Upgrade zieht fehlende Namensspalten nach' );
+		vv_check( 1 === vv_fx_voter_count( $pid ) && vv_fx_voter_row( 'alt@example.org' ),
+			'[FU001#AK03] Bestandsdaten bleiben beim Upgrade erhalten' );
 	},
 ];

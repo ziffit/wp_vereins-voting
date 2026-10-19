@@ -253,14 +253,36 @@ function wp_mail( $to, $subject, $body, $headers = [] ) {
 	return true;
 }
 
-/** [FU001] dbDelta-Ersatz: erwartete CREATEs einzeln ausführen. */
+/**
+ * [FU001] dbDelta-Ersatz: fehlende Tabellen anlegen, fehlende Spalten additiv
+ * ergänzen – wie das echte dbDelta, ohne Spalten zu löschen oder zu ändern.
+ */
 function dbDelta( $sql ) {
 	global $wpdb;
 	$chunks = array_filter( preg_split( '/(?=CREATE TABLE)/', $sql ) );
 	foreach ( $chunks as $chunk ) {
 		$chunk = trim( $chunk );
-		if ( stripos( $chunk, 'CREATE TABLE' ) === 0 ) {
+		if ( 0 !== stripos( $chunk, 'CREATE TABLE' ) ) {
+			continue;
+		}
+		if ( ! preg_match( '/CREATE TABLE\s+`?(\w+)`?\s*\((.*)\)[^)]*$/is', $chunk, $m ) ) {
+			continue;
+		}
+		$table = $m[1];
+		if ( ! $wpdb->get_var( "SHOW TABLES LIKE '$table'" ) ) {
 			$wpdb->query( $chunk );
+			continue;
+		}
+		$have = array_map( fn( $r ) => $r->Field, $wpdb->get_results( "SHOW COLUMNS FROM `$table`" ) );
+		// Spaltendefinitionen zeilenweise; Kommas in z. B. DECIMAL(10,2) bleiben zusammen.
+		foreach ( preg_split( '/,(?![^()]*\))/', $m[2] ) as $line ) {
+			$line = trim( $line );
+			if ( '' === $line || preg_match( '/^(PRIMARY|UNIQUE|KEY|INDEX|CONSTRAINT|FULLTEXT)\b/i', $line ) ) {
+				continue;
+			}
+			if ( preg_match( '/^`?(\w+)`?\s+(.+)$/s', $line, $mm ) && ! in_array( $mm[1], $have, true ) ) {
+				$wpdb->query( "ALTER TABLE `$table` ADD COLUMN `{$mm[1]}` {$mm[2]}" );
+			}
 		}
 	}
 }
