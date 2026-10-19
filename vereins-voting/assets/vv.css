@@ -1,0 +1,80 @@
+/* vereins-voting – minimales, semantisches Basis-CSS.
+   Formulare und Tabellen fügen sich ins Theme ein statt es zu ersetzen. */
+
+.vv-form label {
+	display: block;
+	margin: 0 0 1em;
+	max-width: 30em;
+}
+
+.vv-form input[type="text"],
+.vv-form input[type="email"],
+.vv-form input[type="password"] {
+	box-sizing: border-box;
+	width: 100%;
+}
+
+.vv-form fieldset {
+	border: 1px solid currentColor;
+	margin: 1em 0;
+	padding: 0.5em 1em;
+}
+
+.vv-option {
+	display: block;
+	margin: 0.25em 0;
+}
+
+.vv-btn {
+	margin-top: 0.5em;
+}
+
+.vv-box {
+	border-left: 4px solid #888;
+	padding: 0.75em 1em;
+	margin: 1em 0;
+	background: rgba(0, 0, 0, 0.04);
+}
+
+.vv-success {
+	border-left-color: #2e7d32;
+}
+
+.vv-error {
+	border-left-color: #c62828;
+}
+
+.vv-info {
+	border-left-color: #1565c0;
+}
+
+.vv-receipt {
+	display: inline-block;
+	margin: 0.5em 0;
+	padding: 0.2em 0.5em;
+	border: 1px dashed #888;
+	user-select: all; /* Ein Klick markiert den Hash komplett. */
+	word-break: break-all;
+}
+
+.vv-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.vv-table th,
+.vv-table td {
+	border: 1px solid rgba(0, 0, 0, 0.15);
+	padding: 0.35em 0.6em;
+	text-align: left;
+}
+
+.vv-table code {
+	word-break: break-all;
+}
+
+/* Admin: gesperrte Felder optisch kenntlich machen. */
+.vv-locked {
+	opacity: 0.55;
+	pointer-events: none;
+}

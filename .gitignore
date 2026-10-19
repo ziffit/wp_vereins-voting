@@ -1,0 +1,12 @@
+# Umgebungsdateien (Secrets außerhalb des Repos halten)
+.env
+.env.*
+!.env.example
+
+# KI-Tooling / Node-Artefakte
+node_modules/
+
+# von Shims/Shells erzeugte WP-Stub-Ordner
+wp-admin/
+tests/wp-admin/
+_verify/wp-admin/
