@@ -156,4 +156,102 @@ return [
 		$html = (string) ob_get_clean();
 		vv_check( '' === $html, '[FU002#AK04] kein Hinweis, wenn eine Zeitzone gesetzt ist' );
 	},
+
+	'test_02_fu002_ak06_fremde_posts_ignoriert' => function () {
+		// Heartbeat/fremde Admin-Formulare: kein vv_action -> Handler tut nichts (kein wp_die).
+		vv_fx_http( [], [ 'action' => 'heartbeat', 'screen_id' => 'dashboard' ] );
+		[ $kind, ] = vv_fx_run( 'vv_handle_admin_actions' );
+		vv_check( null === $kind, '[FU002#AK06] fremder Admin-POST wird nicht angefasst' );
+	},
+
+	'test_02_fu002_ak06_eigene_aktion_braucht_nonce' => function () {
+		vv_fx_http( [], [ 'vv_action' => 'delete_poll', 'poll_id' => 1 ] );
+		[ $kind, ] = vv_fx_run( 'vv_handle_admin_actions' );
+		vv_check( 'die' === $kind, '[FU002#AK06] eigene Aktion ohne Nonce abgewiesen' );
+
+		$pid = vv_fx_poll();
+		vv_fx_http( [], [ 'vv_action' => 'delete_poll', 'poll_id' => $pid, 'vv_nonce' => wp_create_nonce( 'vv_admin' ) ] );
+		[ $kind, ] = vv_fx_run( 'vv_handle_admin_actions' );
+		vv_check( 'redirect' === $kind && null === vv_fx_poll_row( $pid ), '[FU002#AK06] eigene Aktion mit gültigem Nonce ausgeführt' );
+	},
+
+	'test_02_fu002_ak05_masken_abbrechen_und_meldungen' => function () {
+		$pid = vv_fx_poll();
+
+		ob_start();
+		vv_render_poll_form( $pid );
+		$poll_form = (string) ob_get_clean();
+		vv_check( str_contains( $poll_form, 'Abbrechen' ), '[FU002#AK05] Abstimmungsmaske bietet Abbrechen' );
+
+		ob_start();
+		vv_render_import_form( vv_fx_poll_row( $pid ) );
+		$import_form = (string) ob_get_clean();
+		ob_start();
+		vv_render_invite_form( vv_fx_poll_row( $pid ) );
+		$invite_form = (string) ob_get_clean();
+		vv_check( str_contains( $import_form, 'Abbrechen' ), '[FU003#AK01] Importmaske bietet Abbrechen' );
+		vv_check( str_contains( $invite_form, 'Abbrechen' ), '[FU004#AK01] Einladungsmaske bietet Abbrechen' );
+		vv_check( str_contains( $invite_form, 'confirm(' ), '[FU004#AK01] Massenversand erst nach Bestätigung' );
+
+		// Bestätigung nach dem Speichern (Redirect-Signal + sichtbare Meldung):
+		vv_fx_http( [], [
+			'vv_action' => 'save_poll', 'poll_id' => $pid, 'title' => 'Gespeichert', 'question' => 'Q',
+			'start_dt' => date( 'Y-m-d\TH:i', strtotime( '-1 hour' ) ),
+			'end_dt'   => date( 'Y-m-d\TH:i', strtotime( '+1 day' ) ), 'status' => 'draft',
+		] );
+		[ $kind, $url ] = vv_fx_run( 'vv_save_poll' );
+		vv_check( 'redirect' === $kind && str_contains( (string) $url, 'saved=1' ), '[FU002#AK05] Redirect nach dem Speichern signalisiert Erfolg' );
+
+		vv_fx_http( [ 'saved' => '1' ] );
+		ob_start();
+		vv_render_members_table( vv_fx_poll_row( $pid ) );
+		$members = (string) ob_get_clean();
+		vv_check( str_contains( $members, 'gespeichert' ), '[FU002#AK05] Bestätigung nach dem Speichern sichtbar' );
+
+		// Bestätigung nach dem Löschen:
+		vv_fx_http( [ 'deleted' => '1' ] );
+		ob_start();
+		vv_render_admin_page();
+		$list = (string) ob_get_clean();
+		vv_check( str_contains( $list, 'gelöscht' ), '[FU002#AK05] Bestätigung nach dem Löschen sichtbar' );
+	},
+
+	'test_02_fu002_ak01_zeitraum_und_titellaenge' => function () {
+		global $wpdb;
+		$before = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . vv_tbl( 'voting_polls' ) );
+
+		// Ende vor Start wird abgewiesen und nichts gespeichert:
+		vv_fx_http( [], [
+			'vv_action' => 'save_poll', 'poll_id' => 0, 'title' => 'Verdreht', 'question' => 'Q',
+			'start_dt' => date( 'Y-m-d\TH:i', strtotime( '+2 days' ) ),
+			'end_dt'   => date( 'Y-m-d\TH:i', strtotime( '+1 day' ) ), 'status' => 'draft',
+		] );
+		[ $kind, $msg ] = vv_fx_run( 'vv_save_poll' );
+		vv_check( 'die' === $kind && str_contains( (string) $msg, 'Ende' ), '[FU002#AK01] Ende vor Start wird abgewiesen' );
+		$after = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . vv_tbl( 'voting_polls' ) );
+		vv_check( $before === $after, '[FU002#AK01] verdrehter Zeitraum wird nicht gespeichert' );
+
+		// Zu langer Titel wird auf 190 Zeichen gekürzt statt still zu scheitern:
+		vv_fx_http( [], [
+			'vv_action' => 'save_poll', 'poll_id' => 0, 'title' => str_repeat( 'A', 250 ), 'question' => 'TITELTEST',
+			'start_dt' => date( 'Y-m-d\TH:i', strtotime( '-1 hour' ) ),
+			'end_dt'   => date( 'Y-m-d\TH:i', strtotime( '+1 day' ) ), 'status' => 'draft',
+		] );
+		vv_fx_run( 'vv_save_poll' );
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . vv_tbl( 'voting_polls' ) . ' WHERE question = %s', 'TITELTEST' ) );
+		vv_check( $row && 190 === strlen( $row->title ), '[FU002#AK01] Titel wird auf 190 Zeichen gekürzt' );
+	},
+
+	'test_02_fu002_ak02_gesperrte_altwahl_mit_verdrehtem_zeitraum' => function () {
+		// Altbestand (vor 1.1.1) kann Ende <= Start haben. Bei gesperrten Feldern
+		// werden die Zeiten ignoriert – das Verabschieden darf nicht daran scheitern.
+		$pid = vv_fx_poll( [ 'status' => 'active', 'start_off' => '+2 days', 'end_off' => '+1 day' ] );
+		vv_fx_http( [], [
+			'vv_action' => 'save_poll', 'poll_id' => $pid, 'title' => 'Alt', 'question' => 'Q',
+			'start_dt' => date( 'Y-m-d\TH:i', strtotime( '+2 days' ) ),
+			'end_dt'   => date( 'Y-m-d\TH:i', strtotime( '+1 day' ) ), 'status' => 'closed',
+		] );
+		[ $kind, ] = vv_fx_run( 'vv_save_poll' );
+		vv_check( 'redirect' === $kind && 'closed' === vv_fx_poll_row( $pid )->status, '[FU002#AK02] verdrehter Bestandszeitraum blockiert das Schließen nicht' );
+	},
 ];

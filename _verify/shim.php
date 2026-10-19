@@ -193,7 +193,13 @@ function admin_url( $path = '' ) { return 'https://admin.test/ ' . $path; }
 function home_url( $path = '' ) { return 'https://admin.test/' . ltrim( $path, '/' ); }
 function wp_safe_redirect( $url ) { throw new VVRedirectFound( $url ); }
 function wp_die( $msg = '' ) { throw new VVWpDie( (string) $msg ); }
-function check_admin_referer( $a = '', $b = '' ) { return true; }
+function check_admin_referer( $a = '', $b = '' ) {
+	$nonce = $_REQUEST[ $b ] ?? $_POST[ $b ] ?? '';
+	if ( ! wp_verify_nonce( $nonce, $a ) ) {
+		wp_die( 'Nonce-Fehler' );
+	}
+	return 1;
+}
 function current_user_can( $cap ) { return true; }
 if ( ! defined( 'MINUTE_IN_SECONDS' ) ) {
 	define( 'MINUTE_IN_SECONDS', 60 );
