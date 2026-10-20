@@ -142,6 +142,9 @@ function vv_handle_admin_actions() {
 		case 'delete_poll':
 			vv_delete_poll();
 			break;
+		case 'reset_pin':
+			vv_reset_pin();
+			break;
 	}
 }
 add_action( 'admin_init', 'vv_handle_admin_actions' );
@@ -164,6 +167,53 @@ function vv_delete_poll() {
 	$wpdb->query( 'COMMIT' );
 
 	wp_safe_redirect( admin_url( 'admin.php?page=vereins-voting&deleted=' . $poll_id ) );
+	exit;
+}
+
+/**
+ * [FU005#AK04] Wahl-PIN zurücksetzen (z. B. vergessen): Der PIN-Hash wird
+ * gelöscht und ein neuer Aktivierungstoken erzeugt, damit die Person über
+ * eine neue Einladung einen neuen PIN setzen kann. Die Urne wird nicht
+ * berührt; welches Mitglied wie gewählt hat, bleibt weiterhin unsichtbar.
+ * Nur solange die Person noch nicht abgestimmt hat und die Wahl nicht
+ * geschlossen ist – sonst wäre der Reset sinnlos oder irreführend.
+ */
+function vv_reset_pin() {
+	global $wpdb;
+
+	$poll_id  = vv_poll_id( wp_unslash( $_POST['poll'] ?? '' ) );
+	$voter_id = absint( $_POST['voter_id'] ?? 0 );
+	$page     = max( 1, absint( $_POST['vv_page'] ?? 1 ) );
+
+	$poll = $wpdb->get_row( $wpdb->prepare( "SELECT id, status FROM {$wpdb->prefix}voting_polls WHERE id = %s", $poll_id ) );
+	if ( ! $poll || ! in_array( $poll->status, [ 'draft', 'active' ], true ) ) {
+		wp_die( 'PIN-Reset ist nur vor dem Schließen der Abstimmung möglich.' );
+	}
+
+	$voter = $wpdb->get_row( $wpdb->prepare(
+		"SELECT id, member_no, pin_hash, has_voted FROM {$wpdb->prefix}voting_voters WHERE id = %d AND poll_id = %s",
+		$voter_id,
+		$poll_id
+	) );
+	if ( ! $voter || empty( $voter->pin_hash ) || (int) $voter->has_voted ) {
+		wp_die( 'Für diese Person kann keine PIN zurückgesetzt werden.' );
+	}
+
+	$wpdb->update(
+		"{$wpdb->prefix}voting_voters",
+		[
+			'pin_hash'         => null,
+			'activation_token' => bin2hex( random_bytes( 16 ) ),
+		],
+		[ 'id' => $voter->id ]
+	);
+
+	// Eine vergessene PIN hat oft schon die Brute-Force-Sperre ausgelöst.
+	vv_rate_clear( 'vote', $poll->id . '|' . strtolower( trim( (string) $voter->member_no ) ) );
+
+	wp_safe_redirect( admin_url(
+		'admin.php?page=vereins-voting&view=members&poll=' . rawurlencode( $poll->id ) . '&vv_page=' . $page . '&reset=1'
+	) );
 	exit;
 }
 
@@ -621,7 +671,7 @@ function vv_render_members_table( $poll ) {
 	$page  = min( $pages, max( 1, isset( $_GET['vv_page'] ) ? absint( $_GET['vv_page'] ) : 1 ) );
 
 	$voters = $wpdb->get_results( $wpdb->prepare(
-		"SELECT member_no, first_name, last_name, email, has_voted, voted_at FROM {$wpdb->prefix}voting_voters
+		"SELECT id, member_no, first_name, last_name, email, pin_hash, has_voted, voted_at FROM {$wpdb->prefix}voting_voters
 		 WHERE poll_id = %s ORDER BY member_no LIMIT %d OFFSET %d",
 		$poll->id,
 		$per_page,
@@ -639,21 +689,39 @@ function vv_render_members_table( $poll ) {
 	if ( isset( $_GET['sent'] ) ) {
 		echo '<div class="notice notice-success is-dismissible"><p>' . (int) $_GET['sent'] . ' Einladungen versendet.</p></div>';
 	}
+	if ( isset( $_GET['reset'] ) ) {
+		echo '<div class="notice notice-success is-dismissible"><p>PIN zurückgesetzt. Über „Einladungen an alle ohne PIN versenden“ '
+			. 'erhält die Person einen neuen Aktivierungslink und kann einen neuen PIN setzen.</p></div>';
+	}
 
 	/** [FU005#AK02] Liste zeigt nur has_voted/voted_at – niemals eine Stimme. */
 	if ( ! $voters ) {
 		echo '<p>Noch keine Teilnehmer importiert.</p>';
 		return;
 	}
-	echo '<table class="widefat striped"><thead><tr><th>Mitgliedsnummer</th><th>Name</th><th>E-Mail</th><th>Hat gewählt</th><th>Gewählt am</th></tr></thead><tbody>';
+	echo '<table class="widefat striped"><thead><tr><th>Mitgliedsnummer</th><th>Name</th><th>E-Mail</th><th>PIN gesetzt</th><th>Hat gewählt</th><th>Gewählt am</th><th>Aktionen</th></tr></thead><tbody>';
 	foreach ( $voters as $v ) {
-		$name = trim( (string) $v->first_name . ' ' . (string) $v->last_name );
+		$name    = trim( (string) $v->first_name . ' ' . (string) $v->last_name );
+		$pin_set = ! empty( $v->pin_hash );
+		$action  = '–';
+		// [FU005#AK04] Reset nur vor der Stimmabgabe und solange die Wahl offen ist.
+		if ( $pin_set && ! (int) $v->has_voted && 'closed' !== $poll->status ) {
+			$action = '<form method="post" style="margin:0" onsubmit="return confirm(\'PIN zurücksetzen? Die Person benötigt danach eine neue Einladung.\');">'
+				. wp_nonce_field( 'vv_admin', 'vv_nonce', true, false )
+				. '<input type="hidden" name="vv_action" value="reset_pin">'
+				. '<input type="hidden" name="poll" value="' . esc_attr( $poll->id ) . '">'
+				. '<input type="hidden" name="voter_id" value="' . (int) $v->id . '">'
+				. '<input type="hidden" name="vv_page" value="' . (int) $page . '">'
+				. '<button type="submit" class="button button-small">PIN zurücksetzen</button></form>';
+		}
 		echo '<tr>'
 			. '<td>' . esc_html( $v->member_no ) . '</td>'
 			. '<td>' . esc_html( '' === $name ? '–' : $name ) . '</td>'
 			. '<td>' . esc_html( $v->email ) . '</td>'
+			. '<td>' . ( $pin_set ? 'Ja' : 'Nein' ) . '</td>'
 			. '<td>' . ( (int) $v->has_voted ? 'Ja' : 'Nein' ) . '</td>'
 			. '<td>' . ( $v->voted_at ? esc_html( vv_fmt( $v->voted_at ) ) : '–' ) . '</td>'
+			. '<td>' . $action . '</td>'
 			. '</tr>';
 	}
 	echo '</tbody></table>';

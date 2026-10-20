@@ -228,6 +228,24 @@ switch ( $step ) {
 		$_POST   = [ 'vv_frontend_nonce' => wp_create_nonce( 'vv_frontend' ), 'member_no' => (string) $alice->member_no, 'email' => 'alice@example.com', 'pin' => '654321', 'pin2' => '654321' ];
 		$html    = vv_shortcode_activate();
 		vv_assert( str_contains( $html, 'Ungültiger oder bereits benutzter Aktivierungslink' ), '[FU007#AK03] zweitverwendung abgelehnt' );
+
+		// [FU005#AK04] Admin setzt die PIN zurück: Hash weg, neuer Token, Urne unberührt.
+		$_SERVER['REQUEST_METHOD'] = 'POST';
+		$_POST = [ 'poll' => $alice->poll_id, 'voter_id' => $alice->id, 'vv_page' => 1 ];
+		$redir = null;
+		try { vv_reset_pin(); } catch ( VVRedirectFound $e ) { $redir = $e->url; }
+		$alice = vv_row( 'voting_voters', "WHERE id = {$alice->id}" );
+		vv_assert( $redir && str_contains( $redir, 'reset=1' ) && empty( $alice->pin_hash ),
+			'[FU005#AK04] PIN-Reset löscht den Hash' );
+		vv_assert( $alice->activation_token && 32 === strlen( $alice->activation_token ),
+			'[FU005#AK04] PIN-Reset erzeugt neuen Aktivierungstoken' );
+
+		// Über den neuen Link wieder einen PIN setzen, damit die Folgeschritte laufen.
+		$_SERVER['REQUEST_METHOD'] = 'POST';
+		$_GET  = [ 'poll' => $alice->poll_id, 'token' => $alice->activation_token ];
+		$_POST = [ 'vv_frontend_nonce' => wp_create_nonce( 'vv_frontend' ), 'member_no' => (string) $alice->member_no, 'email' => 'alice@example.com', 'pin' => '123456', 'pin2' => '123456' ];
+		$html  = vv_shortcode_activate();
+		vv_assert( str_contains( $html, 'Erfolgreich' ), '[FU005#AK04] neuer PIN nach Reset setzbar' );
 		break;
 	}
 

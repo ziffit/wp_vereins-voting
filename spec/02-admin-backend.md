@@ -108,7 +108,8 @@ Stimmgeheimnisses.
   (Mitgliedsnummer, Name aus Vor-/Nachname, E-Mail) mit Status
   (*Hat gewählt: Ja/Nein* und *Gewählt am: [Zeitstempel]*); fehlt der Name,
   steht dort „–“. Die Liste trägt die Überschrift „Stimmberechtigte
-  Mitglieder“ und wird seitenweise angezeigt (100 Einträge pro Seite); die
+  Mitglieder“ und wird seitenweise angezeigt (100 Einträge pro Seite). Sie
+  zeigt je Person, ob eine PIN gesetzt ist (Ja/Nein). Die
   Abstimmungsübersicht zeigt die UUID je Abstimmung, den Titel ohne
   Verlinkung sowie Teilnehmer- und Stimmenzahl und die Aktionen
   „Bearbeiten“ und „Teilnehmer & Einladung“.
@@ -118,3 +119,10 @@ Stimmgeheimnisses.
 
 - **[FU005#AK03]** Der Admin sieht nach Ablauf der Wahl die aggregierten
   Gesamtergebnisse (Anzahl Ja, Nein, Enthaltung).
+
+- **[FU005#AK04]** Der Admin kann eine gesetzte PIN vor der Stimmabgabe
+  zurücksetzen (z. B. bei vergessener PIN). Dabei werden nur der PIN-Hash
+  gelöscht und ein neuer `activation_token` erzeugt; die Person setzt über
+  eine neue Einladung einen neuen PIN. Die Urne und das Wahlgeheimnis bleiben
+  unberührt. Nach der Stimmabgabe und bei geschlossenen Abstimmungen ist der
+  Reset nicht möglich; eine bestehende Fehlversuchssperre wird aufgehoben.

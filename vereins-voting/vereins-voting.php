@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       vereins-voting
  * Description:       Vereins-Abstimmungen: Einladung per E-Mail-Link, PIN-Aktivierung durch das Mitglied, anonyme Stimmurne mit Receipt-Hash.
- * Version:           1.3.1
+ * Version:           1.4.0
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Felix Tensing
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Direktzugriff verweigern.
 }
 
-define( 'VEREINS_VOTING_VERSION', '1.3.1' );
+define( 'VEREINS_VOTING_VERSION', '1.4.0' );
 
 /*
  * [FU001#AK02] Bei Deaktivierung/Deinstallation werden KEINE Daten gelöscht —
