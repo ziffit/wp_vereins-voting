@@ -17,14 +17,14 @@ return [
 
 	'test_01_fu001_ak01_polls_spalten' => function () {
 		$cols = vv_cols( 'voting_polls' );
-		foreach ( [ 'id', 'title', 'question', 'start_dt', 'end_dt', 'status' ] as $c ) {
+		foreach ( [ 'id', 'title', 'question', 'mail_text', 'mail_url', 'start_dt', 'end_dt', 'status' ] as $c ) {
 			vv_check( in_array( $c, $cols, true ), "[FU001#AK01] polls-Spalte $c vorhanden" );
 		}
 	},
 
 	'test_01_fu001_ak01_voters_spalten' => function () {
 		$cols = vv_cols( 'voting_voters' );
-		foreach ( [ 'poll_id', 'member_no', 'email', 'first_name', 'last_name', 'activation_token', 'pin_hash', 'has_voted', 'voted_at' ] as $c ) {
+		foreach ( [ 'poll_id', 'member_no', 'email', 'first_name', 'last_name', 'activation_token', 'pin_hash', 'has_voted', 'voted_at', 'invited_at', 'invite_attempts' ] as $c ) {
 			vv_check( in_array( $c, $cols, true ), "[FU001#AK01] voters-Spalte $c vorhanden" );
 		}
 	},
@@ -89,14 +89,19 @@ return [
 		vv_fx_voter( $pid, '101', 'alt@example.org', 'tok1' );
 
 		// Bestandsinstallation vor 1.2.0 simulieren: Namensspalten fehlen.
-		$wpdb->query( 'ALTER TABLE ' . vv_tbl( 'voting_voters' ) . ' DROP COLUMN first_name, DROP COLUMN last_name' );
+		$wpdb->query( 'ALTER TABLE ' . vv_tbl( 'voting_voters' ) . ' DROP COLUMN first_name, DROP COLUMN last_name, DROP COLUMN invited_at, DROP COLUMN invite_attempts' );
+		$wpdb->query( 'ALTER TABLE ' . vv_tbl( 'voting_polls' ) . ' DROP COLUMN mail_text, DROP COLUMN mail_url' );
 		vv_check( ! in_array( 'first_name', vv_cols( 'voting_voters' ), true ), '[FU001#AK03] Ausgangslage: first_name fehlt' );
 
 		vv_maybe_upgrade();
 
 		$cols = vv_cols( 'voting_voters' );
-		vv_check( in_array( 'first_name', $cols, true ) && in_array( 'last_name', $cols, true ),
-			'[FU001#AK03] Upgrade zieht fehlende Namensspalten nach' );
+		vv_check( in_array( 'first_name', $cols, true ) && in_array( 'last_name', $cols, true )
+			&& in_array( 'invited_at', $cols, true ) && in_array( 'invite_attempts', $cols, true ),
+			'[FU001#AK03] Upgrade zieht fehlende Spalten nach' );
+		$poll_cols = vv_cols( 'voting_polls' );
+		vv_check( in_array( 'mail_text', $poll_cols, true ) && in_array( 'mail_url', $poll_cols, true ),
+			'[FU001#AK03] Upgrade ergänzt mail_text/mail_url' );
 		vv_check( 1 === vv_fx_voter_count( $pid ) && vv_fx_voter_row( 'alt@example.org' ),
 			'[FU001#AK03] Bestandsdaten bleiben beim Upgrade erhalten' );
 	},

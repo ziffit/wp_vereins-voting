@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       vereins-voting
  * Description:       Vereins-Abstimmungen: Einladung per E-Mail-Link, PIN-Aktivierung durch das Mitglied, anonyme Stimmurne mit Receipt-Hash.
- * Version:           1.4.0
+ * Version:           1.5.0
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Felix Tensing
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Direktzugriff verweigern.
 }
 
-define( 'VEREINS_VOTING_VERSION', '1.4.0' );
+define( 'VEREINS_VOTING_VERSION', '1.5.0' );
 
 /*
  * [FU001#AK02] Bei Deaktivierung/Deinstallation werden KEINE Daten gelöscht —
@@ -41,6 +41,8 @@ function vv_create_schema() {
 			id CHAR(36) NOT NULL,
 			title VARCHAR(190) NOT NULL DEFAULT '',
 			question TEXT NULL,
+			mail_text TEXT NULL,
+			mail_url VARCHAR(500) NULL,
 			start_dt DATETIME NULL,
 			end_dt DATETIME NULL,
 			status VARCHAR(20) NOT NULL DEFAULT 'draft',
@@ -68,6 +70,8 @@ function vv_create_schema() {
 			pin_hash VARCHAR(255) NULL DEFAULT NULL,
 			has_voted TINYINT(1) NOT NULL DEFAULT 0,
 			voted_at DATETIME NULL,
+			invited_at DATETIME NULL,
+			invite_attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY  (id),
 			UNIQUE KEY poll_member_email (poll_id, member_no, email),
@@ -143,5 +147,7 @@ add_action( 'admin_enqueue_scripts', function () {
 } );
 
 require_once __DIR__ . '/includes/common.php';
+require_once __DIR__ . '/includes/mail.php';
+require_once __DIR__ . '/includes/queue.php';
 require_once __DIR__ . '/includes/admin.php';
 require_once __DIR__ . '/includes/frontend.php';

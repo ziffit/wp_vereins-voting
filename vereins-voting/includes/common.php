@@ -93,20 +93,6 @@ function vv_rate_clear( $scope, $id ) {
 	delete_transient( vv_rate_key( $scope, $id ) );
 }
 
-/** [FU006#AK01/#AK04] Einladungstext-Vorlage mit Platzhalter-Syntax. */
-function vv_invite_body_defaults() {
-	return [
-		'subject' => 'Einladung zur Abstimmung: {poll_title}',
-		'body'    => "Hallo {first_name},\r\n\r\n"
-			. "{site_name} bittet zur Abstimmung „{poll_title}“.\r\n"
-			. "Wahlzeitraum: {start} – {end}.\r\n\r\n"
-			. "Rufe den folgenden Link auf, um deine persönliche 6-stellige Wahl-PIN zu setzen:\r\n"
-			. "{link}\r\n\r\n"
-			. "Halte Mitgliedsnummer ({member_no}) und E-Mail-Adresse bereit.\r\n\r\n"
-			. "Viele Grüße\r\n{site_name}",
-	];
-}
-
 /**
  * [FU008#AK03] Stimmabgabe in einer Transaktion.
  * Gibt den Receipt-Hash zurück oder wirft RuntimeException mit verständlicher Meldung.

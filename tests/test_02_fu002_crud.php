@@ -201,6 +201,7 @@ return [
 
 	'test_02_fu002_ak05_masken_abbrechen_und_meldungen' => function () {
 		$pid = vv_fx_poll();
+		vv_fx_voter( $pid, '101', 'form@example.org', 'tokform' );
 
 		ob_start();
 		vv_render_poll_form( $pid );

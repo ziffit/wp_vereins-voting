@@ -168,6 +168,9 @@ class VVWpDb {
 if ( ! function_exists( 'add_action' ) ) {
 	function add_action( $hook, $cb ) {}
 }
+if ( ! function_exists( 'remove_action' ) ) {
+	function remove_action( $hook, $cb, $priority = 10 ) {}
+}
 if ( ! function_exists( 'register_activation_hook' ) ) {
 	function register_activation_hook( $file, $cb ) { $GLOBALS['vv_activation_hook'] = $cb; }
 }
@@ -196,13 +199,22 @@ function mysql2date( $fmt, $dt ) { return strtotime( (string) $dt ); }
 function date_i18n( $fmt, $ts = null ) { return date( 'd.m.Y, H:i', (int) ( $ts ?? time() ) ); }
 function get_option( $key, $default = false ) { return $GLOBALS['vv_options'][ $key ] ?? $default; }
 function update_option( $key, $value ) { $GLOBALS['vv_options'][ $key ] = $value; return true; }
+function delete_option( $key ) { unset( $GLOBALS['vv_options'][ $key ] ); return true; }
 function get_bloginfo( $what = '' ) { return 'Testverein e.V.'; }
+function get_privacy_policy_url() { return $GLOBALS['vv_privacy_url'] ?? 'https://admin.test/datenschutz/'; }
+function wp_get_current_user() {
+	return $GLOBALS['vv_current_user'] ?? (object) [ 'ID' => 1, 'user_email' => 'admin@example.test' ];
+}
+function get_current_user_id() {
+	$user = wp_get_current_user();
+	return (int) ( $user->ID ?? 0 );
+}
 function add_query_arg( $args, $url = '' ) {
 	$q = implode( '&', array_map( fn( $k, $v ) => urlencode( $k ) . '=' . urlencode( $v ), array_keys( $args ), $args ) );
 	$sep = str_contains( $url, '?' ) ? '&' : '?';
 	return $url . $sep . $q;
 }
-function admin_url( $path = '' ) { return 'https://admin.test/ ' . $path; }
+function admin_url( $path = '' ) { return 'https://admin.test/wp-admin/' . ltrim( $path, '/' ); }
 function home_url( $path = '' ) { return 'https://admin.test/' . ltrim( $path, '/' ); }
 function wp_safe_redirect( $url ) { throw new VVRedirectFound( $url ); }
 function wp_die( $msg = '' ) { throw new VVWpDie( (string) $msg ); }
@@ -229,6 +241,14 @@ function wp_nonce_field( $action = -1, $name = '_wpnonce', $referer = true, $ech
 		echo $field;
 	}
 	return $field;
+}
+function wp_nonce_url( $url, $action = -1, $name = '_wpnonce' ) {
+	return add_query_arg( [ $name => wp_create_nonce( $action ) ], $url );
+}
+function make_clickable( $text ) {
+	return preg_replace_callback( '~https?://[^\s<]+~i', static function ( $m ) {
+		return '<a href="' . esc_attr( $m[0] ) . '">' . $m[0] . '</a>';
+	}, (string) $text );
 }
 
 /** Transients im Speicher mit Ablauf, damit Rate-Limits testbar sind. */
@@ -259,10 +279,25 @@ function load_plugin_textdomain( $d = '', $p = false, $q = '' ) {}
 function plugins_url( $p = '', $d = '' ) { return '/static' . $p; }
 function plugin_dir_path( $f ) { return rtrim( dirname( $f ), '/' ) . '/'; }
 
-/** [FU004] wp_mail in eine Datei schreiben, damit der Versand assertbar wird. */
+/** [FU004] wp_mail im Speicher sammeln, damit der Versand assertbar wird. */
 $GLOBALS['vv_mails'] = [];
+$GLOBALS['vv_mail_fail'] = false;
 function wp_mail( $to, $subject, $body, $headers = [] ) {
-	$GLOBALS['vv_mails'][] = [ 'to' => $to, 'subject' => $subject, 'body' => $body ];
+	$GLOBALS['vv_mails'][] = [ 'to' => $to, 'subject' => $subject, 'body' => $body, 'headers' => $headers ];
+	return ! $GLOBALS['vv_mail_fail'];
+}
+
+/** WP-Cron-Stubs: Termine nur merken, der Test ruft die Queue direkt auf. */
+$GLOBALS['vv_cron'] = [];
+function wp_schedule_single_event( $timestamp, $hook ) {
+	$GLOBALS['vv_cron'][ $hook ] = (int) $timestamp;
+	return true;
+}
+function wp_next_scheduled( $hook ) {
+	return $GLOBALS['vv_cron'][ $hook ] ?? false;
+}
+function wp_clear_scheduled_hook( $hook ) {
+	unset( $GLOBALS['vv_cron'][ $hook ] );
 	return true;
 }
 

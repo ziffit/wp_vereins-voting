@@ -109,9 +109,12 @@ return [
 	},
 
 	'test_05_fu005_ak01_pin_status_und_reset_aktion' => function () {
+		global $wpdb;
+
 		$pid = vv_fx_poll();
 		vv_fx_voter( $pid, '201', 'pin@example.org', null, '123456' );
 		vv_fx_voter( $pid, '202', 'nopin@example.org', 'tok2' );
+		$wpdb->update( vv_tbl( 'voting_voters' ), [ 'invited_at' => current_time( 'mysql' ) ], [ 'email' => 'pin@example.org' ] );
 
 		vv_fx_http( [] );
 		ob_start();
@@ -119,6 +122,8 @@ return [
 		$html = (string) ob_get_clean();
 
 		vv_check( str_contains( $html, 'PIN gesetzt' ), '[FU005#AK01] Spalte „PIN gesetzt“ vorhanden' );
+		vv_check( str_contains( $html, 'Einladung' ) && str_contains( $html, 'offen' ) && str_contains( $html, 'gesendet' ),
+			'[FU005#AK01] Einladungsstatus je Person sichtbar' );
 		vv_check( str_contains( $html, '<td>Ja</td>' ) && str_contains( $html, '<td>Nein</td>' ),
 			'[FU005#AK01] PIN-Status je Person als Ja/Nein' );
 		vv_check( 1 === substr_count( $html, 'value="reset_pin"' ), '[FU005#AK01] Reset-Aktion nur bei gesetzter PIN' );
@@ -127,8 +132,14 @@ return [
 	},
 
 	'test_05_fu005_ak04_pin_reset' => function () {
+		global $wpdb;
+
 		$pid = vv_fx_poll( [ 'status' => 'active' ] );
 		[ $vid ] = vv_fx_voter( $pid, '101', 'reset@example.org', null, '123456' );
+		$wpdb->update( vv_tbl( 'voting_voters' ), [
+			'invited_at'      => current_time( 'mysql' ),
+			'invite_attempts' => 3,
+		], [ 'id' => $vid ] );
 
 		for ( $i = 0; $i < 5; $i++ ) {
 			vv_rate_fail( 'vote', $pid . '|101' );
@@ -143,6 +154,8 @@ return [
 		vv_check( $row && empty( $row->pin_hash ), '[FU005#AK04] PIN-Hash wird gelöscht' );
 		vv_check( $row && $row->activation_token && 32 === strlen( $row->activation_token ),
 			'[FU005#AK04] neuer Aktivierungstoken für eine neue Einladung' );
+		vv_check( $row && empty( $row->invited_at ) && 0 === (int) $row->invite_attempts,
+			'[FU005#AK04] Einladungsstatus wird für den erneuten Versand zurückgesetzt' );
 		vv_check( ! vv_rate_blocked( 'vote', $pid . '|101' ), '[FU005#AK04] Fehlversuchssperre wird aufgehoben' );
 		vv_check( 1 === vv_fx_voter_count( $pid ) && 0 === vv_fx_ballots_count( $pid ),
 			'[FU005#AK04] Wähler bleibt erhalten, Urne unberührt' );

@@ -16,7 +16,11 @@ PIN-Hashes) und `wp_voting_ballots` (anonyme Stimmen).
   Primärschlüssel eine zufällige UUID (`CHAR(36)`), keine aufsteigende Zahl.
   `wp_voting_voters` enthält neben Mitgliedsnummer, E-Mail, Token, PIN-Hash
   und Beteiligungsstatus die optionalen Felder `first_name` und `last_name`
-  (je VARCHAR(100), NULL) für die persönliche Ansprache. Eindeutig ist die
+  (je VARCHAR(100), NULL) für die persönliche Ansprache sowie
+  `invited_at` (DATETIME NULL) und `invite_attempts` (TINYINT UNSIGNED,
+  Default 0) für den gedrosselten Einladungsversand. `wp_voting_polls`
+  enthält `mail_text` (TEXT NULL) und `mail_url` (VARCHAR(500) NULL) für den
+  Text und den optionalen Website-Link je Abstimmung. Eindeutig ist die
   Kombination `(poll_id, member_no, email)`; die E-Mail-Adresse allein ist
   nicht eindeutig (Ehepaare können sie teilen).
 
@@ -28,4 +32,6 @@ PIN-Hashes) und `wp_voting_ballots` (anonyme Stimmen).
   additiv nach (`dbDelta`, Option `vv_db_version`); bestehende Zeilen und
   Wahlergebnisse bleiben dabei unverändert erhalten. Numerische Poll-IDs aus
   Versionen vor 1.3 werden auf UUIDs umgestellt und in Wählern und Urne
-  mitgeführt.
+  mitgeführt. Bestandszeilen aus 1.4 erhalten `invited_at = NULL` und
+  `invite_attempts = 0`; sie werden beim Upgrade **nicht automatisch**
+  versendet, sondern erst nach ausdrücklichem Start durch den Admin.

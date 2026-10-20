@@ -32,5 +32,12 @@ gleichermaßen für Vorschläge von KI-Werkzeugen.
 - Fehlermeldungen nennen nur den Grund, nie die eingegebenen Werte.
 - Rate-Limit-Schlüssel werden gehasht (`vv_rate_key()`). Die Urne enthält
   ausschließlich `poll_id`, `vote_option`, `receipt_hash`.
+- Der Einladungsversand speichert nur pollbezogene Statuswerte und Zähler;
+  E-Mail-Adressen, Namen, Mitgliedsnummern, Token und PIN-Hashes gehören nicht
+  in Queue-Optionen, Cron-Ausgaben oder Fehlermeldungen. Vorschau und
+  Testversand verwenden ausschließlich erfundene Beispieldaten und einen
+  ungültigen Beispieltoken.
+- E-Mails enthalten keine externen Bilder und kein Öffnungs- oder
+  Klick-Tracking. SMTP-Betriebslogs dürfen keine Aktivierungstoken enthalten.
 - Neue Features dürfen keine personenbezogenen Daten an Dritte, in Logs oder
   in Analyse-Tools übertragen. Verstöße werden wie Sicherheitslücken behandelt.

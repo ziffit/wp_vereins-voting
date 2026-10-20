@@ -84,6 +84,23 @@ function vv_fx_voter_count( $pid ) {
 	return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . vv_tbl( 'voting_voters' ) . ' WHERE poll_id = %s', $pid ) );
 }
 
+/** Globale Mail-Einstellungen für Versandtests; bewusst ohne echte Personendaten. */
+function vv_fx_mail_settings( $o = [] ) {
+	$o = array_merge( [
+		'subject'  => 'Einladung: {poll_title}',
+		'intro'    => "Hallo {vorname} {nachname},\r\n\r\nbitte nimm an der Abstimmung teil.",
+		'footer'   => "Testverein e.V.\nMusterstraße 1, 12345 Musterstadt\nImpressum: https://admin.test/impressum/",
+		'activate' => 'https://seite.example.org/aktivieren/',
+		'rate'     => 10,
+	], $o );
+	update_option( 'vv_mail_subject', $o['subject'] );
+	update_option( 'vv_mail_intro', $o['intro'] );
+	update_option( 'vv_mail_footer', $o['footer'] );
+	update_option( 'vv_mail_activate_url', $o['activate'] );
+	update_option( 'vv_invite_rate', $o['rate'] );
+	update_option( 'admin_email', 'admin@example.test' );
+}
+
 /** Poll-Zeile als Objekt. */
 function vv_fx_poll_row( $pid ) {
 	global $wpdb;

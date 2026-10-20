@@ -17,6 +17,14 @@ add_action( 'admin_menu', function () {
 		'vv_render_admin_page',
 		'dashicons-editor-ol'
 	);
+	add_submenu_page(
+		'vereins-voting',
+		'E-Mail-Einstellungen',
+		'E-Mail-Einstellungen',
+		'manage_options',
+		'vereins-voting-mail',
+		'vv_render_mail_settings'
+	);
 } );
 
 /** [FU002#AK04] Warnung, wenn WordPress keine Zeitzone kennt (UTC) – sonst weichen Wahlzeiten ab. */
@@ -139,6 +147,24 @@ function vv_handle_admin_actions() {
 		case 'send_invites':
 			vv_send_invites();
 			break;
+		case 'save_mail_settings':
+			vv_save_mail_settings();
+			break;
+		case 'save_poll_mail':
+			vv_save_poll_mail();
+			break;
+		case 'test_mail':
+			vv_test_mail();
+			break;
+		case 'pause_send':
+			vv_pause_send();
+			break;
+		case 'resume_send':
+			vv_resume_send();
+			break;
+		case 'retry_send':
+			vv_retry_send();
+			break;
 		case 'delete_poll':
 			vv_delete_poll();
 			break;
@@ -165,6 +191,9 @@ function vv_delete_poll() {
 	$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}voting_voters WHERE poll_id = %s", $poll_id ) );
 	$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}voting_polls WHERE id = %s", $poll_id ) );
 	$wpdb->query( 'COMMIT' );
+
+	delete_option( vv_queue_active_key( $poll_id ) );
+	delete_option( vv_queue_paused_key( $poll_id ) );
 
 	wp_safe_redirect( admin_url( 'admin.php?page=vereins-voting&deleted=' . $poll_id ) );
 	exit;
@@ -204,6 +233,8 @@ function vv_reset_pin() {
 		[
 			'pin_hash'         => null,
 			'activation_token' => bin2hex( random_bytes( 16 ) ),
+			'invited_at'       => null,
+			'invite_attempts'  => 0,
 		],
 		[ 'id' => $voter->id ]
 	);
@@ -461,74 +492,6 @@ function vv_import_csv() {
 	exit;
 }
 
-/** [FU004] Massenversand der Einladungen über wp_mail(). */
-function vv_send_invites() {
-	global $wpdb;
-
-	$poll_id = vv_poll_id( wp_unslash( $_POST['poll'] ?? '' ) );
-
-	// [FU006#AK01] Betreff/Text mit Platzhaltern; Vorlage wird beim Versand gespeichert.
-	$defaults = vv_invite_body_defaults();
-
-	$subject = sanitize_text_field( wp_unslash( $_POST['subject'] ?? $defaults['subject'] ) );
-	$body    = sanitize_textarea_field( wp_unslash( $_POST['body'] ?? $defaults['body'] ) );
-
-	// Basis-URL der Aktivierungsseite muss der Admin mitgeben (Seite mit Shortcode [verein_voting_activate]).
-	$activate_url = esc_url_raw( wp_unslash( $_POST['activate_url'] ?? '' ) );
-	if ( ! $activate_url ) {
-		wp_die( 'Bitte zuerst die URL der Aktivierungsseite angeben (Seite mit Shortcode [verein_voting_activate]).' );
-	}
-
-	$poll = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}voting_polls WHERE id = %s", $poll_id ) );
-	if ( ! $poll ) {
-		wp_die( 'Abstimmung nicht gefunden.' );
-	}
-
-	// [FU006#AK03] Zuletzt verwendete Vorlage bleibt erhalten.
-	update_option( 'vv_invite_subject', $subject );
-	update_option( 'vv_invite_body', $body );
-
-	$headers = [ 'Content-Type: text/plain; charset=UTF-8' ];
-	$sent    = 0;
-
-	// [FU006#AK01/#AK04] Vereinsname, Titel, Fristen, personalisierter Link, Namen.
-	foreach ( (array) $wpdb->get_results( $wpdb->prepare(
-		"SELECT id, member_no, email, first_name, last_name, activation_token FROM {$wpdb->prefix}voting_voters
-		 WHERE poll_id = %s AND activation_token IS NOT NULL
-		 ORDER BY id",
-		$poll_id
-	) ) as $voter ) {
-		$link = add_query_arg(
-			[
-				'poll'  => $poll_id,
-				'token' => $voter->activation_token,
-			],
-			$activate_url
-		);
-
-		$find = [ '{site_name}', '{poll_title}', '{start}', '{end}', '{link}', '{member_no}', '{first_name}', '{last_name}' ];
-		$replace = [
-			get_bloginfo( 'name' ),
-			$poll->title,
-			vv_fmt( $poll->start_dt ),
-			vv_fmt( $poll->end_dt ),
-			$link,
-			$voter->member_no,
-			(string) $voter->first_name,
-			(string) $voter->last_name,
-		];
-		$mail_subject = str_replace( $find, $replace, $subject );
-		$mail_body    = str_replace( $find, $replace, $body );
-
-		if ( wp_mail( $voter->email, $mail_subject, $mail_body, $headers ) ) {
-			++$sent;
-		}
-	}
-
-	wp_safe_redirect( admin_url( 'admin.php?page=vereins-voting&view=members&poll=' . $poll_id . '&sent=' . $sent ) );
-	exit;
-}
-
 // ---------------------------------------------------------------------------
 // Formulare
 // ---------------------------------------------------------------------------
@@ -617,44 +580,153 @@ function vv_render_import_form( $poll ) {
 }
 
 function vv_render_invite_form( $poll ) {
-	global $wpdb;
+	$counts         = vv_poll_mail_counts( $poll->id );
+	$active         = vv_queue_is_active( $poll->id );
+	$paused         = vv_queue_is_paused( $poll->id );
+	$sendable       = vv_queue_poll_sendable( $poll );
+	$settings_error = vv_mail_settings_error();
+	$rate           = vv_mail_rate();
+	$settings_url   = admin_url( 'admin.php?page=vereins-voting-mail' );
 
-	// Empfängerzahl für die Bestätigung: alle ohne PIN (activation_token noch vorhanden).
-	$pending = (int) $wpdb->get_var( $wpdb->prepare(
-		"SELECT COUNT(*) FROM {$wpdb->prefix}voting_voters WHERE poll_id = %s AND activation_token IS NOT NULL",
-		$poll->id
-	) );
+	$flash = get_transient( vv_mail_poll_flash_key( $poll->id ) );
+	delete_transient( vv_mail_poll_flash_key( $poll->id ) );
+	$mail_text = $flash['mail_text'] ?? ( '' !== trim( (string) $poll->mail_text ) ? (string) $poll->mail_text : vv_mail_poll_text_default() );
+	$mail_url  = $flash['mail_url'] ?? (string) $poll->mail_url;
 
-	// Aus einer persistierten Einstellung lesen (z. B. nach dem ersten Versand) – sonst Standard.
-	$defaults = vv_invite_body_defaults();
-	$subject  = get_option( 'vv_invite_subject', $defaults['subject'] );
-	$body     = get_option( 'vv_invite_body', $defaults['body'] );
+	$user = function_exists( 'wp_get_current_user' ) ? wp_get_current_user() : null;
+	$test_address = $user && isset( $user->user_email ) ? (string) $user->user_email : '';
+	$test_error   = get_transient( 'vv_mail_test_error_' . ( function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0 ) );
+	delete_transient( 'vv_mail_test_error_' . ( function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0 ) );
+
+	$status = ! $sendable ? 'beendet' : ( ! $active ? 'nicht gestartet' : ( $paused ? 'pausiert' : 'läuft' ) );
 	?>
 	<h2>Einladungen versenden</h2>
-	<p>Link-Templates im Text: <code>{site_name} {poll_title} {start} {end} {member_no} {first_name} {last_name} {link}</code>.
-		{link} ist der persönliche Aktivierungslink.</p>
-	<form method="post" onsubmit="return confirm('Massenversand starten? Empfänger ohne PIN: <?php echo (int) $pending; ?>');">
+	<p>Vorlage, Betreff und Footer gelten global und stehen unter
+		<a href="<?php echo esc_url( $settings_url ); ?>">E-Mail-Einstellungen</a>.
+		Hier steht nur der Text dieser Abstimmung und ein optionaler Website-Link.</p>
+	<?php if ( $flash && ! empty( $flash['error'] ) ) : ?>
+		<div class="notice notice-error"><p><?php echo esc_html( $flash['error'] ); ?></p></div>
+	<?php elseif ( isset( $_GET['mail_error'] ) ) : ?>
+		<div class="notice notice-error"><p>Der Text wurde nicht gespeichert.</p></div>
+	<?php endif; ?>
+	<?php if ( isset( $_GET['mail_saved'] ) ) : ?>
+		<div class="notice notice-success is-dismissible"><p>E-Mail-Text gespeichert.</p></div>
+	<?php endif; ?>
+	<?php if ( isset( $_GET['tested'] ) ) : ?>
+		<div class="notice notice-success is-dismissible"><p>Testmail wurde an das angemeldete WordPress-Konto versendet.</p></div>
+	<?php elseif ( isset( $_GET['test_failed'] ) ) : ?>
+		<div class="notice notice-error"><p><?php echo esc_html( $test_error ?: 'Die Testmail konnte nicht versendet werden.' ); ?></p></div>
+	<?php endif; ?>
+	<?php if ( '' !== $settings_error ) : ?>
+		<div class="notice notice-warning"><p><?php echo esc_html( $settings_error ); ?>
+			<a href="<?php echo esc_url( $settings_url ); ?>">E-Mail-Einstellungen öffnen</a></p></div>
+	<?php endif; ?>
+	<?php if ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ) : ?>
+		<div class="notice notice-warning"><p>WP-Cron ist deaktiviert. Der Versand läuft dann nur über
+			„Weitere Einladungen jetzt senden“.</p></div>
+	<?php endif; ?>
+
+	<h3>E-Mail-Text dieser Abstimmung</h3>
+	<p>Platzhalter: <code>{vorname} {nachname} {first_name} {last_name} {poll_title} {question} {start} {end} {member_no} {site_name} {site_url} {privacy_url}</code></p>
+	<form method="post">
 		<?php wp_nonce_field( 'vv_admin', 'vv_nonce' ); ?>
-		<input type="hidden" name="vv_action" value="send_invites">
+		<input type="hidden" name="vv_action" value="save_poll_mail">
 		<input type="hidden" name="poll" value="<?php echo esc_attr( $poll->id ); ?>">
 		<table class="form-table">
 			<tr>
-				<th><label for="vv-activate-url">URL der Aktivierungsseite</label></th>
-				<td><input name="activate_url" id="vv-activate-url" type="url" class="large-text"
-					placeholder="<?php echo esc_attr( home_url( '/pin-setzen/' ) ); ?>" required></td>
+				<th><label for="vv-mail-text">Textblock</label></th>
+				<td><textarea name="mail_text" id="vv-mail-text" rows="7" class="large-text"><?php echo esc_textarea( $mail_text ); ?></textarea></td>
 			</tr>
 			<tr>
-				<th><label for="vv-subject">Betreff</label></th>
-				<td><input name="subject" id="vv-subject" type="text" class="large-text" value="<?php echo esc_attr( $subject ); ?>"></td>
-			</tr>
-			<tr>
-				<th><label for="vv-body">E-Mail-Text</label></th>
-				<td><textarea name="body" id="vv-body" rows="8" class="large-text"><?php echo esc_textarea( $body ); ?></textarea></td>
+				<th><label for="vv-mail-url">Link zur Website (optional)</label></th>
+				<td><input name="mail_url" id="vv-mail-url" type="url" class="large-text"
+					value="<?php echo esc_attr( $mail_url ); ?>" placeholder="<?php echo esc_attr( home_url( '/' ) ); ?>">
+					<p class="description">Wird als zusätzlicher Link „Zur Website“ in die Mail gesetzt.</p></td>
 			</tr>
 		</table>
-		<p><button type="submit" class="button button-primary">Einladungen an alle ohne PIN versenden</button>
-			<a class="button" href="<?php echo esc_url( admin_url( 'admin.php?page=vereins-voting' ) ); ?>">Abbrechen</a></p>
+		<p><button type="submit" class="button">Text speichern</button></p>
 	</form>
+
+	<div><a class="button" href="<?php echo esc_url( vv_mail_preview_url( $poll->id ) ); ?>" target="_blank" rel="noopener">Vorschau dieser Einladung</a>
+		<?php if ( '' === $settings_error && is_email( $test_address ) ) : ?>
+			<form method="post" style="display:inline">
+				<?php wp_nonce_field( 'vv_admin', 'vv_nonce' ); ?>
+				<input type="hidden" name="vv_action" value="test_mail">
+				<input type="hidden" name="poll" value="<?php echo esc_attr( $poll->id ); ?>">
+				<button type="submit" class="button">Testmail an <?php echo esc_html( $test_address ); ?></button>
+			</form>
+		<?php endif; ?>
+	</div>
+	<p class="description">Vorschau und Test nutzen die gespeicherten Werte und erfundene Beispieldaten; der Testlink ist ungültig.</p>
+
+	<h3>Versandstatus</h3>
+	<?php if ( isset( $_GET['queued'] ) ) : ?>
+		<div class="notice notice-success is-dismissible"><p>
+			<?php if ( 0 === (int) ( $_GET['queued'] ?? 0 ) ) : ?>
+				Keine offenen Einladungen.
+			<?php else : ?>
+				Versand gestartet. In diesem Lauf wurden insgesamt <?php echo (int) ( $_GET['sent'] ?? 0 ); ?> Einladungen versendet;
+				der Rest folgt automatisch.
+			<?php endif; ?>
+		</p></div>
+	<?php elseif ( isset( $_GET['paused'] ) ) : ?>
+		<div class="notice notice-success is-dismissible"><p>Versand pausiert. Der aktuelle Lauf ist beendet.</p></div>
+	<?php elseif ( isset( $_GET['resumed'] ) ) : ?>
+		<div class="notice notice-success is-dismissible"><p>Versand fortgesetzt. In diesem Lauf insgesamt: <?php echo (int) ( $_GET['sent'] ?? 0 ); ?>.</p></div>
+	<?php elseif ( isset( $_GET['retried'] ) ) : ?>
+		<div class="notice notice-success is-dismissible"><p>Fehlgeschlagene Einladungen erneut eingeplant. In diesem Lauf insgesamt: <?php echo (int) ( $_GET['sent'] ?? 0 ); ?>.</p></div>
+	<?php endif; ?>
+	<p>Status: <strong><?php echo esc_html( $status ); ?></strong>.
+		Offen: <strong><?php echo (int) $counts['pending']; ?></strong>,
+		gesendet: <strong><?php echo (int) $counts['sent']; ?></strong>,
+		fehlgeschlagen: <strong><?php echo (int) $counts['failed']; ?></strong>.</p>
+	<p>Versandrate: <strong><?php echo (int) $rate; ?></strong> Mails pro 5 Minuten (global).
+		<a href="<?php echo esc_url( $settings_url ); ?>">Ändern</a></p>
+
+	<?php if ( $sendable && $counts['pending'] > 0 && ! $paused ) : ?>
+		<form method="post" onsubmit="return confirm('Massenversand starten? Offene Einladungen: <?php echo (int) $counts['pending']; ?>');">
+			<?php wp_nonce_field( 'vv_admin', 'vv_nonce' ); ?>
+			<input type="hidden" name="vv_action" value="send_invites">
+			<input type="hidden" name="poll" value="<?php echo esc_attr( $poll->id ); ?>">
+			<p><button type="submit" class="button button-primary" <?php echo '' !== $settings_error ? 'disabled' : ''; ?>>
+				<?php echo $active ? 'Weitere Einladungen jetzt senden' : 'Einladungen versenden'; ?>
+			</button></p>
+		</form>
+	<?php endif; ?>
+
+	<?php if ( $sendable && $active && ! $paused && $counts['pending'] > 0 ) : ?>
+		<form method="post" style="display:inline">
+			<?php wp_nonce_field( 'vv_admin', 'vv_nonce' ); ?>
+			<input type="hidden" name="vv_action" value="pause_send">
+			<input type="hidden" name="poll" value="<?php echo esc_attr( $poll->id ); ?>">
+			<button type="submit" class="button">Versand pausieren</button>
+		</form>
+	<?php elseif ( $sendable && $paused && $counts['pending'] > 0 ) : ?>
+		<form method="post" style="display:inline">
+			<?php wp_nonce_field( 'vv_admin', 'vv_nonce' ); ?>
+			<input type="hidden" name="vv_action" value="resume_send">
+			<input type="hidden" name="poll" value="<?php echo esc_attr( $poll->id ); ?>">
+			<button type="submit" class="button button-primary">Versand fortsetzen</button>
+		</form>
+	<?php endif; ?>
+
+	<?php if ( $sendable && $counts['failed'] > 0 ) : ?>
+		<form method="post" style="margin-top:1em" onsubmit="return confirm('Fehlgeschlagene Einladungen erneut versuchen?');">
+			<?php wp_nonce_field( 'vv_admin', 'vv_nonce' ); ?>
+			<input type="hidden" name="vv_action" value="retry_send">
+			<input type="hidden" name="poll" value="<?php echo esc_attr( $poll->id ); ?>">
+			<button type="submit" class="button">Fehlgeschlagene erneut versuchen (<?php echo (int) $counts['failed']; ?>)</button>
+		</form>
+	<?php endif; ?>
+
+	<?php if ( ! $sendable && ( $counts['pending'] > 0 || $counts['failed'] > 0 ) ) : ?>
+		<p>Der Versand ist für diese Abstimmung beendet; offene oder fehlgeschlagene Einladungen können nicht mehr gesendet werden.</p>
+	<?php elseif ( 0 === $counts['pending'] && 0 === $counts['failed'] && $counts['sent'] > 0 ) : ?>
+		<p>Alle Einladungen dieser Abstimmung sind versendet.</p>
+	<?php elseif ( 0 === $counts['pending'] && 0 === $counts['failed'] ) : ?>
+		<p>Noch keine Einladungen vorhanden oder versendet.</p>
+	<?php endif; ?>
+	<p><a class="button" href="<?php echo esc_url( admin_url( 'admin.php?page=vereins-voting' ) ); ?>">Abbrechen</a></p>
 	<?php
 }
 
@@ -671,7 +743,8 @@ function vv_render_members_table( $poll ) {
 	$page  = min( $pages, max( 1, isset( $_GET['vv_page'] ) ? absint( $_GET['vv_page'] ) : 1 ) );
 
 	$voters = $wpdb->get_results( $wpdb->prepare(
-		"SELECT id, member_no, first_name, last_name, email, pin_hash, has_voted, voted_at FROM {$wpdb->prefix}voting_voters
+		"SELECT id, member_no, first_name, last_name, email, activation_token, pin_hash, has_voted, voted_at, invited_at, invite_attempts
+		 FROM {$wpdb->prefix}voting_voters
 		 WHERE poll_id = %s ORDER BY member_no LIMIT %d OFFSET %d",
 		$poll->id,
 		$per_page,
@@ -686,12 +759,9 @@ function vv_render_members_table( $poll ) {
 		echo '<div class="notice notice-success is-dismissible"><p>'
 			. (int) $_GET['imported'] . ' importiert, ' . (int) ( $_GET['skipped'] ?? 0 ) . ' übersprungen.</p></div>';
 	}
-	if ( isset( $_GET['sent'] ) ) {
-		echo '<div class="notice notice-success is-dismissible"><p>' . (int) $_GET['sent'] . ' Einladungen versendet.</p></div>';
-	}
 	if ( isset( $_GET['reset'] ) ) {
-		echo '<div class="notice notice-success is-dismissible"><p>PIN zurückgesetzt. Über „Einladungen an alle ohne PIN versenden“ '
-			. 'erhält die Person einen neuen Aktivierungslink und kann einen neuen PIN setzen.</p></div>';
+		echo '<div class="notice notice-success is-dismissible"><p>PIN zurückgesetzt. Die Person ist wieder für den Einladungsversand vorgemerkt '
+			. 'und erhält über „Einladungen versenden“ einen neuen Aktivierungslink.</p></div>';
 	}
 
 	/** [FU005#AK02] Liste zeigt nur has_voted/voted_at – niemals eine Stimme. */
@@ -699,10 +769,13 @@ function vv_render_members_table( $poll ) {
 		echo '<p>Noch keine Teilnehmer importiert.</p>';
 		return;
 	}
-	echo '<table class="widefat striped"><thead><tr><th>Mitgliedsnummer</th><th>Name</th><th>E-Mail</th><th>PIN gesetzt</th><th>Hat gewählt</th><th>Gewählt am</th><th>Aktionen</th></tr></thead><tbody>';
+	echo '<table class="widefat striped"><thead><tr><th>Mitgliedsnummer</th><th>Name</th><th>E-Mail</th><th>PIN gesetzt</th><th>Einladung</th><th>Hat gewählt</th><th>Gewählt am</th><th>Aktionen</th></tr></thead><tbody>';
 	foreach ( $voters as $v ) {
 		$name    = trim( (string) $v->first_name . ' ' . (string) $v->last_name );
 		$pin_set = ! empty( $v->pin_hash );
+		$invite  = $v->invited_at
+			? 'gesendet'
+			: ( empty( $v->activation_token ) ? '–' : ( (int) $v->invite_attempts >= 3 ? 'fehlgeschlagen' : 'offen' ) );
 		$action  = '–';
 		// [FU005#AK04] Reset nur vor der Stimmabgabe und solange die Wahl offen ist.
 		if ( $pin_set && ! (int) $v->has_voted && 'closed' !== $poll->status ) {
@@ -719,6 +792,7 @@ function vv_render_members_table( $poll ) {
 			. '<td>' . esc_html( '' === $name ? '–' : $name ) . '</td>'
 			. '<td>' . esc_html( $v->email ) . '</td>'
 			. '<td>' . ( $pin_set ? 'Ja' : 'Nein' ) . '</td>'
+			. '<td>' . esc_html( $invite ) . '</td>'
 			. '<td>' . ( (int) $v->has_voted ? 'Ja' : 'Nein' ) . '</td>'
 			. '<td>' . ( $v->voted_at ? esc_html( vv_fmt( $v->voted_at ) ) : '–' ) . '</td>'
 			. '<td>' . $action . '</td>'

@@ -1,23 +1,54 @@
 # Modul 3: E-Mail-Templates (MAIL)
 
-## [FU006] Transaktionale E-Mail-Vorlagen
+## [FU006] Transaktionale Einladungs-E-Mails
 
 ### Beschreibung
 
-Bereitstellung anpassbarer E-Mail-Texte für Einladung und Bestätigung.
+Einladungen sind transaktionale HTML-Mails mit einem festen Layout, globalen
+Texten und einem persönlichen Aktivierungslink. Vorschau und Testversand
+arbeiten ausschließlich mit erfundenen Beispieldaten.
 
 ### Akzeptanzkriterien
 
-- **[FU006#AK01]** Einladungs-E-Mail enthält den Vereinsnamen, den Titel der
-  Abstimmung, Fristen und den personalisierten Aktivierungslink.
+- **[FU006#AK01]** Die Einladungs-E-Mail enthält den Vereinsnamen, den Titel
+  der Abstimmung, den Wahlzeitraum, die Mitgliedsnummer und den persönlichen
+  Aktivierungslink. Der Standard begrüßt mit
+  „Hallo {vorname} {nachname},“. Der Textblock der Abstimmung wird zwischen
+  Einleitung und Aktivierungsbutton eingefügt; ein optionaler Website-Link
+  erscheint zusätzlich als „Zur Website“.
 
-- **[FU006#AK02]** Bestätigungs-E-Mail (optional oder direkt im Browser)
-  enthält den anonymen `receipt_hash` nach erfolgreicher Stimmabgabe.
+- **[FU006#AK02]** Die Mail wird als HTML mit UTF-8 und als Plain-Text-
+  Alternative versendet. Das HTML-Layout ist fest im Plugin (Tabellenlayout,
+  inline CSS, kein Framework, keine externen Bilder, kein Öffnungs- oder
+  Klick-Tracking). Der Footer steht in beiden Teilen. Es wird kein `From`
+  überschrieben; `Reply-To` ist die WordPress-Adminadresse. Es werden keine
+  `List-Unsubscribe`-, `Precedence: bulk`- oder sonstigen Bulk-Header gesetzt.
+  Für die Zustellbarkeit sind SMTP sowie SPF, DKIM und DMARC erforderlich; die
+  Einstellungsseite weist darauf hin. SMTP-/Server-Logs dürfen den Mailinhalt
+  inklusive Aktivierungstoken nicht protokollieren.
 
-- **[FU006#AK03]** Betreff und Text der Einladung sind im Backend editierbar
-  und bleiben als Vorlage für den nächsten Versand gespeichert.
+- **[FU006#AK03]** Betreff, Einleitung und Footer sind global im Backend
+  editierbar und bleiben als Optionen gespeichert. Der Versand überschreibt
+  sie nicht. Der bisherige Betreff `vv_invite_subject` bleibt als Fallback
+  lesbar; der bisherige Text `vv_invite_body` bleibt in der Datenbank, wird
+  aber nicht automatisch in die neue Vorlage übernommen. Der Textblock und
+  der optionale Website-Link je Abstimmung liegen in
+  `voting_polls.mail_text`/`mail_url`.
 
-- **[FU006#AK04]** Betreff und Text können die Platzhalter `{first_name}` und
-  `{last_name}` verwenden; sie werden je Empfänger aus den importierten
-  Namensfeldern ersetzt (leer, wenn keine Namen gespeichert sind). Die
-  Standardvorlage begrüßt mit „Hallo {first_name},“.
+- **[FU006#AK04]** Betreff, Einleitung, Footer und der Text je Abstimmung
+  dürfen die Platzhalter `{vorname}`, `{nachname}`, `{first_name}`,
+  `{last_name}`, `{poll_title}`, `{question}`, `{start}`, `{end}`,
+  `{member_no}`, `{site_name}`, `{site_url}` und `{privacy_url}` verwenden.
+  Sie werden je Empfänger ersetzt; leere Namen ergeben eine leere Stelle.
+  Unbekannte Platzhalter werden beim Speichern mit einer Meldung abgewiesen.
+  Der persönliche Aktivierungslink wird nicht als Platzhalter im Freitext
+  erwartet, sondern immer als Button „PIN setzen“ gesetzt.
+
+- **[FU006#AK05]** Vorschau und Testversand sind auf der globalen
+  Einstellungsseite und je Abstimmung verfügbar. Beide nutzen die
+  gespeicherten Werte und ausschließlich erfundene Beispieldaten (Name,
+  Mitgliedsnummer, E-Mail und ein ungültiger Beispieltoken); echte
+  Mitgliedsdaten werden nicht angezeigt oder versendet. Die Testmail geht an
+  das angemeldete WordPress-Konto und verändert weder den Versandstatus noch
+  den Queue-Zähler. Ohne Footer oder gültige Aktivierungs-URL ist kein
+  Testversand möglich; die Vorschau zeigt dann einen Hinweis.

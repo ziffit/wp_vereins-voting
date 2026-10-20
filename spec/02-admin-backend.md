@@ -29,12 +29,14 @@ löschen.
   damit Wahlzeiten nicht unbemerkt verschoben werden.
 
 - **[FU002#AK05]** Alle Backend-Masken (Abstimmung, CSV-Import,
-  Einladungsversand) bieten neben der Hauptaktion einen Abbrechen-Link ohne
-  Datenänderung; nach dem Speichern bzw. Löschen erscheint eine
-  Bestätigungsmeldung. Eingabefehler der Abstimmungsmaske (fehlende
+  Einladungsversand, E-Mail-Einstellungen) bieten neben der Hauptaktion einen
+  Abbrechen-Link ohne Datenänderung; nach dem Speichern bzw. Löschen erscheint
+  eine Bestätigungsmeldung. Eingabefehler der Abstimmungsmaske (fehlende
   Pflichtfelder, Ende vor dem Start) werden als Meldung in der Maske
   angezeigt; die eingegebenen Werte bleiben erhalten und die Admin-Seite
-  wird nicht durch `wp_die()` ersetzt.
+  wird nicht durch `wp_die()` ersetzt. Fehler beim Speichern von E-Mail-Texten
+  werden ebenfalls als Meldung angezeigt; die eingegebenen Werte bleiben
+  erhalten.
 
 - **[FU002#AK06]** Der Admin-Handler verarbeitet ausschließlich POSTs mit der
   plugin-eigenen Aktion `vv_action`. Fremde Admin-Anfragen (z. B. Heartbeat
@@ -79,21 +81,55 @@ Import einer Mitgliederliste per CSV-Upload pro Abstimmung.
 
 ### Beschreibung
 
-Massenversand der Einladungs-E-Mails an alle importierten Wähler einer
-Abstimmung.
+Gedrosselter Massenversand der Einladungs-E-Mails an alle importierten Wähler
+einer Abstimmung. Die Gestaltung und die globalen Texte gelten für alle
+Abstimmungen; je Abstimmung gibt es nur einen Textblock und einen optionalen
+Website-Link.
 
 ### Akzeptanzkriterien
 
-- **[FU004#AK01]** Im Admin-Bereich gibt es einen „Einladungen versenden“-
-  Button je Abstimmung. Vor dem Versand wird die Anzahl der Empfänger ohne
-  PIN in einer Bestätigungsabfrage angezeigt.
+- **[FU004#AK01]** Im Admin-Bereich gibt es je Abstimmung eine
+  Einladungsseite mit „Einladungen versenden“-Button. Vor dem Start zeigt eine
+  Bestätigungsabfrage die Zahl der offenen Empfänger (Aktivierungstoken
+  vorhanden, noch nicht gesendet, weniger als drei Fehlversuche). Die Seite
+  zeigt außerdem offene, gesendete und endgültig fehlgeschlagene Einladungen
+  sowie die globalen Einstellungen unter
+  `Vereinsvoting → E-Mail-Einstellungen`. Geschlossene oder abgelaufene
+  Abstimmungen erhalten keinen Versand-Button.
 
-- **[FU004#AK02]** Das System versendet über `wp_mail()` individualisierte
-  E-Mails mit einem Aktivierungslink, der den `activation_token` als
-  URL-Parameter enthält.
+- **[FU004#AK02]** Die globalen E-Mail-Einstellungen enthalten Betreff,
+  Einleitung/Anrede, Footer, URL der Aktivierungsseite und Versandrate.
+  Footer und Aktivierungs-URL sind Pflicht; fehlt eine der Angaben, wird nicht
+  versendet. Die Rate liegt zwischen 1 und 500 Mails pro 5 Minuten (Standard
+  10) und gilt global über alle Abstimmungen. Das HTML-Layout ist fest im
+  Plugin; ein Roh-HTML-Feld gibt es nicht. Betreff, Einleitung, Footer und
+  der Text je Abstimmung werden vor dem Speichern auf unbekannte Platzhalter
+  geprüft. Der bisherige Betreff `vv_invite_subject` dient als Fallback; der
+  bisherige Text `vv_invite_body` bleibt in der Datenbank, wird aber nicht
+  automatisch übernommen.
 
-- **[FU004#AK03]** Betreff und Text werden beim Versand als Vorlage
-  gespeichert und beim nächsten Aufruf wieder vorbelegt.
+- **[FU004#AK03]** Je Abstimmung lassen sich ein Textblock und optional eine
+  Website-URL speichern. Der Textblock darf die dokumentierten Platzhalter
+  verwenden; die URL muss `http` oder `https` sein. Der persönliche
+  Aktivierungslink wird immer zusätzlich als „PIN setzen“-Button gesetzt; der
+  Website-Link erscheint optional als „Zur Website“. Der Textblock ersetzt
+  nicht die globale Einleitung oder den Footer.
+
+- **[FU004#AK04]** Der Versand läuft in Batches über `wp_mail()` und WP-Cron.
+  Ein globales 5-Minuten-Fenster begrenzt die Versuche; ein Lock verhindert
+  parallele Läufe und verfällt nach 10 Minuten. Vor dem Batch wird der nächste
+  Lauf geplant. Erfolgreiche Mails erhalten `invited_at` und werden nie erneut
+  gesendet. Pausieren stoppt den nächsten Batch; der laufende Batch wird
+  beendet. Fortsetzen plant sofort einen neuen Batch. Ist `DISABLE_WP_CRON`
+  aktiv, weist die Oberfläche darauf hin; der Admin kann Batches manuell über
+  „Weitere Einladungen jetzt senden“ auslösen.
+
+- **[FU004#AK05]** Schlägt `wp_mail()` fehl, wird `invite_attempts` erhöht.
+  Nach drei Fehlversuchen stoppt der automatische Versand; ein manueller
+  Retry setzt den Zähler der fehlgeschlagenen Zeilen auf 0 und plant sie
+  erneut ein. Bereits erfolgreich gesendete Zeilen bleiben unberührt. Ein
+  PIN-Reset löscht `invited_at` und `invite_attempts`, damit die Person über
+  einen erneuten Start wieder eingeladen wird.
 
 ## [FU005] Admin-Audit- & Mitglieder-Übersicht
 
@@ -109,10 +145,10 @@ Stimmgeheimnisses.
   (*Hat gewählt: Ja/Nein* und *Gewählt am: [Zeitstempel]*); fehlt der Name,
   steht dort „–“. Die Liste trägt die Überschrift „Stimmberechtigte
   Mitglieder“ und wird seitenweise angezeigt (100 Einträge pro Seite). Sie
-  zeigt je Person, ob eine PIN gesetzt ist (Ja/Nein). Die
-  Abstimmungsübersicht zeigt die UUID je Abstimmung, den Titel ohne
-  Verlinkung sowie Teilnehmer- und Stimmenzahl und die Aktionen
-  „Bearbeiten“ und „Teilnehmer & Einladung“.
+  zeigt je Person, ob eine PIN gesetzt ist (Ja/Nein) und ob die Einladung
+  offen, gesendet oder fehlgeschlagen ist. Die Abstimmungsübersicht zeigt die
+  UUID je Abstimmung, den Titel ohne Verlinkung sowie Teilnehmer- und
+  Stimmenzahl und die Aktionen „Bearbeiten“ und „Teilnehmer & Einladung“.
 
 - **[FU005#AK02]** Es ist technisch unmöglich, im Backend einzusehen, welche
   Option (ja, nein, enthaltung) ein spezifisches Mitglied gewählt hat.
@@ -122,7 +158,9 @@ Stimmgeheimnisses.
 
 - **[FU005#AK04]** Der Admin kann eine gesetzte PIN vor der Stimmabgabe
   zurücksetzen (z. B. bei vergessener PIN). Dabei werden nur der PIN-Hash
-  gelöscht und ein neuer `activation_token` erzeugt; die Person setzt über
-  eine neue Einladung einen neuen PIN. Die Urne und das Wahlgeheimnis bleiben
-  unberührt. Nach der Stimmabgabe und bei geschlossenen Abstimmungen ist der
-  Reset nicht möglich; eine bestehende Fehlversuchssperre wird aufgehoben.
+  gelöscht und ein neuer `activation_token` erzeugt; außerdem werden
+  `invited_at` und `invite_attempts` zurückgesetzt, damit die Person über
+  einen erneuten Versandstart wieder eingeladen wird. Die Urne und das
+  Wahlgeheimnis bleiben unberührt. Nach der Stimmabgabe und bei geschlossenen
+  Abstimmungen ist der Reset nicht möglich; eine bestehende Fehlversuchssperre
+  wird aufgehoben.

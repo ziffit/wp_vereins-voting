@@ -58,20 +58,25 @@ switch ( $step ) {
 
 		// Spalten exakt prüfen.
 		$pcols = array_map( fn( $r ) => $r->Field, $wpdb->get_results( "SHOW COLUMNS FROM wpx_voting_polls" ) );
-		foreach ( [ 'id', 'title', 'question', 'start_dt', 'end_dt', 'status' ] as $need ) {
+		foreach ( [ 'id', 'title', 'question', 'mail_text', 'mail_url', 'start_dt', 'end_dt', 'status' ] as $need ) {
 			vv_assert( in_array( $need, $pcols, true ), "[FU001#AK01] polls-Spalte $need" );
 		}
 		$vcols = array_map( fn( $r ) => $r->Field, $wpdb->get_results( "SHOW COLUMNS FROM wpx_voting_voters" ) );
-		foreach ( [ 'poll_id', 'member_no', 'email', 'first_name', 'last_name', 'activation_token', 'pin_hash', 'has_voted', 'voted_at' ] as $need ) {
+		foreach ( [ 'poll_id', 'member_no', 'email', 'first_name', 'last_name', 'activation_token', 'pin_hash', 'has_voted', 'voted_at', 'invited_at', 'invite_attempts' ] as $need ) {
 			vv_assert( in_array( $need, $vcols, true ), "[FU001#AK01] voters-Spalte $need" );
 		}
 
-		// [FU001#AK03] Bestandsinstallation ohne Namensspalten: Upgrade ergänzt additiv.
-		$wpdb->query( 'ALTER TABLE wpx_voting_voters DROP COLUMN first_name, DROP COLUMN last_name' );
+		// [FU001#AK03] Bestandsinstallation ohne Namens-/Queue-/Mailspalten: Upgrade ergänzt additiv.
+		$wpdb->query( 'ALTER TABLE wpx_voting_voters DROP COLUMN first_name, DROP COLUMN last_name, DROP COLUMN invited_at, DROP COLUMN invite_attempts' );
+		$wpdb->query( 'ALTER TABLE wpx_voting_polls DROP COLUMN mail_text, DROP COLUMN mail_url' );
 		vv_maybe_upgrade();
 		$vcols = array_map( fn( $r ) => $r->Field, $wpdb->get_results( "SHOW COLUMNS FROM wpx_voting_voters" ) );
-		vv_assert( in_array( 'first_name', $vcols, true ) && in_array( 'last_name', $vcols, true ),
-			'[FU001#AK03] Upgrade zieht fehlende Namensspalten nach' );
+		vv_assert( in_array( 'first_name', $vcols, true ) && in_array( 'last_name', $vcols, true )
+			&& in_array( 'invited_at', $vcols, true ) && in_array( 'invite_attempts', $vcols, true ),
+			'[FU001#AK03] Upgrade zieht fehlende Namens-/Queuespalten nach' );
+		$pcols = array_map( fn( $r ) => $r->Field, $wpdb->get_results( "SHOW COLUMNS FROM wpx_voting_polls" ) );
+		vv_assert( in_array( 'mail_text', $pcols, true ) && in_array( 'mail_url', $pcols, true ),
+			'[FU001#AK03] Upgrade ergänzt mail_text/mail_url' );
 		$bcols = array_map( fn( $r ) => $r->Field, $wpdb->get_results( "SHOW COLUMNS FROM wpx_voting_ballots" ) );
 		foreach ( [ 'poll_id', 'vote_option', 'receipt_hash' ] as $need ) {
 			vv_assert( in_array( $need, $bcols, true ), "[FU001#AK01] ballots-Spalte $need" );
@@ -166,29 +171,79 @@ switch ( $step ) {
 	// ---------------------------------------------------------------
 	case 'send_invites': {
 		$poll = vv_poll_by_title( 'Kassenprüfung 2026 (korrigiert)' );
+
+		// [FU004#AK02] Globale Pflichtwerte, Rate 1 und separater Abstimmungstext.
 		$_SERVER['REQUEST_METHOD'] = 'POST';
 		$_POST = [
-			'vv_action'    => 'send_invites',
-			'poll'         => $poll->id,
-			'activate_url' => 'https://example.org/aktivierungen/',
-			'subject'      => 'Einladung: {poll_title}',
-			'body'         => "Hallo {first_name} {last_name},\r\n\r\n{site_name} bittet zur Abstimmung „{poll_title}“.\r\nWahlzeitraum: {start} – {end}.\r\n{link}\r\nMitgliedsnummer: {member_no}",
+			'vv_action'         => 'save_mail_settings',
+			'mail_subject'      => 'Einladung: {poll_title}',
+			'mail_intro'        => "Hallo {vorname} {nachname},\r\n\r\nbitte nimm an der Abstimmung teil.",
+			'mail_footer'       => "Testverein e.V.\r\nMusterstraße 1, 12345 Musterstadt\r\nImpressum: https://example.org/impressum/",
+			'mail_activate_url' => 'https://example.org/aktivierungen/',
+			'mail_rate'         => '1',
 		];
-		try { vv_send_invites(); } catch ( VVRedirectFound $r ) {}
+		try { vv_save_mail_settings(); } catch ( VVRedirectFound $r ) {}
+		update_option( 'admin_email', 'admin@example.test' );
+		vv_assert( 'Einladung: {poll_title}' === get_option( 'vv_mail_subject' ), '[FU004#AK02] globale Mailvorlage gespeichert' );
 
+		$_POST = [
+			'vv_action' => 'save_poll_mail',
+			'poll'      => $poll->id,
+			'mail_text' => "{question}\r\nWahlzeitraum: {start} – {end}\r\nMitgliedsnummer: {member_no}",
+			'mail_url'  => 'https://example.org/verein/',
+		];
+		try { vv_save_poll_mail(); } catch ( VVRedirectFound $r ) {}
+		$poll = vv_poll_by_title( 'Kassenprüfung 2026 (korrigiert)' );
+		vv_assert( 'https://example.org/verein/' === $poll->mail_url, '[FU004#AK03] Website-Link je Abstimmung gespeichert' );
+
+		// [FU006#AK05] Vorschau und Testmail nutzen nur erfundene Daten.
+		$preview = vv_mail_preview_page( $poll->id );
+		vv_assert( str_contains( $preview, 'Erika Muster' ) && str_contains( $preview, '0123456789abcdef0123456789abcdef' ),
+			'[FU006#AK05] Vorschau nutzt Beispieldaten' );
+		vv_assert( ! str_contains( $preview, 'alice@example.com' ) && ! str_contains( $preview, 'Alice Anders' ),
+			'[FU006#AK05] Vorschau enthält keine echten Mitgliedsdaten' );
+		$before = count( $GLOBALS['vv_mails'] );
+		vv_assert( true === vv_send_test_mail( $poll->id ), '[FU006#AK05] Testmail versendet' );
+		$test_mail = $GLOBALS['vv_mails'][ count( $GLOBALS['vv_mails'] ) - 1 ];
+		vv_assert( $before + 1 === count( $GLOBALS['vv_mails'] ) && 'admin@example.test' === $test_mail['to'],
+			'[FU006#AK05] Testmail geht an das angemeldete Konto' );
+		$alice = vv_row( 'voting_voters', "WHERE email = 'alice@example.com'" );
+		vv_assert( empty( $alice->invited_at ), '[FU006#AK05] Testmail verändert den Versandstatus nicht' );
+		$GLOBALS['vv_mails'] = []; // Testmail nicht mit den echten Einladungen verwechseln.
+
+		// [FU004#AK04] Rate 1: erster Batch sendet genau eine Mail.
+		$_POST = [ 'vv_action' => 'send_invites', 'poll' => $poll->id ];
+		try { vv_send_invites(); } catch ( VVRedirectFound $r ) {}
+		vv_assert( 1 === count( $GLOBALS['vv_mails'] ), '[FU004#AK04] Rate 1 begrenzt den ersten Batch' );
+		vv_assert( [] !== vv_queue_pending_polls(), '[FU004#AK04] offene Einladung bleibt für den Folgelauf' );
+		vv_assert( false !== wp_next_scheduled( 'vv_send_queue_tick' ), '[FU004#AK04] WP-Cron ist geplant' );
+
+		update_option( 'vv_send_window', [ 'start' => time() - 301, 'count' => 1 ] );
+		vv_run_send_queue();
 		$n = count( $GLOBALS['vv_mails'] );
 		vv_assert( 2 === $n, "[FU004#AK01/02] 2 Einladungen versendet (ist $n)" );
 		$mail = $GLOBALS['vv_mails'][0];
+		vv_assert( str_contains( $mail['body'], '<!DOCTYPE html>' ) && str_contains( $mail['body'], 'PIN setzen' ),
+			'[FU006#AK02] Einladung ist HTML mit Aktivierungsbutton' );
 		vv_assert( str_contains( $mail['body'], 'Kassenprüfung 2026' ), '[FU006#AK01] Mail enthält Abstimmungstitel' );
-		vv_assert( str_contains( $mail['body'], 'Testverein e.V.' ), '[FU006#AK01] Mail enthält Vereinsnamen' );
+		vv_assert( str_contains( $mail['body'], 'Testverein e.V.' ), '[FU006#AK01] Mail enthält Vereinsnamen aus dem Footer' );
 		vv_assert( str_contains( $mail['body'], 'Wahlzeitraum' ), '[FU006#AK01] Mail enthält Frist' );
-		vv_assert( (bool) preg_match( '/https:\/\/example\.org\/aktivierungen\/\?poll=[0-9a-f-]{36}&token=[0-9a-f]{32}/', $mail['body'] ), '[FU006#AK01] Mail enthält personalisierten Aktivierungslink (UUID + Token)' );
+		vv_assert( str_contains( $mail['body'], 'https://example.org/verein/' ) && str_contains( $mail['body'], 'Zur Website' ),
+			'[FU004#AK03] optionaler Website-Link steht in der Mail' );
+		vv_assert( (bool) preg_match( '/https:\/\/example\.org\/aktivierungen\/\?poll=[0-9a-f-]{36}/', $mail['body'] ), '[FU006#AK01] Mail enthält personalisierten Aktivierungslink (UUID)' );
 		// [FU006#AK04] Namen je Empfänger ersetzt:
 		$all = implode( "\n", array_map( fn( $m ) => $m['body'], $GLOBALS['vv_mails'] ) );
 		vv_assert( str_contains( $all, 'Hallo Alice Anders,' ), '[FU006#AK04] {first_name}/{last_name} je Empfänger ersetzt' );
 		// Aktivierungslink passt zum Empfänger:
-		$v   = vv_row( 'voting_voters', "WHERE email = 'alice@example.com'" );
+		$v = vv_row( 'voting_voters', "WHERE email = 'alice@example.com'" );
 		vv_assert( str_contains( $GLOBALS['vv_mails'][0]['body'], 'token=' . $v->activation_token ), '[FU004#AK02] Aktivierungslink passend zum Empfänger (Farbdoppelcheck)' );
+		vv_assert( in_array( 'Content-Type: text/html; charset=UTF-8', $mail['headers'], true )
+			&& in_array( 'Reply-To: admin@example.test', $mail['headers'], true ),
+			'[FU006#AK02] HTML- und Reply-To-Header gesetzt' );
+		vv_assert( ! empty( $v->invited_at ) && 0 === (int) $v->invite_attempts,
+			'[FU004#AK04] erfolgreicher Versand wird je Person vermerkt' );
+		$counts = vv_poll_mail_counts( $poll->id );
+		vv_assert( 2 === $counts['sent'] && 0 === $counts['pending'], '[FU004#AK04] Queue ist nach dem Folgelauf leer' );
 		break;
 	}
 
@@ -239,6 +294,8 @@ switch ( $step ) {
 			'[FU005#AK04] PIN-Reset löscht den Hash' );
 		vv_assert( $alice->activation_token && 32 === strlen( $alice->activation_token ),
 			'[FU005#AK04] PIN-Reset erzeugt neuen Aktivierungstoken' );
+		vv_assert( empty( $alice->invited_at ) && 0 === (int) $alice->invite_attempts,
+			'[FU005#AK04] PIN-Reset stellt die Person wieder in die Einladungswarteschlange' );
 
 		// Über den neuen Link wieder einen PIN setzen, damit die Folgeschritte laufen.
 		$_SERVER['REQUEST_METHOD'] = 'POST';
