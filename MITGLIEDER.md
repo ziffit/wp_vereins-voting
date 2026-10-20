@@ -51,8 +51,10 @@ Im Wahlzeitraum öffnest du die Wahlseite und wählst **Ja**, **Nein** oder
 ### 4. Du sichert deine Quittung
 
 Direkt danach zeigt das Plugin einen **anonymen Quittungscode** – dein
-Beleg, dass die Stimme angekommen ist. Speichere ihn (Screenshot, Notiz).
-Er enthält weder deinen Namen noch deine Mitgliedsnummer.
+Beleg, dass die Stimme angekommen ist. Notiere dir die **ersten 5 Stellen**
+des Codes (Screenshot oder Notiz) – mehr brauchst du später nicht, um deine
+Stimme wiederzufinden. Der Code enthält weder deinen Namen noch deine
+Mitgliedsnummer.
 
 > **Was ist das für ein Code?** Er wird aus deiner Stimme berechnet wie ein
 > Fingerabdruck aus deinem Finger – aus dem Code lässt sich aber nichts
@@ -62,10 +64,10 @@ Er enthält weder deinen Namen noch deine Mitgliedsnummer.
 
 Wenn die Wahl geschlossen ist, zeigt die Website das **Ergebnis**
 (Ja, Nein, Enthaltung) und darunter eine **Prüftabelle** aller
-Quittungscodes mit der jeweiligen Stimme. Suche darin deinen Code: Dann
-siehst du, dass deine Stimme korrekt gezählt wurde. Und du kannst selbst
-nachzählen – alle Zeilen der Tabelle ergeben zusammen das angezeigte
-Ergebnis.
+Quittungscodes mit der jeweiligen Stimme. Die ersten fünf Zeichen jedes
+Codes sind fett hervorgehoben – suche darin deine: Dann siehst du, dass
+deine Stimme korrekt gezählt wurde. Und du kannst selbst nachzählen: alle
+Zeilen der Tabelle ergeben zusammen das angezeigte Ergebnis.
 
 ---
 
@@ -101,6 +103,11 @@ Einladungs-E-Mails enthalten kein Öffnungs- oder Klick-Tracking.
 * **Ununterbrechbarer Schritt:** Stimme und Markierung werden in einer
   [Transaktion](https://de.wikipedia.org/wiki/Transaktion_(Datenbank))
   gespeichert – entweder beides oder gar nichts.
+* **Offener Code statt Geheimniskrämerei:** Der Quelltext des Plugins liegt
+  öffentlich auf GitHub: <https://github.com/ziffit/wp_vereins-voting>.
+  Jeder kann ihn lesen, prüfen und selbst betreiben. Die Sicherheit dieser
+  Wahl stammt nicht aus geheimen Verfahren, sondern aus nachvollziehbaren
+  Regeln – wer misstraut, kann sie im Code nachlesen.
 
 ## Warum ist die Wahl nachvollziehbar?
 

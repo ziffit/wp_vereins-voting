@@ -120,6 +120,9 @@ return [
 		$html = vv_shortcode_form();
 		vv_check( str_contains( $html, 'vv-receipt' ) && str_contains( $html, 'Stimme wurde gezählt' ),
 			'[FU008#AK04] Shortcode zeigt Receipt-Hash nach Erfolg im Browser' );
+		vv_check( str_contains( $html, 'ersten 5 Stellen' ),
+			'[FU008#AK04] Hinweis: ersten 5 Stellen des Prüfcodes notieren' );
+		vv_check( str_contains( $html, 'vv-version' ), '[FU007#AK05] Versionszeile auch bei der Stimmabgabe' );
 		vv_check( ! str_contains( $html, '<form' ), '[FU008#AK04] Formular nach Abstimmung ausgeblendet' );
 		vv_check( 1 === vv_fx_ballots_count( $pid ), '[FU008#AK04] Urne erhielt genau eine Stimme' );
 

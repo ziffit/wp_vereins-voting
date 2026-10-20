@@ -19,6 +19,11 @@ add_shortcode( 'verein_voting_activate', 'vv_shortcode_activate' );
 add_shortcode( 'verein_voting_form', 'vv_shortcode_form' );
 add_shortcode( 'verein_voting_results', 'vv_shortcode_results' );
 
+/** [FU007#AK05] Versionszeile – jede Shortcode-Ausgabe nennt die Plugin-Version. */
+function vv_version_note() {
+	return '<p class="vv-version">vereins-voting ' . esc_html( VEREINS_VOTING_VERSION ) . '</p>';
+}
+
 /** Eingegebene Mitglieds-Nr/E-Mail/PIN nach Submit wieder anzeigen. */
 function vv_re( $existing, $fallback ) {
 	return isset( $_POST[ $existing ] ) ? sanitize_text_field( wp_unslash( $_POST[ $existing ] ) ) : $fallback;
@@ -29,6 +34,10 @@ function vv_re( $existing, $fallback ) {
 // ---------------------------------------------------------------------------
 
 function vv_shortcode_activate() {
+	return vv_activate_html() . vv_version_note();
+}
+
+function vv_activate_html() {
 	global $wpdb;
 
 	vv_enqueue_frontend_style();
@@ -123,6 +132,10 @@ function vv_shortcode_activate() {
 // ---------------------------------------------------------------------------
 
 function vv_shortcode_form() {
+	return vv_form_html() . vv_version_note();
+}
+
+function vv_form_html() {
 	global $wpdb;
 
 	vv_enqueue_frontend_style();
@@ -151,7 +164,8 @@ function vv_shortcode_form() {
 				// [FU008#AK04] Formular ausblenden, ReceiptHash anzeigen.
 				return '<div class="vv-box vv-success"><strong>Deine Stimme wurde gezählt. Danke!</strong><br>'
 					. 'Dein persönlicher Prüfcode (Receipt-Hash):<br><code class="vv-receipt">' . esc_html( $receipt ) . '</code><br>'
-					. '<small>Bitte sichere diesen Code. Damit kannst du nach Wahlende prüfen, dass deine Stimme in der Urne liegt.</small></div>';
+					. '<small>Notiere dir die ersten 5 Stellen des Codes – deine Stimme ist damit normalerweise eindeutig auffindbar. '
+					. 'Damit kannst du nach Wahlende prüfen, dass deine Stimme in der Urne liegt.</small></div>';
 			} catch ( \Throwable $e ) {
 				$error = $e->getMessage();
 			}
@@ -215,6 +229,10 @@ function vv_shortcode_form() {
 // ---------------------------------------------------------------------------
 
 function vv_shortcode_results() {
+	return vv_results_html() . vv_version_note();
+}
+
+function vv_results_html() {
 	global $wpdb;
 
 	vv_enqueue_frontend_style();
@@ -254,11 +272,12 @@ function vv_shortcode_results() {
 			$poll_id
 		) );
 		$html .= '<h3>Prüfliste (anonym)</h3>';
-		$html .= '<p>Suche in der Liste deinen Prüfcode aus der Bestätigung. Dann siehst du, ob deine Stimme korrekt gezählt wurde. '
-			. 'Die Liste enthält keine Personen.</p>';
+		$html .= '<p>Suche in der Liste deinen Prüfcode aus der Bestätigung – die ersten fünf Zeichen sind fett hervorgehoben. '
+			. 'Dann siehst du, ob deine Stimme korrekt gezählt wurde. Die Liste enthält keine Personen.</p>';
 		$html .= '<table class="vv-table"><thead><tr><th>Prüfcode</th><th>Stimme</th><th>Zeitpunkt</th></tr></thead><tbody>';
 		foreach ( $ballots as $b ) {
-			$html .= '<tr><td><code>' . esc_html( $b->receipt_hash ) . '</code></td><td>' . esc_html( ucfirst( $b->vote_option ) ) . '</td><td>' . esc_html( vv_fmt( $b->created_at ) ) . '</td></tr>';
+			$html .= '<tr><td><code><strong>' . esc_html( substr( $b->receipt_hash, 0, 5 ) ) . '</strong>'
+				. esc_html( substr( $b->receipt_hash, 5 ) ) . '</code></td><td>' . esc_html( ucfirst( $b->vote_option ) ) . '</td><td>' . esc_html( vv_fmt( $b->created_at ) ) . '</td></tr>';
 		}
 		$html .= '</tbody></table>';
 		return $html;

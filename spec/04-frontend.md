@@ -24,6 +24,11 @@ persönlichen Wahl-PIN festlegt.
   nach 5 Fehlversuchen (falsche Mitgliedsdaten oder PIN) ist die Aktivierung
   für 15 Minuten gesperrt.
 
+- **[FU007#AK05]** Jede Ausgabe der drei Shortcodes `[verein_voting_activate]`,
+  `[verein_voting_form]` und `[verein_voting_results]` endet mit einer
+  Versionszeile `vereins-voting X.Y.Z` (CSS-Klasse `vv-version`), damit auf
+  jeder Seite sichtbar ist, welche Plugin-Version ausliefert.
+
 ## [FU008] Shortcode 2: `[verein_voting_form]` (Die Stimmabgabe)
 
 ### Beschreibung
@@ -52,9 +57,10 @@ Das eigentliche Wahlformular während des aktiven Wahlzeitraums.
      `wp_voting_ballots`.
 
 - **[FU008#AK04]** Nach erfolgreicher Stimmabgabe wird dem Wähler der
-  anonyme `receipt_hash` auf dem Bildschirm angezeigt mit dem Hinweis,
-  diesen für die spätere Überprüfung zu sichern. Das Formular wird
-  ausgeblendet.
+  anonyme `receipt_hash` auf dem Bildschirm angezeigt mit dem Hinweis, die
+  ersten 5 Stellen des Codes zu notieren – sie reichen normalerweise aus,
+  um die Stimme in der Prüfliste eindeutig wiederzufinden. Das Formular
+  wird ausgeblendet.
 
 - **[FU008#AK05]** Das Stimmformular ist durch ein Nonce gegen CSRF
   geschützt; nach 5 falschen PIN-Eingaben ist die Stimmabgabe für diese
@@ -84,4 +90,7 @@ Prüftabelle.
 - **[FU009#AK03]** Es wird eine vollständige, anonyme Prüftabelle aller in
   der Urne befindlichen `receipt_hash`-Werte samt ihrer Stimmabgabe
   angezeigt. Jedes Mitglied kann hier seinen eigenen Hash suchen und
-  verifizieren, dass seine Stimme korrekt gezählt wurde.
+  verifizieren, dass seine Stimme korrekt gezählt wurde. Die ersten fünf
+  Zeichen jedes Prüfcodes werden fett hervorgehoben; sie reichen
+  normalerweise aus, um eine Stimme bei bis zu einigen Tausend Wählern
+  eindeutig wiederzufinden.

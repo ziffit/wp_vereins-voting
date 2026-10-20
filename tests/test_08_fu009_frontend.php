@@ -55,11 +55,15 @@ return [
 		vv_fx_http( [ 'poll' => $pid ] );
 		$html = vv_shortcode_results();
 		vv_check( str_contains( $html, 'Prüfliste' ), '[FU009#AK03] Prüftabelle angezeigt' );
-		vv_check( str_contains( $html, $h1 ) && str_contains( $html, $h2 ), '[FU009#AK03] Receipts in der Prüfliste' );
+		vv_check( str_contains( $html, '<strong>' . substr( $h1, 0, 5 ) . '</strong>' . substr( $h1, 5 ) )
+			&& str_contains( $html, '<strong>' . substr( $h2, 0, 5 ) . '</strong>' . substr( $h2, 5 ) ),
+			'[FU009#AK03] Receipts in der Prüfliste, erste 5 Zeichen fett hervorgehoben' );
 		// Anonymitätstest: keine Namen, keine Mailadressen, keine Tokens in der Prüfliste.
 		vv_check( ! str_contains( $html, 'geheim@example.org' ), '[FU009#AK03] anonym (keine E-Mail-Adresse)' );
 		vv_check( ! str_contains( $html, 'tokq' ), '[FU009#AK03] anonym (keine Token-Werte)' );
-		vv_check( 1 === substr_count( $html, '<code>' . $h1 ), '[FU009#AK03] jeder Receipt exakt einmal gelistet' );
+		vv_check( 1 === substr_count( $html, '<strong>' . substr( $h1, 0, 5 ) . '</strong>' ),
+			'[FU009#AK03] jeder Receipt exakt einmal gelistet' );
+		vv_check( str_contains( $html, 'vv-version' ), '[FU007#AK05] Versionszeile auch bei den Ergebnissen' );
 	},
 
 	'test_08_fu008_ak01_formular_auswahl' => function () {

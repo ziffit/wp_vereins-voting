@@ -24,6 +24,8 @@ return [
 		foreach ( [ 'Mitgliedsnummer', 'E-Mail', 'PIN', 'bestätigen' ] as $needle ) {
 			vv_check( str_contains( $html, $needle ), "[FU007#AK01] Formularfeld $needle vorhanden" );
 		}
+		vv_check( str_contains( $html, 'vv-version' ) && str_contains( $html, 'vereins-voting ' ),
+			'[FU007#AK05] Versionszeile am Ende jeder Shortcode-Ausgabe' );
 	},
 
 	'test_06_fu007_ak02_daten_muss_passen' => function () {

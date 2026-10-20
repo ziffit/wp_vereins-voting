@@ -438,7 +438,8 @@ switch ( $step ) {
 		vv_assert( str_contains( $html, 'Prüfliste' ), '[FU009#AK03] Prüftabelle vorhanden' );
 		$b = $wpdb->get_results( "SELECT receipt_hash FROM wpx_voting_ballots WHERE poll_id = '{$poll->id}'" );
 		vv_assert( count( $b ) === 2, '2 Urnenzeilen' );
-		vv_assert( str_contains( $html, substr( $b[0]->receipt_hash, 0, 8 ) ), '[FU009#AK03] Receipts in Prüftabelle gelistet' );
+		vv_assert( str_contains( $html, '<strong>' . substr( $b[0]->receipt_hash, 0, 5 ) . '</strong>' ),
+			'[FU009#AK03] Receipts in Prüftabelle gelistet (erste 5 Zeichen hervorgehoben)' );
 		// Kein Personenname in Urnenausgabe?
 		vv_assert( ! preg_match( '/(alice|bob@example)/i', $html ), '[FU009#AK03] Prüfliste anonym (kein Mail/Namen)' );
 

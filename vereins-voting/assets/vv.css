@@ -73,6 +73,13 @@
 	word-break: break-all;
 }
 
+/* Versionszeile unter jedem Shortcode-Bereich. */
+.vv-version {
+	font-size: 0.75em;
+	opacity: 0.6;
+	margin: 1em 0 0;
+}
+
 /* Admin: gesperrte Felder optisch kenntlich machen. */
 .vv-locked {
 	opacity: 0.55;
