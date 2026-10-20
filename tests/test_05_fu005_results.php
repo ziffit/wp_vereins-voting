@@ -79,6 +79,9 @@ return [
 		$html = (string) ob_get_clean();
 
 		vv_check( str_contains( $html, 'Zählwahl' ), '[FU005#AK01] Übersicht listet die Abstimmung' );
+		vv_check( str_contains( $html, '<code>' . $pid . '</code>' ), '[FU005#AK01] Übersicht zeigt die UUID der Abstimmung' );
+		vv_check( str_contains( $html, '<td>Zählwahl</td>' ), '[FU005#AK01] Titel ist nicht mehr verlinkt' );
+		vv_check( str_contains( $html, '>Bearbeiten</a>' ), '[FU005#AK01] Aktion „Bearbeiten“ vorhanden' );
 		vv_check( str_contains( $html, '<td>2</td>' ) && str_contains( $html, '<td>1</td>' ),
 			'[FU005#AK01] Übersicht zeigt Teilnehmer- und Stimmenzahl (eine Abfrage statt N+1)' );
 	},

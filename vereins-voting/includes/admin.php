@@ -79,7 +79,7 @@ function vv_render_admin_page() {
 		}
 
 		echo '<table class="widefat striped"><thead><tr>'
-			. '<th>Titel</th><th>Status</th><th>Zeitraum</th><th>Teilnehmer</th><th>Eingegangene Stimmen</th><th>Aktionen</th>'
+			. '<th>Titel</th><th>UUID</th><th>Status</th><th>Zeitraum</th><th>Teilnehmer</th><th>Eingegangene Stimmen</th><th>Aktionen</th>'
 			. '</tr></thead><tbody>';
 		foreach ( $polls as $poll ) {
 			$member_count = (int) $poll->member_count;
@@ -89,12 +89,14 @@ function vv_render_admin_page() {
 			$mem_url  = admin_url( 'admin.php?page=vereins-voting&view=members&poll=' . rawurlencode( $poll->id ) );
 
 			echo '<tr>'
-				. '<td><a href="' . esc_url( $edit_url ) . '">' . esc_html( $poll->title ) . '</a></td>'
+				. '<td>' . esc_html( $poll->title ) . '</td>'
+				. '<td><code>' . esc_html( $poll->id ) . '</code></td>'
 				. '<td>' . vv_status_label( $poll ) . '</td>'
 				. '<td>' . esc_html( vv_fmt( $poll->start_dt ) . ' – ' . vv_fmt( $poll->end_dt ) ) . '</td>'
 				. '<td>' . $member_count . '</td>'
 				. '<td>' . $ballot_count . '</td>'
-				. '<td><a href="' . esc_url( $mem_url ) . '">Teilnehmer & Einladung</a></td>'
+				. '<td><a href="' . esc_url( $edit_url ) . '">Bearbeiten</a> | '
+				. '<a href="' . esc_url( $mem_url ) . '">Teilnehmer & Einladung</a></td>'
 				. '</tr>';
 		}
 		echo '</tbody></table>';

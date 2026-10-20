@@ -109,7 +109,9 @@ Stimmgeheimnisses.
   (*Hat gewählt: Ja/Nein* und *Gewählt am: [Zeitstempel]*); fehlt der Name,
   steht dort „–“. Die Liste trägt die Überschrift „Stimmberechtigte
   Mitglieder“ und wird seitenweise angezeigt (100 Einträge pro Seite); die
-  Abstimmungsübersicht zeigt Teilnehmer- und Stimmenzahl je Abstimmung.
+  Abstimmungsübersicht zeigt die UUID je Abstimmung, den Titel ohne
+  Verlinkung sowie Teilnehmer- und Stimmenzahl und die Aktionen
+  „Bearbeiten“ und „Teilnehmer & Einladung“.
 
 - **[FU005#AK02]** Es ist technisch unmöglich, im Backend einzusehen, welche
   Option (ja, nein, enthaltung) ein spezifisches Mitglied gewählt hat.

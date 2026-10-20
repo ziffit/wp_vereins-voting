@@ -455,6 +455,8 @@ switch ( $step ) {
 		vv_render_admin_page();
 		$admin = ob_get_clean();
 		vv_assert( str_contains( $admin, 'Kassenprüfung' ), 'Admin-Übersicht rendert Abstimmungsliste' );
+		vv_assert( str_contains( $admin, '<code>' . $pid . '</code>' ) && str_contains( $admin, '>Bearbeiten</a>' ),
+			'[FU005#AK01] Übersicht zeigt UUID und Aktion „Bearbeiten“' );
 
 		// Bearbeiten-Formular-Render für locked poll.
 		ob_start();
