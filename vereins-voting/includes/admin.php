@@ -595,8 +595,8 @@ function vv_render_invite_form( $poll ) {
 
 	$user = function_exists( 'wp_get_current_user' ) ? wp_get_current_user() : null;
 	$test_address = $user && isset( $user->user_email ) ? (string) $user->user_email : '';
-	$test_error   = get_transient( 'vv_mail_test_error_' . ( function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0 ) );
-	delete_transient( 'vv_mail_test_error_' . ( function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0 ) );
+	$test_error   = get_transient( vv_mail_test_error_key() );
+	delete_transient( vv_mail_test_error_key() );
 
 	$status = ! $sendable ? 'beendet' : ( ! $active ? 'nicht gestartet' : ( $paused ? 'pausiert' : 'läuft' ) );
 	?>

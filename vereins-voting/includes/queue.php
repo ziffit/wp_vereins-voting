@@ -110,6 +110,32 @@ function vv_queue_cleanup_active() {
 	}
 }
 
+/** Mitglieder-Seite einer Abstimmung; $args sind Query-Argumente wie [ 'queued' => 1 ]. */
+function vv_members_url( $poll_id, $args = [] ) {
+	return add_query_arg(
+		array_merge( [ 'page' => 'vereins-voting', 'view' => 'members', 'poll' => (string) $poll_id ], $args ),
+		admin_url( 'admin.php' )
+	);
+}
+
+/** Liest die POST-Poll-ID; nur vorhandene, sendbare Abstimmungen dürfen weiter. */
+function vv_queue_poll_from_post() {
+	global $wpdb;
+
+	$poll_id = vv_poll_id( wp_unslash( $_POST['poll'] ?? '' ) );
+	$poll    = $poll_id ? $wpdb->get_row( $wpdb->prepare(
+		"SELECT * FROM {$wpdb->prefix}voting_polls WHERE id = %s",
+		$poll_id
+	) ) : null;
+	if ( ! $poll ) {
+		wp_die( 'Abstimmung nicht gefunden.' );
+	}
+	if ( ! vv_queue_poll_sendable( $poll ) ) {
+		wp_die( 'Der Versand ist für diese Abstimmung nicht mehr möglich.' );
+	}
+	return [ $poll_id, $poll ];
+}
+
 /** Nächstes WP-Cron-Ereignis; force räumt einen alten Termin weg. */
 function vv_queue_schedule( $delay = 1, $force = false ) {
 	if ( ! function_exists( 'wp_schedule_single_event' ) ) {
@@ -254,19 +280,7 @@ add_action( 'vv_send_queue_tick', 'vv_run_send_queue' );
 
 /** [FU004] Versand starten: markieren, planen und einen ersten Batch senden. */
 function vv_send_invites() {
-	global $wpdb;
-
-	$poll_id = vv_poll_id( wp_unslash( $_POST['poll'] ?? '' ) );
-	$poll    = $wpdb->get_row( $wpdb->prepare(
-		"SELECT * FROM {$wpdb->prefix}voting_polls WHERE id = %s",
-		$poll_id
-	) );
-	if ( ! $poll ) {
-		wp_die( 'Abstimmung nicht gefunden.' );
-	}
-	if ( ! vv_queue_poll_sendable( $poll ) ) {
-		wp_die( 'Der Versand ist für diese Abstimmung nicht mehr möglich.' );
-	}
+	[ $poll_id ] = vv_queue_poll_from_post();
 
 	$error = vv_mail_settings_error();
 	if ( '' !== $error ) {
@@ -277,9 +291,7 @@ function vv_send_invites() {
 	if ( 0 === $counts['pending'] ) {
 		delete_option( vv_queue_active_key( $poll_id ) );
 		delete_option( vv_queue_paused_key( $poll_id ) );
-		wp_safe_redirect( admin_url(
-			'admin.php?page=vereins-voting&view=members&poll=' . rawurlencode( $poll_id ) . '&queued=0'
-		) );
+		wp_safe_redirect( vv_members_url( $poll_id, [ 'queued' => 0 ] ) );
 		exit;
 	}
 
@@ -288,49 +300,26 @@ function vv_send_invites() {
 	vv_queue_schedule( 1, true );
 	$sent = vv_run_send_queue();
 
-	wp_safe_redirect( admin_url(
-		'admin.php?page=vereins-voting&view=members&poll=' . rawurlencode( $poll_id ) . '&queued=1&sent=' . (int) $sent
-	) );
+	wp_safe_redirect( vv_members_url( $poll_id, [ 'queued' => 1, 'sent' => (int) $sent ] ) );
 	exit;
 }
 
 /** [FU004] Pause: Der aktuelle Batch ist beendet, der nächste wartet. */
 function vv_pause_send() {
-	global $wpdb;
+	[ $poll_id ] = vv_queue_poll_from_post();
 
-	$poll_id = vv_poll_id( wp_unslash( $_POST['poll'] ?? '' ) );
-	$poll    = $poll_id ? $wpdb->get_row( $wpdb->prepare(
-		"SELECT * FROM {$wpdb->prefix}voting_polls WHERE id = %s",
-		$poll_id
-	) ) : null;
-	if ( ! $poll ) {
-		wp_die( 'Abstimmung nicht gefunden.' );
-	}
-	if ( ! vv_queue_poll_sendable( $poll ) ) {
-		wp_die( 'Der Versand ist für diese Abstimmung nicht mehr möglich.' );
-	}
 	if ( ! vv_queue_is_active( $poll_id ) ) {
 		wp_die( 'Der Versand läuft für diese Abstimmung nicht.' );
 	}
 	update_option( vv_queue_paused_key( $poll_id ), 1 );
-	wp_safe_redirect( admin_url(
-		'admin.php?page=vereins-voting&view=members&poll=' . rawurlencode( $poll_id ) . '&paused=1'
-	) );
+	wp_safe_redirect( vv_members_url( $poll_id, [ 'paused' => 1 ] ) );
 	exit;
 }
 
 /** [FU004] Fortsetzen: Pause weg, sofort ein Batch, danach Cron. */
 function vv_resume_send() {
-	global $wpdb;
+	[ $poll_id ] = vv_queue_poll_from_post();
 
-	$poll_id = vv_poll_id( wp_unslash( $_POST['poll'] ?? '' ) );
-	$poll    = $poll_id ? $wpdb->get_row( $wpdb->prepare(
-		"SELECT * FROM {$wpdb->prefix}voting_polls WHERE id = %s",
-		$poll_id
-	) ) : null;
-	if ( ! $poll || ! vv_queue_poll_sendable( $poll ) ) {
-		wp_die( 'Der Versand ist für diese Abstimmung nicht mehr möglich.' );
-	}
 	$error = vv_mail_settings_error();
 	if ( '' !== $error ) {
 		wp_die( $error . ' Bitte unter Vereinsvoting → E-Mail-Einstellungen ergänzen.' );
@@ -339,9 +328,8 @@ function vv_resume_send() {
 	update_option( vv_queue_paused_key( $poll_id ), 0 );
 	vv_queue_schedule( 1, true );
 	$sent = vv_run_send_queue();
-	wp_safe_redirect( admin_url(
-		'admin.php?page=vereins-voting&view=members&poll=' . rawurlencode( $poll_id ) . '&resumed=1&sent=' . (int) $sent
-	) );
+
+	wp_safe_redirect( vv_members_url( $poll_id, [ 'resumed' => 1, 'sent' => (int) $sent ] ) );
 	exit;
 }
 
@@ -349,14 +337,8 @@ function vv_resume_send() {
 function vv_retry_send() {
 	global $wpdb;
 
-	$poll_id = vv_poll_id( wp_unslash( $_POST['poll'] ?? '' ) );
-	$poll    = $poll_id ? $wpdb->get_row( $wpdb->prepare(
-		"SELECT * FROM {$wpdb->prefix}voting_polls WHERE id = %s",
-		$poll_id
-	) ) : null;
-	if ( ! $poll || ! vv_queue_poll_sendable( $poll ) ) {
-		wp_die( 'Der Versand ist für diese Abstimmung nicht mehr möglich.' );
-	}
+	[ $poll_id ] = vv_queue_poll_from_post();
+
 	$error = vv_mail_settings_error();
 	if ( '' !== $error ) {
 		wp_die( $error . ' Bitte unter Vereinsvoting → E-Mail-Einstellungen ergänzen.' );
@@ -375,8 +357,6 @@ function vv_retry_send() {
 	vv_queue_schedule( 1, true );
 	$sent = vv_run_send_queue();
 
-	wp_safe_redirect( admin_url(
-		'admin.php?page=vereins-voting&view=members&poll=' . rawurlencode( $poll_id ) . '&retried=1&sent=' . (int) $sent
-	) );
+	wp_safe_redirect( vv_members_url( $poll_id, [ 'retried' => 1, 'sent' => (int) $sent ] ) );
 	exit;
 }

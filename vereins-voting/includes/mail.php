@@ -49,7 +49,7 @@ function vv_mail_activate_url() {
 
 /** [FU004] Globales Versandfenster: 1–500 Mails pro 5 Minuten. */
 function vv_mail_rate() {
-	return max( 1, min( 500, (int) get_option( 'vv_invite_rate', 10 ) ) );
+	return max( 1, min( 500, (int) get_option( 'vv_mail_rate', 10 ) ) );
 }
 
 function vv_mail_poll_text_default() {
@@ -410,6 +410,11 @@ function vv_mail_poll_flash_key( $poll_id ) {
 	return 'vv_mail_poll_flash_' . ( function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0 ) . '_' . md5( (string) $poll_id );
 }
 
+/** Fehler-Schlüssel des Testversands, ohne personenbezogene Daten. */
+function vv_mail_test_error_key() {
+	return 'vv_mail_test_error_' . ( function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0 );
+}
+
 /** [FU006] Globale E-Mail-Einstellungen speichern. */
 function vv_save_mail_settings() {
 	$subject  = trim( sanitize_text_field( wp_unslash( $_POST['mail_subject'] ?? '' ) ) );
@@ -462,7 +467,7 @@ function vv_save_mail_settings() {
 	update_option( 'vv_mail_intro', $intro );
 	update_option( 'vv_mail_footer', $footer );
 	update_option( 'vv_mail_activate_url', $activate );
-	update_option( 'vv_invite_rate', $rate );
+	update_option( 'vv_mail_rate', $rate );
 
 	wp_safe_redirect( add_query_arg( [ 'mail_saved' => 1 ], $page ) );
 	exit;
@@ -528,7 +533,7 @@ function vv_test_mail() {
 		exit;
 	}
 
-	set_transient( 'vv_mail_test_error_' . ( function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0 ), (string) $result, 60 );
+	set_transient( vv_mail_test_error_key(), (string) $result, 60 );
 	wp_safe_redirect( add_query_arg( [ 'test_failed' => 1 ], $page ) );
 	exit;
 }
@@ -566,8 +571,8 @@ function vv_render_mail_settings() {
 		echo '<div class="notice notice-success is-dismissible"><p>Testmail wurde an das angemeldete WordPress-Konto versendet.</p></div>';
 	}
 	if ( isset( $_GET['test_failed'] ) ) {
-		$test_error = get_transient( 'vv_mail_test_error_' . ( function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0 ) );
-		delete_transient( 'vv_mail_test_error_' . ( function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0 ) );
+		$test_error = get_transient( vv_mail_test_error_key() );
+		delete_transient( vv_mail_test_error_key() );
 		echo '<div class="notice notice-error"><p>' . esc_html( $test_error ?: 'Die Testmail konnte nicht versendet werden.' ) . '</p></div>';
 	}
 	if ( '' === trim( (string) $footer ) ) {

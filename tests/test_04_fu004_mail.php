@@ -156,7 +156,7 @@ return [
 			'[FU006#AK03] Betreff wird global gespeichert' );
 		vv_check( str_starts_with( (string) get_option( 'vv_mail_intro' ), 'Hallo {vorname} {nachname},' ),
 			'[FU006#AK03] Einleitung wird global gespeichert' );
-		vv_check( 12 === (int) get_option( 'vv_invite_rate' ), '[FU004#AK04] Rate wird gespeichert' );
+		vv_check( 12 === (int) get_option( 'vv_mail_rate' ), '[FU004#AK04] Rate wird gespeichert' );
 
 		ob_start();
 		vv_render_mail_settings();

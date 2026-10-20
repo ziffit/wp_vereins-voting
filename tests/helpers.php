@@ -97,7 +97,7 @@ function vv_fx_mail_settings( $o = [] ) {
 	update_option( 'vv_mail_intro', $o['intro'] );
 	update_option( 'vv_mail_footer', $o['footer'] );
 	update_option( 'vv_mail_activate_url', $o['activate'] );
-	update_option( 'vv_invite_rate', $o['rate'] );
+	update_option( 'vv_mail_rate', $o['rate'] );
 	update_option( 'admin_email', 'admin@example.test' );
 }
 
