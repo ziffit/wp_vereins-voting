@@ -115,6 +115,19 @@ class VVWpDb {
 		return $rows;
 	}
 
+	public function get_col( $sql ) {
+		$res = $this->db->query( $sql );
+		if ( ! $res instanceof mysqli_result ) {
+			return [];
+		}
+		$col = [];
+		while ( $r = $res->fetch_row() ) {
+			$col[] = $r[0];
+		}
+		$res->free();
+		return $col;
+	}
+
 	public function insert( $table, $data ) {
 		$cols = array_map( fn( $c ) => "`$c`", array_keys( $data ) );
 		$vals = array_map( fn( $v ) => $this->qv( $v ), array_values( $data ) );

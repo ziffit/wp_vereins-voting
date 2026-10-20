@@ -36,6 +36,12 @@ function vv_row( $table, $where = '', $what = '*' ) {
 	return $wpdb->get_row( "SELECT $what FROM {$wpdb->prefix}$table $where" );
 }
 
+/** Poll anhand des eindeutigen Titels (IDs sind UUIDs, keine Sortierung mehr). */
+function vv_poll_by_title( $title ) {
+	global $wpdb;
+	return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}voting_polls WHERE title = %s", $title ) );
+}
+
 switch ( $step ) {
 
 	case 'activate': break; // nur Aktivierung mit exit-flag "activate".
@@ -71,6 +77,18 @@ switch ( $step ) {
 			vv_assert( in_array( $need, $bcols, true ), "[FU001#AK01] ballots-Spalte $need" );
 		}
 
+		// [FU002#AK07] Poll-IDs sind UUIDs (CHAR(36)), keine AUTO_INCREMENT-Zahlen.
+		$pidcol = $wpdb->get_row( "SHOW COLUMNS FROM wpx_voting_polls LIKE 'id'" );
+		vv_assert( $pidcol && 0 === stripos( (string) $pidcol->Type, 'char(36)' ) && 'auto_increment' !== $pidcol->Extra,
+			'[FU002#AK07] polls.id ist CHAR(36) ohne AUTO_INCREMENT' );
+
+		// [FU003#AK02] Eindeutig ist Mitgliedsnummer + E-Mail (E-Mail allein nicht).
+		$uniq = (int) $wpdb->get_var( "
+			SELECT COUNT(DISTINCT INDEX_NAME) FROM information_schema.STATISTICS
+			WHERE TABLE_SCHEMA='vvtest' AND TABLE_NAME='wpx_voting_voters'
+			  AND INDEX_NAME = 'poll_member_email' AND NON_UNIQUE = 0" );
+		vv_assert( 1 === $uniq, '[FU003#AK02] voters: UNIQUE(poll_id, member_no, email)' );
+
 		// [FU001#AK02] Keine Foreign Keys zwischen urne/voters.
 		$fks = (int) $wpdb->get_var( "
 			SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE
@@ -94,8 +112,8 @@ switch ( $step ) {
 			'poll_id'   => 0,
 			'title'     => 'Kassenprüfung 2026',
 			'question'  => 'Stimmt der Versammlung der Kassenprüfung 2026 zu?',
-			'start_dt'  => date( 'Y-m-d\TH:i', strtotime( '+1 hour' ) ),
-			'end_dt'    => date( 'Y-m-d\TH:i', strtotime( '+2 days' ) ),
+			'start_dt'  => date( 'Y-m-d\TH:00', strtotime( '+1 hour' ) ),
+			'end_dt'    => date( 'Y-m-d\TH:00', strtotime( '+2 days' ) ),
 		];
 		$redirect = null;
 		try {
@@ -103,7 +121,7 @@ switch ( $step ) {
 		} catch ( VVRedirectFound $r ) {
 			$redirect = $r->url;
 		}
-		$poll = vv_row( 'voting_polls', "ORDER BY id DESC LIMIT 1" );
+		$poll = vv_poll_by_title( 'Kassenprüfung 2026' );
 		vv_assert( $poll && 'Kassenprüfung 2026' === $poll->title, '[FU002#AK01] Abstimmung angelegt' );
 		vv_assert( 'draft' === $poll->status, '[FU002#AK02] Draft Status initial' );
 
@@ -113,19 +131,19 @@ switch ( $step ) {
 			'poll_id'   => $poll->id,
 			'title'     => 'Kassenprüfung 2026 (korrigiert)',
 			'question'  => $poll->question,
-			'start_dt'  => date( 'Y-m-d\TH:i', strtotime( '+1 hour' ) ),
-			'end_dt'    => date( 'Y-m-d\TH:i', strtotime( '+2 days' ) ),
+			'start_dt'  => date( 'Y-m-d\TH:00', strtotime( '+1 hour' ) ),
+			'end_dt'    => date( 'Y-m-d\TH:00', strtotime( '+2 days' ) ),
 			'status'    => 'draft',
 		];
 		try { vv_save_poll(); } catch ( VVRedirectFound $r ) {}
-		$poll = vv_row( 'voting_polls', "WHERE id = " . (int) $poll->id );
+		$poll = vv_poll_by_title( 'Kassenprüfung 2026 (korrigiert)' );
 		vv_assert( 'Kassenprüfung 2026 (korrigiert)' === $poll->title, '[FU002#AK02] draft noch editierbar' );
 		break;
 	}
 
 	// ---------------------------------------------------------------
 	case 'import_csv': {
-		$poll = vv_row( 'voting_polls', "ORDER BY id DESC LIMIT 1" );
+		$poll = vv_poll_by_title( 'Kassenprüfung 2026 (korrigiert)' );
 		$csv  = "Mitgliedsnummer;E-Mail;Vorname;Name\n101;alice@example.com;Alice;Anders\n102;bob@example.org;Bob;Beispiel\n103;keine-mail;Karla;Kaputt\n101;ALICE@example.COM;Alice;Anders\n";
 		file_put_contents( sys_get_temp_dir() . '/vv.csv', $csv );
 
@@ -134,9 +152,9 @@ switch ( $step ) {
 		$_FILES = [ 'csv_file' => [ 'tmp_name' => sys_get_temp_dir() . '/vv.csv' ] ];
 		try { vv_import_csv(); } catch ( VVRedirectFound $r ) {}
 
-		$c   = (int) $wpdb->get_var( "SELECT COUNT(*) FROM wpx_voting_voters WHERE poll_id = {$poll->id}" );
+		$c   = (int) $wpdb->get_var( "SELECT COUNT(*) FROM wpx_voting_voters WHERE poll_id = '{$poll->id}'" );
 		vv_assert( 2 === $c, "[FU003#AK01/02] CSV-import: 2 Zeilen korrekt importiert (ist $c)" );
-		$toks = $wpdb->get_results( "SELECT member_no, email, first_name, last_name, activation_token FROM wpx_voting_voters WHERE poll_id = {$poll->id} ORDER BY id" );
+		$toks = $wpdb->get_results( "SELECT member_no, email, first_name, last_name, activation_token FROM wpx_voting_voters WHERE poll_id = '{$poll->id}' ORDER BY id" );
 		foreach ( $toks as $t ) {
 			vv_assert( (bool) preg_match( '/^[0-9a-f]{32}$/', $t->activation_token ), "[FU003#AK02] sicherer token für {$t->member_no}" );
 		}
@@ -147,7 +165,7 @@ switch ( $step ) {
 
 	// ---------------------------------------------------------------
 	case 'send_invites': {
-		$poll = vv_row( 'voting_polls', "ORDER BY id DESC LIMIT 1" );
+		$poll = vv_poll_by_title( 'Kassenprüfung 2026 (korrigiert)' );
 		$_SERVER['REQUEST_METHOD'] = 'POST';
 		$_POST = [
 			'vv_action'    => 'send_invites',
@@ -164,7 +182,7 @@ switch ( $step ) {
 		vv_assert( str_contains( $mail['body'], 'Kassenprüfung 2026' ), '[FU006#AK01] Mail enthält Abstimmungstitel' );
 		vv_assert( str_contains( $mail['body'], 'Testverein e.V.' ), '[FU006#AK01] Mail enthält Vereinsnamen' );
 		vv_assert( str_contains( $mail['body'], 'Wahlzeitraum' ), '[FU006#AK01] Mail enthält Frist' );
-		vv_assert( (bool) preg_match( '/https:\/\/example\.org\/aktivierungen\/\?poll=\d+&token=[0-9a-f]{32}/', $mail['body'] ), '[FU006#AK01] Mail enthält personalisierten Aktivierungslink' );
+		vv_assert( (bool) preg_match( '/https:\/\/example\.org\/aktivierungen\/\?poll=[0-9a-f-]{36}&token=[0-9a-f]{32}/', $mail['body'] ), '[FU006#AK01] Mail enthält personalisierten Aktivierungslink (UUID + Token)' );
 		// [FU006#AK04] Namen je Empfänger ersetzt:
 		$all = implode( "\n", array_map( fn( $m ) => $m['body'], $GLOBALS['vv_mails'] ) );
 		vv_assert( str_contains( $all, 'Hallo Alice Anders,' ), '[FU006#AK04] {first_name}/{last_name} je Empfänger ersetzt' );
@@ -215,8 +233,8 @@ switch ( $step ) {
 
 	// ---------------------------------------------------------------
 	case 'vote_not_yet': {
-		$poll = vv_row( 'voting_polls', "ORDER BY id DESC LIMIT 1" );
 		$alice = vv_row( 'voting_voters', "WHERE email = 'alice@example.com'" );
+		$poll  = vv_row( 'voting_polls', "WHERE id = '{$alice->poll_id}'" );
 
 		// [FU008#AK02] Die Wahl ist noch nicht gestartet.
 		$_SERVER['REQUEST_METHOD'] = 'POST';
@@ -232,20 +250,20 @@ switch ( $step ) {
 		} catch ( RuntimeException $e ) {
 			vv_assert( str_contains( $e->getMessage(), 'nicht aktiv' ), '[FU008#AK02] Zeitraum-Prüfung: außerhalb der Frist abgelehnt (' . $e->getMessage() . ')' );
 		}
-		vv_assert( null === vv_row( 'voting_ballots', "WHERE poll_id = {$poll->id}" ), '[FU008#AK02] keine Urne bei abgelehnter Stimme' );
+		vv_assert( null === vv_row( 'voting_ballots', "WHERE poll_id = '{$poll->id}'" ), '[FU008#AK02] keine Urne bei abgelehnter Stimme' );
 		break;
 	}
 
 	// ---------------------------------------------------------------
 	case 'vote_ok': {
-		$poll = vv_row( 'voting_polls', 'ORDER BY id DESC LIMIT 1' );
 		$alice = vv_row( 'voting_voters', "WHERE email = 'alice@example.com'" );
+		$poll  = vv_row( 'voting_polls', "WHERE id = '{$alice->poll_id}'" );
 
 		// Admin ändert Datum: draft Wahl wird zum jetzt laufenden Auswahlprozess.
 		$_SERVER['REQUEST_METHOD'] = 'POST';
 		$_POST = [ 'vv_action' => 'save_poll', 'poll_id' => $poll->id, 'title' => $poll->title,
-			'question' => $poll->question, 'start_dt' => date( 'Y-m-d\TH:i', strtotime( '-1 hour' ) ),
-			'end_dt' => date( 'Y-m-d\TH:i', strtotime( '+1 day' ) ), 'status' => 'draft' ];
+			'question' => $poll->question, 'start_dt' => date( 'Y-m-d\TH:00', strtotime( '-1 hour' ) ),
+			'end_dt' => date( 'Y-m-d\TH:00', strtotime( '+1 day' ) ), 'status' => 'draft' ];
 		try { vv_save_poll(); } catch ( VVRedirectFound $r ) {}
 
 		// [FU008#AK02] falsche PIN.
@@ -260,19 +278,19 @@ switch ( $step ) {
 		$receipt = vv_cast_vote( $poll->id, (string) $alice->member_no, 'alice@example.com', '123456', 'ja' );
 		vv_assert( (bool) preg_match( '/^[0-9a-f]{64}$/', $receipt ), '[FU008#AK03] Receipt (sha256) erzeugt' );
 
-		$poll  = vv_row( 'voting_polls', "WHERE id = {$poll->id}" );
+		$poll  = vv_row( 'voting_polls', "WHERE id = '{$poll->id}'" );
 		$alice = vv_row( 'voting_voters', "WHERE id = {$alice->id}" );
 		vv_assert( 'active' === $poll->status, '[FU008#AK02] Poll automatisch active im Zeitfenster' );
 		vv_assert( 1 === (int) $alice->has_voted && $alice->voted_at, '[FU008#AK03] has_voted=1 + voted_at gesetzt' );
 		$b = vv_row( 'voting_ballots', "WHERE receipt_hash = '$receipt'" );
-		vv_assert( $b && 'ja' === $b->vote_option && (int) $b->poll_id === (int) $poll->id, '[FU008#AK03] Urnen-Zeile nur Option + PollID + Receipt' );
+		vv_assert( $b && 'ja' === $b->vote_option && $b->poll_id === $poll->id, '[FU008#AK03] Urnen-Zeile nur Option + PollID + Receipt' );
 		break;
 	}
 
 	// ---------------------------------------------------------------
 	case 'vote_double': {
-		$poll  = vv_row( 'voting_polls', 'ORDER BY id DESC LIMIT 1' );
 		$alice = vv_row( 'voting_voters', "WHERE email = 'alice@example.com'" );
+		$poll  = vv_row( 'voting_polls', "WHERE id = '{$alice->poll_id}'" );
 
 		try {
 			vv_cast_vote( $poll->id, (string) $alice->member_no, 'alice@example.com', '123456', 'nein' );
@@ -282,15 +300,15 @@ switch ( $step ) {
 		}
 
 		// Urne unbeeindruckt.
-		$n = (int) $wpdb->get_var( "SELECT COUNT(*) FROM wpx_voting_ballots WHERE poll_id = {$poll->id}" );
+		$n = (int) $wpdb->get_var( "SELECT COUNT(*) FROM wpx_voting_ballots WHERE poll_id = '{$poll->id}'" );
 		vv_assert( 1 === $n, '[FU008#AK02] Urne unverändert nach abgelehntem Doppelvoting' );
 		break;
 	}
 
 	// ---------------------------------------------------------------
 	case 'vote_guard_tamper': {
-		$poll  = vv_row( 'voting_polls', 'ORDER BY id DESC LIMIT 1' );
 		$alice = vv_row( 'voting_voters', "WHERE email = 'alice@example.com'" );
+		$poll  = vv_row( 'voting_polls', "WHERE id = '{$alice->poll_id}'" );
 		// Betrugsversuch: gleiche Mitgliedsnummer, aber fremde E-Mail.
 		try {
 			vv_cast_vote( $poll->id, (string) $alice->member_no, 'fake@other.org', '123456', 'ja' );
@@ -303,23 +321,23 @@ switch ( $step ) {
 
 	// ---------------------------------------------------------------
 	case 'locked_edit': {
-		$poll = vv_row( 'voting_polls', 'ORDER BY id DESC LIMIT 1' );
+		$poll = vv_poll_by_title( 'Kassenprüfung 2026 (korrigiert)' );
 		$old  = $poll->title;
 
 		// [FU002#AK02] Fälschung: laufende Wahl soll Titel/Fristen ändern ("forged").
 		$_SERVER['REQUEST_METHOD'] = 'POST';
 		$_POST = [ 'vv_action' => 'save_poll', 'poll_id' => $poll->id, 'title' => 'HACKED',
-			'question' => 'F', 'start_dt' => date( 'Y-m-d\TH:i', strtotime( '-1 hour' ) ),
-			'end_dt' => date( 'Y-m-d\TH:i', strtotime( '+1 day' ) ), 'status' => 'active' ];
+			'question' => 'F', 'start_dt' => date( 'Y-m-d\TH:00', strtotime( '-1 hour' ) ),
+			'end_dt' => date( 'Y-m-d\TH:00', strtotime( '+1 day' ) ), 'status' => 'active' ];
 		try { vv_save_poll(); } catch ( VVRedirectFound $r ) {}
-		$poll = vv_row( 'voting_polls', "WHERE id = {$poll->id}" );
+		$poll = vv_row( 'voting_polls', "WHERE id = '{$poll->id}'" );
 		vv_assert( $old === $poll->title, '[FU002#AK02] aktive Wahl: sicherheitsrelevante Felder geschützt' );
 		break;
 	}
 
 	// ---------------------------------------------------------------
 	case 'close_and_results': {
-		$poll = vv_row( 'voting_polls', 'ORDER BY id DESC LIMIT 1' );
+		$poll = vv_poll_by_title( 'Kassenprüfung 2026 (korrigiert)' );
 
 		// Bob stimmt ebenfalls ab (Kandidat: Nein) für ein interessanteres Ergebnis.
 		$bob = vv_row( 'voting_voters', "WHERE email = 'bob@example.org'" );
@@ -335,7 +353,7 @@ switch ( $step ) {
 		$_POST = [ 'vv_action' => 'save_poll', 'poll_id' => $poll->id, 'title' => $poll->title,
 			'question' => $poll->question, 'start_dt' => $poll->start_dt, 'end_dt' => $poll->end_dt, 'status' => 'closed' ];
 		try { vv_save_poll(); } catch ( VVRedirectFound $r ) {}
-		$poll = vv_row( 'voting_polls', "WHERE id = {$poll->id}" );
+		$poll = vv_row( 'voting_polls', "WHERE id = '{$poll->id}'" );
 		vv_assert( 'closed' === $poll->status, '[FU002#AK02] admin schließt Wahl' );
 
 		// [FU009#AK02/03] Ergebnis + Prüfliste. (shortcode_output)
@@ -343,7 +361,7 @@ switch ( $step ) {
 		$html = vv_shortcode_results();
 		vv_assert( str_contains( $html, 'Ja' ) && str_contains( $html, '50.0%' ), "[FU009#AK02] Ergebnis: 1 ja / 1 nein angezeigt (GUI)" );
 		vv_assert( str_contains( $html, 'Prüfliste' ), '[FU009#AK03] Prüftabelle vorhanden' );
-		$b = $wpdb->get_results( "SELECT receipt_hash FROM wpx_voting_ballots WHERE poll_id = {$poll->id}" );
+		$b = $wpdb->get_results( "SELECT receipt_hash FROM wpx_voting_ballots WHERE poll_id = '{$poll->id}'" );
 		vv_assert( count( $b ) === 2, '2 Urnenzeilen' );
 		vv_assert( str_contains( $html, substr( $b[0]->receipt_hash, 0, 8 ) ), '[FU009#AK03] Receipts in Prüftabelle gelistet' );
 		// Kein Personenname in Urnenausgabe?
@@ -361,17 +379,17 @@ switch ( $step ) {
 	// ---------------------------------------------------------------
 	case 'results_running': {
 		// [FU009#AK01] laufende Wahl -> Hinweismeldung.
-		$_POST = [ 'vv_action' => 'save_poll', 'poll_id' => 0, 'title' => 'Laufende Testwahl',
-			'question' => 'Q', 'start_dt' => date( 'Y-m-d\TH:i', strtotime( '-1 hour' ) ),
-			'end_dt' => date( 'Y-m-d\TH:i', strtotime( '+1 day' ) ), 'status' => 'draft' ];
+		$_POST = [ 'vv_action' => 'save_poll', 'poll_id' => '', 'title' => 'Laufende Testwahl',
+			'question' => 'Q', 'start_dt' => date( 'Y-m-d\TH:00', strtotime( '-1 hour' ) ),
+			'end_dt' => date( 'Y-m-d\TH:00', strtotime( '+1 day' ) ), 'status' => 'draft' ];
 		try { vv_save_poll(); } catch ( VVRedirectFound $r ) {}
-		$poll = vv_row( 'voting_polls', 'ORDER BY id DESC LIMIT 1' );
+		$poll = vv_poll_by_title( 'Laufende Testwahl' );
 
 		// Durch die Statuswahl von draft auf active setzen (Admin startet die Wahl).
 		$_POST = [ 'vv_action' => 'save_poll', 'poll_id' => $poll->id, 'title' => $poll->title,
 			'question' => 'Q', 'start_dt' => $poll->start_dt, 'end_dt' => $poll->end_dt, 'status' => 'active' ];
 		try { vv_save_poll(); } catch ( VVRedirectFound $r ) {}
-		$poll = vv_row( 'voting_polls', "WHERE id = {$poll->id}" );
+		$poll = vv_poll_by_title( 'Laufende Testwahl' );
 		vv_assert( 'active' === $poll->status, 'admin startet draft zu active' );
 
 		$_GET = [ 'poll' => $poll->id ];
@@ -383,7 +401,7 @@ switch ( $step ) {
 	// ---------------------------------------------------------------
 	case 'results_running_hidden': {
 		// [FU009#AK01] kein Ergebnis öffentlich anzeigen solange aktiv:
-		$poll = vv_row( 'voting_polls', 'ORDER BY id DESC LIMIT 1' );
+		$poll = vv_poll_by_title( 'Laufende Testwahl' );
 		$_GET = [ 'poll' => $poll->id ];
 		$html = vv_shortcode_results();
 		vv_assert( ! str_contains( $html, 'Prüfliste' ), "[FU009#AK01] Keine Prüfliste/Ergebnis solange aktiv" );
@@ -396,32 +414,40 @@ switch ( $step ) {
 		// [FU008#AK04] Erfolgsweg komplett über Shortcode: Voter mit bereits genutzter PIN
 		// über Stub (in echtem WP über Aktivierungsseite), dann Formular-POST.
 		$now = current_time( 'mysql' );
-		$wpdb->query( "INSERT INTO wpx_voting_polls (title, question, start_dt, end_dt, status, created_at)
-			VALUES ('Ablaufwahl', 'Zustimmung?', '$now', '$now', 'draft', '$now')" );
-		$pid = (int) $wpdb->insert_id;
+		$pid = vv_uuid();
+		$wpdb->query( $wpdb->prepare(
+			"INSERT INTO wpx_voting_polls (id, title, question, start_dt, end_dt, status, created_at)
+			 VALUES (%s, 'Ablaufwahl', 'Zustimmung?', %s, %s, 'draft', %s)",
+			$pid, $now, $now, $now
+		) );
 
 		// Wahl innerhalb Zeitfenster setzen (Start -1h, Ende +1h).
 		$_SERVER['REQUEST_METHOD'] = 'POST';
 		$_POST = [ 'vv_action' => 'save_poll', 'poll_id' => $pid, 'title' => 'Ablaufwahl',
-			'question' => 'Zustimmung?', 'start_dt' => date( 'Y-m-d\TH:i', strtotime( '-1 hour' ) ),
-			'end_dt' => date( 'Y-m-d\TH:i', strtotime( '+1 hour' ) ), 'status' => 'draft' ];
+			'question' => 'Zustimmung?', 'start_dt' => date( 'Y-m-d\TH:00', strtotime( '-1 hour' ) ),
+			'end_dt' => date( 'Y-m-d\TH:00', strtotime( '+1 hour' ) ), 'status' => 'draft' ];
 		try { vv_save_poll(); } catch ( VVRedirectFound $r ) {}
 
 		// Voter vorbereiten (in echtem WP kommt die PIN via Aktivierungslink):
-		$wpdb->query( "INSERT INTO wpx_voting_voters (poll_id, member_no, email, activation_token, pin_hash, created_at)
-			VALUES ($pid, '777', 'e2e@example.org', 'e2etoken', 'xtemporär', '$now')" );
-		$wpdb->query( "UPDATE wpx_voting_voters SET pin_hash = '" .
-			password_hash( '111111', PASSWORD_DEFAULT ) . "' WHERE poll_id = $pid" );
+		$wpdb->query( $wpdb->prepare(
+			"INSERT INTO wpx_voting_voters (poll_id, member_no, email, activation_token, created_at)
+			 VALUES (%s, '777', 'e2e@example.org', 'e2etoken', %s)",
+			$pid, $now
+		) );
+		$wpdb->query( $wpdb->prepare(
+			"UPDATE wpx_voting_voters SET pin_hash = %s WHERE poll_id = %s",
+			password_hash( '111111', PASSWORD_DEFAULT ), $pid
+		) );
 
 		// Aktiv lungo wenig inaktivldata: Wahl Veteran: aktiviert timeliness direkt aus:
-		$wpdb->query( "UPDATE wpx_voting_polls SET status = 'active' WHERE id = $pid" );
+		$wpdb->query( $wpdb->prepare( "UPDATE wpx_voting_polls SET status = 'active' WHERE id = %s", $pid ) );
 
 		// [FU008#AK01] [FU008#AK04] POST-Ablauf über den Shortcode:
 		$_GET  = [ 'poll' => $pid ];
 		$_POST = [ 'vv_frontend_nonce' => wp_create_nonce( 'vv_frontend' ), 'member_no' => '\777', 'email' => 'e2e@example.org', 'pin' => '111111', 'option' => 'ja' ];
 		$html  = vv_shortcode_form();
 		vv_assert( (bool) preg_match( '/vv-receipt[^<]*<\/?code[^>]*>[0-9a-f]{64}/', strip_tags( $html, '<code>' ) ) || str_contains( $html, 'vv-receipt' ), '[FU008#AK04] Shortcode zeigt Receipt-Hash im Browser an' );
-		vv_assert( (int) $wpdb->get_var( "SELECT COUNT(*) FROM wpx_voting_ballots WHERE poll_id = $pid" ) === 1, '[FU008#AK04] Formular-POST hat Urne befüllt (genau 1 Stimme)' );
+		vv_assert( (int) $wpdb->get_var( "SELECT COUNT(*) FROM wpx_voting_ballots WHERE poll_id = '$pid'" ) === 1, '[FU008#AK04] Formular-POST hat Urne befüllt (genau 1 Stimme)' );
 		vv_assert( ! str_contains( $html, '<form' ), '[FU008#AK04] Formular nach Abstimmung ausgeblendet' );
 
 		// Admin-Smoke: Hauptseite rendert ohne Fehler.
@@ -431,7 +457,6 @@ switch ( $step ) {
 		vv_assert( str_contains( $admin, 'Kassenprüfung' ), 'Admin-Übersicht rendert Abstimmungsliste' );
 
 		// Bearbeiten-Formular-Render für locked poll.
-		$poll = vv_row( 'voting_polls', "WHERE id = $pid" );
 		ob_start();
 		vv_render_poll_form( $pid );
 		$lform = ob_get_clean();
@@ -454,17 +479,23 @@ switch ( $step ) {
 
 		// Frischer Entwurf für den Löschtest.
 		$now = current_time( 'mysql' );
-		$wpdb->query( "INSERT INTO wpx_voting_polls (title, start_dt, end_dt, status, created_at)
-			VALUES ('DeleteTest', '$now', '$now', 'draft', '$now')" );
-		$pid = (int) $wpdb->insert_id;
-		vv_assert( $pid >= 1, 'Entwurf für Löschtest angelegt' );
-		$wpdb->query( "INSERT INTO wpx_voting_voters (poll_id, member_no, email, activation_token, created_at)
-			VALUES ($pid, '666', 'deleteme@example.org', 'cccbin', '$now')" );
+		$pid = vv_uuid();
+		$wpdb->query( $wpdb->prepare(
+			"INSERT INTO wpx_voting_polls (id, title, start_dt, end_dt, status, created_at)
+			 VALUES (%s, 'DeleteTest', %s, %s, 'draft', %s)",
+			$pid, $now, $now, $now
+		) );
+		vv_assert( '' !== $pid, 'Entwurf für Löschtest angelegt' );
+		$wpdb->query( $wpdb->prepare(
+			"INSERT INTO wpx_voting_voters (poll_id, member_no, email, activation_token, created_at)
+			 VALUES (%s, '666', 'deleteme@example.org', 'cccbin', %s)",
+			$pid, $now
+		) );
 
 		$_POST = [ 'vv_action' => 'delete_poll', 'poll_id' => $pid ];
 		try { vv_delete_poll(); } catch ( VVWpDie | VVRedirectFound $e ) {}
-		$is_gone  = (int) $wpdb->get_var( "SELECT COUNT(*) FROM wpx_voting_polls WHERE id = $pid" );
-		$is_gone2 = (int) $wpdb->get_var( "SELECT COUNT(*) FROM wpx_voting_voters WHERE poll_id = $pid" );
+		$is_gone  = (int) $wpdb->get_var( "SELECT COUNT(*) FROM wpx_voting_polls WHERE id = '$pid'" );
+		$is_gone2 = (int) $wpdb->get_var( "SELECT COUNT(*) FROM wpx_voting_voters WHERE poll_id = '$pid'" );
 		vv_assert( 0 === $is_gone && 0 === $is_gone2, "[FU002#AK02] Entwurf inkl. Wählern gelöscht" );
 		break;
 	}

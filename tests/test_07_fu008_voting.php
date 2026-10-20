@@ -16,7 +16,7 @@ return [
 
 	'test_07_fu008_ak01_unbekannte_abstimmung' => function () {
 		try {
-			vv_cast_vote( 999999, '101', 'a@b.org', '123456', 'ja' );
+			vv_cast_vote( '00000000-0000-4000-8000-000000000000', '101', 'a@b.org', '123456', 'ja' );
 			vv_check( false, 'unbekannte Abstimmung erfolgreich ?!' );
 		} catch ( RuntimeException $e ) {
 			vv_check( str_contains( $e->getMessage(), 'nicht gefunden' ), '[FU008#AK01] unbekannte Abstimmung abgelehnt' );
@@ -88,12 +88,12 @@ return [
 		$receipt = vv_cast_vote( $pid, '101', 'a@b.org', '123456', 'ja' );
 		vv_check( (bool) preg_match( '/^[0-9a-f]{64}$/', $receipt ), '[FU008#AK03] Receipt = sha256-64hex' );
 
-		$row = $wpdb->get_row( 'SELECT * FROM ' . vv_tbl( 'voting_voters' ) . ' WHERE poll_id = ' . $pid );
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . vv_tbl( 'voting_voters' ) . ' WHERE poll_id = %s', $pid ) );
 		vv_check( 1 === (int) $row->has_voted, '[FU008#AK03] has_voted = 1 (committed)' );
 		vv_check( null !== $row->voted_at, '[FU008#AK03] voted_at gesetzt (committed)' );
 
 		$ballot = $wpdb->get_row( 'SELECT * FROM ' . vv_tbl( 'voting_ballots' ) . ' WHERE receipt_hash = ' . $wpdb->prepare( '%s', $receipt ) );
-		vv_check( $ballot && 'ja' === $ballot->vote_option && (int) $ballot->poll_id === $pid,
+		vv_check( $ballot && 'ja' === $ballot->vote_option && $ballot->poll_id === $pid,
 			'[FU008#AK03] Urnen-Zeile: nur poll_id, vote_option, receipt_hash' );
 		// Anonymität: keine Mitgliedsnummer/E-Mail in der Urne.
 		vv_check( ! property_exists( $ballot, 'member_no' ) && ! property_exists( $ballot, 'email' ),
@@ -137,7 +137,7 @@ return [
 		// Poll mit T-Format-Datum (wie vom Admin-Formular gespeichert) — muss trotzdem funktionieren.
 		$pid = vv_fx_poll( [ 'start_off' => '-1 hour', 'end_off' => '+1 day', 'status' => 'draft' ] );
 		$wpdb->query( $wpdb->prepare(
-			"UPDATE " . vv_tbl( 'voting_polls' ) . " SET start_dt = %s, end_dt = %s WHERE id = %d",
+			"UPDATE " . vv_tbl( 'voting_polls' ) . " SET start_dt = %s, end_dt = %s WHERE id = %s",
 			date( 'Y-m-d\\TH:i', strtotime( '-1 hour' ) ),
 			date( 'Y-m-d\\TH:i', strtotime( '+1 day' ) ),
 			$pid

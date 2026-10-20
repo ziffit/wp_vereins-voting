@@ -5,10 +5,10 @@
 return [
 
 	'test_02_fu002_ak01_neue_abstimmung_anlegt' => function () {
-		$start = date( 'Y-m-d\TH:i', strtotime( '-1 hour' ) );
-		$end   = date( 'Y-m-d\TH:i', strtotime( '+1 day' ) );
+		$start = date( 'Y-m-d\TH:00', strtotime( '-1 hour' ) );
+		$end   = date( 'Y-m-d\TH:00', strtotime( '+1 day' ) );
 		vv_fx_http( [], [
-			'vv_action' => 'save_poll', 'poll_id' => 0, 'title' => 'Kassenprüfung 2026',
+			'vv_action' => 'save_poll', 'poll_id' => '', 'title' => 'Kassenprüfung 2026',
 			'question' => 'Zustimmung?', 'start_dt' => $start, 'end_dt' => $end, 'status' => 'active',
 		] );
 		[ $kind, $url ] = vv_fx_run( 'vv_save_poll' );
@@ -24,8 +24,8 @@ return [
 		$pid = vv_fx_poll( [ 'title' => 'Alt' ] );
 		vv_fx_http( [], [
 			'vv_action' => 'save_poll', 'poll_id' => $pid, 'title' => 'Neu', 'question' => 'Geändert?',
-			'start_dt' => date( 'Y-m-d\TH:i', strtotime( '+2 hours' ) ),
-			'end_dt'   => date( 'Y-m-d\TH:i', strtotime( '+3 days' ) ), 'status' => 'draft',
+			'start_dt' => date( 'Y-m-d\TH:00', strtotime( '+2 hours' ) ),
+			'end_dt'   => date( 'Y-m-d\TH:00', strtotime( '+3 days' ) ), 'status' => 'draft',
 		] );
 		vv_fx_run( 'vv_save_poll' );
 		$poll = vv_fx_poll_row( $pid );
@@ -36,8 +36,8 @@ return [
 		$pid = vv_fx_poll( [ 'status' => 'draft' ] );
 		vv_fx_http( [], [
 			'vv_action' => 'save_poll', 'poll_id' => $pid, 'title' => 'W', 'question' => 'Q',
-			'start_dt' => date( 'Y-m-d\TH:i', strtotime( '-1 hour' ) ),
-			'end_dt'   => date( 'Y-m-d\TH:i', strtotime( '+1 day' ) ), 'status' => 'active',
+			'start_dt' => date( 'Y-m-d\TH:00', strtotime( '-1 hour' ) ),
+			'end_dt'   => date( 'Y-m-d\TH:00', strtotime( '+1 day' ) ), 'status' => 'active',
 		] );
 		vv_fx_run( 'vv_save_poll' );
 		vv_check( 'active' === vv_fx_poll_row( $pid )->status, '[FU002#AK02] draft - active Übergang erlaubt' );
@@ -47,8 +47,8 @@ return [
 		$pid = vv_fx_poll( [ 'status' => 'active' ] );
 		vv_fx_http( [], [
 			'vv_action' => 'save_poll', 'poll_id' => $pid, 'title' => 'HACKED', 'question' => 'X',
-			'start_dt' => date( 'Y-m-d\TH:i', strtotime( '+1 hour' ) ),
-			'end_dt'   => date( 'Y-m-d\TH:i', strtotime( '+1 day' ) ), 'status' => 'active',
+			'start_dt' => date( 'Y-m-d\TH:00', strtotime( '+1 hour' ) ),
+			'end_dt'   => date( 'Y-m-d\TH:00', strtotime( '+1 day' ) ), 'status' => 'active',
 		] );
 		vv_fx_run( 'vv_save_poll' );
 		$poll = vv_fx_poll_row( $pid );
@@ -60,8 +60,8 @@ return [
 		$pid = vv_fx_poll( [ 'status' => 'active' ] );
 		vv_fx_http( [], [
 			'vv_action' => 'save_poll', 'poll_id' => $pid, 'title' => 'T', 'question' => 'Q',
-			'start_dt' => date( 'Y-m-d\TH:i', strtotime( '-1 hour' ) ),
-			'end_dt'   => date( 'Y-m-d\TH:i', strtotime( '+1 day' ) ), 'status' => 'closed',
+			'start_dt' => date( 'Y-m-d\TH:00', strtotime( '-1 hour' ) ),
+			'end_dt'   => date( 'Y-m-d\TH:00', strtotime( '+1 day' ) ), 'status' => 'closed',
 		] );
 		vv_fx_run( 'vv_save_poll' );
 		global $wpdb;
@@ -71,20 +71,20 @@ return [
 		// Kein Zurück auf draft:
 		vv_fx_http( [], [
 			'vv_action' => 'save_poll', 'poll_id' => $pid, 'title' => 'T', 'question' => 'Q',
-			'start_dt' => date( 'Y-m-d\TH:i', strtotime( '-1 hour' ) ),
-			'end_dt'   => date( 'Y-m-d\TH:i', strtotime( '+1 day' ) ), 'status' => 'draft',
+			'start_dt' => date( 'Y-m-d\TH:00', strtotime( '-1 hour' ) ),
+			'end_dt'   => date( 'Y-m-d\TH:00', strtotime( '+1 day' ) ), 'status' => 'draft',
 		] );
 		vv_fx_run( 'vv_save_poll' );
 		vv_check( 'closed' === vv_fx_poll_row( $pid )->status, '[FU002#AK02] closed - draft wird ignoriert (kein Rückgang)' );
 	},
 
 	'test_02_fu002_ak02_plichtfelder' => function () {
-		vv_fx_http( [], [ 'vv_action' => 'save_poll', 'poll_id' => 0, 'title' => '', 'start_dt' => '', 'end_dt' => '' ] );
+		vv_fx_http( [], [ 'vv_action' => 'save_poll', 'poll_id' => '', 'title' => '', 'start_dt' => '', 'end_dt' => '' ] );
 		[ $kind, ] = vv_fx_run( 'vv_save_poll' );
 		vv_check( null === $kind, '[FU002#AK01] fehlende Pflichtfelder brechen die Seite nicht ab (kein wp_die)' );
 
 		ob_start();
-		vv_render_poll_form( 0 );
+		vv_render_poll_form( '' );
 		$html = (string) ob_get_clean();
 		vv_check( str_contains( $html, 'Pflichtfelder' ), '[FU002#AK05] Pflichtfeld-Meldung erscheint in der Maske' );
 	},
@@ -109,17 +109,36 @@ return [
 	},
 
 	'test_02_fu002_ak01_datetime_normalisierung' => function () {
-		$start = '2026-10-19T14:30';
-		$end   = '2026-10-20T18:45';
+		$start = '2026-10-19T14:00';
+		$end   = '2026-10-20T18:00';
 		vv_fx_http( [], [
-			'vv_action' => 'save_poll', 'poll_id' => 0, 'title' => 'DT-Normalisierung',
+			'vv_action' => 'save_poll', 'poll_id' => '', 'title' => 'DT-Normalisierung',
 			'question' => 'Q', 'start_dt' => $start, 'end_dt' => $end, 'status' => 'draft',
 		] );
 		vv_fx_run( 'vv_save_poll' );
 		global $wpdb;
 		$poll = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . vv_tbl( 'voting_polls' ) . ' WHERE title = %s', 'DT-Normalisierung' ) );
-		vv_check( '2026-10-19 14:30:00' === $poll->start_dt, '[FU002#AK01] datetime-local (T) wird auf MySQL-Format normalisiert (Start)' );
-		vv_check( '2026-10-20 18:45:00' === $poll->end_dt, '[FU002#AK01] datetime-local (T) wird auf MySQL-Format normalisiert (Ende)' );
+		vv_check( '2026-10-19 14:00:00' === $poll->start_dt, '[FU002#AK01] datetime-local (T) wird auf MySQL-Format normalisiert (Start)' );
+		vv_check( '2026-10-20 18:00:00' === $poll->end_dt, '[FU002#AK01] datetime-local (T) wird auf MySQL-Format normalisiert (Ende)' );
+	},
+
+	'test_02_fu002_ak01_nur_volle_stunden' => function () {
+		global $wpdb;
+		$before = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . vv_tbl( 'voting_polls' ) );
+		vv_fx_http( [], [
+			'vv_action' => 'save_poll', 'poll_id' => '', 'title' => 'Krumme Zeit', 'question' => 'Q',
+			'start_dt' => '2026-10-19T14:30', 'end_dt' => '2026-10-20T18:45', 'status' => 'draft',
+		] );
+		[ $kind, ] = vv_fx_run( 'vv_save_poll' );
+		$after = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . vv_tbl( 'voting_polls' ) );
+		vv_check( null === $kind && $before === $after, '[FU002#AK01] Zeiten ohne volle Stunde werden nicht gespeichert' );
+
+		// [FU002#AK05] Meldung + Eingaben bleiben in der Maske:
+		ob_start();
+		vv_render_poll_form( '' );
+		$html = (string) ob_get_clean();
+		vv_check( str_contains( $html, 'volle Stunde' ), '[FU002#AK01] Meldung „volle Stunde“ erscheint in der Maske' );
+		vv_check( str_contains( $html, 'value="Krumme Zeit"' ), '[FU002#AK05] Titel bleibt nach dem Fehler erhalten' );
 	},
 
 	'test_02_fu002_ak03_aktivierung_nur_im_zeitraum' => function () {
@@ -127,8 +146,8 @@ return [
 		$pid = vv_fx_poll( [ 'start_off' => '+1 day', 'end_off' => '+2 days', 'status' => 'draft' ] );
 		vv_fx_http( [], [
 			'vv_action' => 'save_poll', 'poll_id' => $pid, 'title' => 'T', 'question' => 'Q',
-			'start_dt' => date( 'Y-m-d\TH:i', strtotime( '+1 day' ) ),
-			'end_dt'   => date( 'Y-m-d\TH:i', strtotime( '+2 days' ) ), 'status' => 'active',
+			'start_dt' => date( 'Y-m-d\TH:00', strtotime( '+1 day' ) ),
+			'end_dt'   => date( 'Y-m-d\TH:00', strtotime( '+2 days' ) ), 'status' => 'active',
 		] );
 		vv_fx_run( 'vv_save_poll' );
 		vv_check( 'draft' === vv_fx_poll_row( $pid )->status, '[FU002#AK03] Aktivierung außerhalb des Zeitraums verweigert' );
@@ -142,8 +161,8 @@ return [
 		// Gleiche Wahl, jetzt im Zeitraum: Wechsel erlaubt.
 		vv_fx_http( [], [
 			'vv_action' => 'save_poll', 'poll_id' => $pid, 'title' => 'T', 'question' => 'Q',
-			'start_dt' => date( 'Y-m-d\TH:i', strtotime( '-1 hour' ) ),
-			'end_dt'   => date( 'Y-m-d\TH:i', strtotime( '+2 days' ) ), 'status' => 'active',
+			'start_dt' => date( 'Y-m-d\TH:00', strtotime( '-1 hour' ) ),
+			'end_dt'   => date( 'Y-m-d\TH:00', strtotime( '+2 days' ) ), 'status' => 'active',
 		] );
 		vv_fx_run( 'vv_save_poll' );
 		vv_check( 'active' === vv_fx_poll_row( $pid )->status, '[FU002#AK03] Aktivierung im Zeitraum erlaubt' );
@@ -201,8 +220,8 @@ return [
 		// Bestätigung nach dem Speichern (Redirect-Signal + sichtbare Meldung):
 		vv_fx_http( [], [
 			'vv_action' => 'save_poll', 'poll_id' => $pid, 'title' => 'Gespeichert', 'question' => 'Q',
-			'start_dt' => date( 'Y-m-d\TH:i', strtotime( '-1 hour' ) ),
-			'end_dt'   => date( 'Y-m-d\TH:i', strtotime( '+1 day' ) ), 'status' => 'draft',
+			'start_dt' => date( 'Y-m-d\TH:00', strtotime( '-1 hour' ) ),
+			'end_dt'   => date( 'Y-m-d\TH:00', strtotime( '+1 day' ) ), 'status' => 'draft',
 		] );
 		[ $kind, $url ] = vv_fx_run( 'vv_save_poll' );
 		vv_check( 'redirect' === $kind && str_contains( (string) $url, 'saved=1' ), '[FU002#AK05] Redirect nach dem Speichern signalisiert Erfolg' );
@@ -224,12 +243,12 @@ return [
 	'test_02_fu002_ak01_zeitraum_und_titellaenge' => function () {
 		global $wpdb;
 		$before = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . vv_tbl( 'voting_polls' ) );
-		$start  = date( 'Y-m-d\TH:i', strtotime( '+2 days' ) );
-		$end    = date( 'Y-m-d\TH:i', strtotime( '+1 day' ) );
+		$start  = date( 'Y-m-d\TH:00', strtotime( '+2 days' ) );
+		$end    = date( 'Y-m-d\TH:00', strtotime( '+1 day' ) );
 
 		// Ende vor Start wird abgewiesen – Meldung in der Maske, nichts gespeichert:
 		vv_fx_http( [], [
-			'vv_action' => 'save_poll', 'poll_id' => 0, 'title' => 'Verdreht', 'question' => 'Q',
+			'vv_action' => 'save_poll', 'poll_id' => '', 'title' => 'Verdreht', 'question' => 'Q',
 			'start_dt' => $start, 'end_dt' => $end, 'status' => 'draft',
 		] );
 		[ $kind, ] = vv_fx_run( 'vv_save_poll' );
@@ -238,7 +257,7 @@ return [
 
 		// [FU002#AK05] Fehler und Eingaben bleiben in der Maske:
 		ob_start();
-		vv_render_poll_form( 0 );
+		vv_render_poll_form( '' );
 		$html = (string) ob_get_clean();
 		vv_check( str_contains( $html, 'Ende muss nach dem Start liegen' ), '[FU002#AK05] Meldung erscheint in der Maske' );
 		vv_check( str_contains( $html, 'value="Verdreht"' ), '[FU002#AK05] eingegebener Titel bleibt erhalten' );
@@ -246,9 +265,9 @@ return [
 
 		// Zu langer Titel wird auf 190 Zeichen gekürzt statt still zu scheitern:
 		vv_fx_http( [], [
-			'vv_action' => 'save_poll', 'poll_id' => 0, 'title' => str_repeat( 'A', 250 ), 'question' => 'TITELTEST',
-			'start_dt' => date( 'Y-m-d\TH:i', strtotime( '-1 hour' ) ),
-			'end_dt'   => date( 'Y-m-d\TH:i', strtotime( '+1 day' ) ), 'status' => 'draft',
+			'vv_action' => 'save_poll', 'poll_id' => '', 'title' => str_repeat( 'A', 250 ), 'question' => 'TITELTEST',
+			'start_dt' => date( 'Y-m-d\TH:00', strtotime( '-1 hour' ) ),
+			'end_dt'   => date( 'Y-m-d\TH:00', strtotime( '+1 day' ) ), 'status' => 'draft',
 		] );
 		vv_fx_run( 'vv_save_poll' );
 		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . vv_tbl( 'voting_polls' ) . ' WHERE question = %s', 'TITELTEST' ) );
@@ -261,8 +280,8 @@ return [
 		$pid = vv_fx_poll( [ 'status' => 'active', 'start_off' => '+2 days', 'end_off' => '+1 day' ] );
 		vv_fx_http( [], [
 			'vv_action' => 'save_poll', 'poll_id' => $pid, 'title' => 'Alt', 'question' => 'Q',
-			'start_dt' => date( 'Y-m-d\TH:i', strtotime( '+2 days' ) ),
-			'end_dt'   => date( 'Y-m-d\TH:i', strtotime( '+1 day' ) ), 'status' => 'closed',
+			'start_dt' => date( 'Y-m-d\TH:00', strtotime( '+2 days' ) ),
+			'end_dt'   => date( 'Y-m-d\TH:00', strtotime( '+1 day' ) ), 'status' => 'closed',
 		] );
 		[ $kind, ] = vv_fx_run( 'vv_save_poll' );
 		vv_check( 'redirect' === $kind && 'closed' === vv_fx_poll_row( $pid )->status, '[FU002#AK02] verdrehter Bestandszeitraum blockiert das Schließen nicht' );

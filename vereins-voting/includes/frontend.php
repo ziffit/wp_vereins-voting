@@ -33,14 +33,14 @@ function vv_shortcode_activate() {
 
 	vv_enqueue_frontend_style();
 
-	$poll_id = isset( $_GET['poll'] ) ? absint( $_GET['poll'] ) : 0;
+	$poll_id = vv_poll_id( wp_unslash( $_GET['poll'] ?? '' ) );
 	$token   = isset( $_GET['token'] ) ? preg_replace( '/[^a-zA-Z0-9]/', '', wp_unslash( $_GET['token'] ) ) : '';
 	$error   = '';
 
 	$voter = null;
 	if ( $poll_id && $token ) {
 		$voter = $wpdb->get_row( $wpdb->prepare(
-			"SELECT * FROM {$wpdb->prefix}voting_voters WHERE poll_id = %d AND activation_token = %s",
+			"SELECT * FROM {$wpdb->prefix}voting_voters WHERE poll_id = %s AND activation_token = %s",
 			$poll_id,
 			$token
 		) );
@@ -127,7 +127,7 @@ function vv_shortcode_form() {
 
 	vv_enqueue_frontend_style();
 
-	$poll_id = isset( $_GET['poll'] ) ? absint( $_GET['poll'] ) : 0;
+	$poll_id = vv_poll_id( wp_unslash( $_GET['poll'] ?? '' ) );
 	$error   = '';
 
 	if ( ! $poll_id ) {
@@ -158,9 +158,23 @@ function vv_shortcode_form() {
 		}
 	}
 
-	$poll = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}voting_polls WHERE id = %d", $poll_id ) );
+	$poll = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}voting_polls WHERE id = %s", $poll_id ) );
 	if ( ! $poll ) {
 		return '<div class="vv-box vv-error">Abstimmung nicht gefunden.</div>';
+	}
+
+	// [FU008#AK06] Das Formular erscheint nur im offenen Zeitraum. Vorher/
+	// nachher steht dort, wann die Abstimmung aktiv ist bzw. war.
+	$now  = current_time( 'mysql' );
+	$from = vv_normalize_dt( $poll->start_dt );
+	$to   = vv_normalize_dt( $poll->end_dt );
+	if ( 'closed' === $poll->status || '' === $from || '' === $to || $now < $from || $now >= $to ) {
+		$msg = ( '' !== $from && $now < $from )
+			? 'Die Abstimmung ist noch nicht aktiv. Sie ist vom ' . vv_fmt( $from ) . ' bis ' . vv_fmt( $to ) . ' geöffnet.'
+			: 'Die Abstimmung ist beendet (Zeitraum: ' . vv_fmt( $from ) . ' – ' . vv_fmt( $to ) . ').';
+		return '<div class="vv-box vv-info"><strong>Abstimmung „' . esc_html( $poll->title ) . '“</strong><br>'
+			. esc_html( $msg ) . '</div>'
+			. ( $error ? '<div class="vv-box vv-error">' . esc_html( $error ) . '</div>' : '' );
 	}
 
 	ob_start();
@@ -205,12 +219,12 @@ function vv_shortcode_results() {
 
 	vv_enqueue_frontend_style();
 
-	$poll_id = isset( $_GET['poll'] ) ? absint( $_GET['poll'] ) : 0;
+	$poll_id = vv_poll_id( wp_unslash( $_GET['poll'] ?? '' ) );
 	if ( ! $poll_id ) {
 		return '<div class="vv-box vv-error">Keine Abstimmung ausgewählt (URL-Parameter ?poll= fehlt).</div>';
 	}
 
-	$poll = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}voting_polls WHERE id = %d", $poll_id ) );
+	$poll = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}voting_polls WHERE id = %s", $poll_id ) );
 	if ( ! $poll ) {
 		return '<div class="vv-box vv-error">Abstimmung nicht gefunden.</div>';
 	}
@@ -236,7 +250,7 @@ function vv_shortcode_results() {
 
 		// [FU009#AK03] Vollständige anonyme Prüftabelle.
 		$ballots = $wpdb->get_results( $wpdb->prepare(
-			"SELECT receipt_hash, vote_option, created_at FROM {$wpdb->prefix}voting_ballots WHERE poll_id = %d ORDER BY id",
+			"SELECT receipt_hash, vote_option, created_at FROM {$wpdb->prefix}voting_ballots WHERE poll_id = %s ORDER BY id",
 			$poll_id
 		) );
 		$html .= '<h3>Prüfliste (anonym)</h3>';
@@ -280,7 +294,7 @@ function vv_fmt( $dt ) {
 function vv_poll_title( $poll_id ) {
 	global $wpdb;
 	return (string) $wpdb->get_var( $wpdb->prepare(
-		"SELECT title FROM {$wpdb->prefix}voting_polls WHERE id = %d",
+		"SELECT title FROM {$wpdb->prefix}voting_polls WHERE id = %s",
 		$poll_id
 	) );
 }

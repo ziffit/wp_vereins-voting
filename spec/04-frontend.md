@@ -60,6 +60,11 @@ Das eigentliche Wahlformular während des aktiven Wahlzeitraums.
   geschützt; nach 5 falschen PIN-Eingaben ist die Stimmabgabe für diese
   Person 15 Minuten gesperrt (Brute-Force-Schutz).
 
+- **[FU008#AK06]** Das Stimmformular erscheint nur innerhalb des offenen
+  Zeitraums einer nicht geschlossenen Abstimmung. Vor dem Start und nach dem
+  Ende werden keine Eingabefelder ausgegeben; stattdessen erscheint eine
+  Meldung mit dem Wahlzeitraum („noch nicht aktiv“ bzw. „beendet“).
+
 ## [FU009] Shortcode 3: `[verein_voting_results]` (Ergebnisse & Prüfliste)
 
 ### Beschreibung

@@ -52,6 +52,7 @@ return [
 		$html = (string) ob_get_clean();
 
 		// [FU005#AK01] Status-Tabelle: Hat gewählt + Zeitstempel vorhanden.
+		vv_check( str_contains( $html, 'Stimmberechtigte Mitglieder' ), '[FU005#AK01] Überschrift lautet „Stimmberechtigte Mitglieder“' );
 		vv_check( str_contains( $html, 'Hat gewählt' ), '[FU005#AK01] Spalte "Hat gewählt" vorhanden' );
 		vv_check( str_contains( $html, 'Gewählt am' ), '[FU005#AK01] Spalte "Gewählt am" vorhanden' );
 		vv_check( str_contains( $html, 'ein@beispiel.org' ), '[FU005#AK01] Mitglieder in Tabelle' );

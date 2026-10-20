@@ -24,6 +24,9 @@ WordPress-Plugin „vereins-voting": anonymes Abstimmungssystem für Vereine
 
 - Drei isolierte Tabellen: `voting_polls`, `voting_voters`, `voting_ballots`.
   **Keine Foreign Keys**, keine Verknüpfung von Identitäts- und Urne-Tabelle.
+- Poll-IDs sind zufällige UUIDs (`CHAR(36)`), nie aufsteigende Zahlen (FU002#AK07).
+- Eindeutig je Wahl ist `(poll_id, member_no, email)`; die E-Mail allein
+  **nicht** (Ehepaare teilen sich eine Adresse, FU003#AK02).
 - PIN nur als `password_hash()` / `password_verify()`, niemals Klartext.
 - Stimmabgabe in einer Transaktion mit Zeilensperre; `receipt_hash` = sha256
   (64 hex, UNIQUE). Die Urne speichert **nur** `poll_id`, `vote_option`, `receipt_hash`.
@@ -34,6 +37,19 @@ WordPress-Plugin „vereins-voting": anonymes Abstimmungssystem für Vereine
 - CSS: kein Framework, nur minimales semantisches Basis-CSS (`assets/vv.css`).
 - CSV-Import: `,`/`;`-Trennzeichen, Kopfzeilen-Erkennung, Duplikatsperre pro Wahl,
   sichere `activation_token`.
+
+## Datenschutz & Logging (hart)
+
+**Niemals** Daten loggen, die Rückschlüsse auf ein Mitglied, seine Stimmabgabe
+oder seine PIN zulassen – auch nicht in Debug-Ausgaben, Fehlermeldungen,
+Transients, Test-Fixtures mit echten Daten oder KI-Kontexten.
+
+- Verboten: Mitgliedsnummer, E-Mail, Name, PIN (auch gehasht),
+  `activation_token`, `receipt_hash` in Verbindung mit einer Person, gewählte
+  Option, IP-Adresse in Verbindung mit einer Stimme.
+- Fehlermeldungen nennen nur den Grund, nie die eingegebenen Werte.
+- Rate-Limit-Schlüssel werden gehasht (`vv_rate_key()`).
+- Verstöße wie Sicherheitslücken behandeln (FU001, Prinzipien-Dokument).
 
 ## Stil
 

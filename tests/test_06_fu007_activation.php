@@ -44,7 +44,7 @@ return [
 
 		// Token bleibt unverbraucht:
 		global $wpdb;
-		$t = $wpdb->get_var( 'SELECT activation_token FROM ' . vv_tbl( 'voting_voters' ) . ' WHERE poll_id = ' . $pid );
+		$t = $wpdb->get_var( 'SELECT activation_token FROM ' . vv_tbl( 'voting_voters' ) . ' WHERE poll_id = ' . $wpdb->prepare( '%s', $pid ) );
 		vv_check( 'tokmm' === $t, '[FU007#AK02] Token bei fehlgeschlagener Prüfung nicht verbraucht' );
 	},
 
@@ -69,7 +69,7 @@ return [
 		$html = vv_shortcode_activate();
 		vv_check( str_contains( $html, 'Erfolgreich' ), '[FU007#AK03] Erfolgsmeldung angezeigt' );
 
-		$row = $wpdb->get_row( 'SELECT * FROM ' . vv_tbl( 'voting_voters' ) . ' WHERE poll_id = ' . $pid );
+		$row = $wpdb->get_row( 'SELECT * FROM ' . vv_tbl( 'voting_voters' ) . ' WHERE poll_id = ' . $wpdb->prepare( '%s', $pid ) );
 		vv_check( $row->pin_hash && password_verify( '123456', $row->pin_hash ), '[FU007#AK03] PIN als password_hash gespeichert, verify ok' );
 		vv_check( ! preg_match( '/123456$/', (string) $row->pin_hash ), '[FU007#AK03] kein Klartext-PIN in pin_hash' );
 		vv_check( null === $row->activation_token, '[FU007#AK03] activation_token gelöscht (Einmalverwendung)' );
@@ -93,7 +93,7 @@ return [
 		$html = vv_shortcode_activate();
 		vv_check( str_contains( $html, 'Sicherheitsprüfung' ), '[FU007#AK04] POST ohne Nonce abgelehnt' );
 
-		$t = $wpdb->get_var( 'SELECT activation_token FROM ' . vv_tbl( 'voting_voters' ) . " WHERE poll_id = $pid" );
+		$t = $wpdb->get_var( 'SELECT activation_token FROM ' . vv_tbl( 'voting_voters' ) . ' WHERE poll_id = ' . $wpdb->prepare( '%s', $pid ) );
 		vv_check( 'tokcsrf' === $t, '[FU007#AK04] ohne Nonce wird kein PIN gesetzt/Token verbraucht' );
 	},
 
@@ -114,7 +114,7 @@ return [
 		$html = vv_shortcode_activate();
 		vv_check( str_contains( $html, 'Zu viele Fehlversuche' ), '[FU007#AK04] Brute-Force-Bremse nach 5 Fehlversuchen aktiv' );
 
-		$t = $wpdb->get_var( 'SELECT activation_token FROM ' . vv_tbl( 'voting_voters' ) . " WHERE poll_id = $pid" );
+		$t = $wpdb->get_var( 'SELECT activation_token FROM ' . vv_tbl( 'voting_voters' ) . ' WHERE poll_id = ' . $wpdb->prepare( '%s', $pid ) );
 		vv_check( 'tokrl' === $t, '[FU007#AK04] gesperrter Versuch verbraucht den Token nicht' );
 	},
 ];

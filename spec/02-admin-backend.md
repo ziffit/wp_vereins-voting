@@ -12,7 +12,9 @@ löschen.
 - **[FU002#AK01]** Der Admin kann eine neue Abstimmung mit Titel,
   Beschreibung/Frage, Start-Datum/Uhrzeit und End-Datum/Uhrzeit anlegen.
   Beim Speichern werden Pflichtfelder und Zeitraum geprüft (Ende muss nach dem
-  Start liegen); zu lange Titel werden auf 190 Zeichen gekürzt.
+  Start liegen); zu lange Titel werden auf 190 Zeichen gekürzt. Start und Ende
+  liegen immer auf vollen Stunden (z. B. 18:00); Zeiten mit Minuten werden
+  mit einer Meldung in der Maske abgewiesen.
 
 - **[FU002#AK02]** Bestehende Abstimmungen können bearbeitet werden, solange
   sie den Status `draft` haben. Bei aktiven oder geschlossenen Abstimmungen
@@ -39,6 +41,10 @@ löschen.
   oder andere Plugins) bleiben unberührt; eigene Aktionen erfordern weiterhin
   Nonce und `manage_options`.
 
+- **[FU002#AK07]** Jede Abstimmung erhält eine zufällige UUID v4 als ID
+  (`CHAR(36)`, keine AUTO_INCREMENT-Zahl). Links und Formulare enthalten
+  damit keine erratbaren, fortlaufenden IDs.
+
 ## [FU003] Mitglieder-CSV-Import & Token-Generierung
 
 ### Beschreibung
@@ -55,12 +61,15 @@ Import einer Mitgliederliste per CSV-Upload pro Abstimmung.
   werden automatisch behandelt. Fehlt eine Pflichtspalte, bricht der Import
   mit einer Meldung ab, die die erkannten Spalten nennt.
 
-- **[FU003#AK02]** Das System validiert die E-Mail-Adressen, verhindert
-  Duplikate pro Abstimmung und generiert für jeden Datensatz einen
-  eindeutigen, sicheren `activation_token`. Vorname und Nachname werden als
-  `first_name`/`last_name` gespeichert (max. 100 Zeichen). Bei einem erneuten
-  Import werden leere Namensfelder bestehender Zeilen nachgetragen, ohne
-  vorhandene Werte zu überschreiben.
+- **[FU003#AK02]** Das System validiert die E-Mail-Adressen und verhindert
+  doppelte Einträge pro Abstimmung: eindeutig ist die Kombination aus
+  Mitgliedsnummer und E-Mail (E-Mail case-insensitiv). Dieselbe E-Mail-Adresse
+  darf für verschiedene Mitgliedsnummern mehrfach vorkommen (z. B. Ehepaare).
+  Für jeden Datensatz wird ein eindeutiger, sicherer `activation_token`
+  generiert. Vorname und Nachname werden als `first_name`/`last_name`
+  gespeichert (max. 100 Zeichen). Bei einem erneuten Import werden leere
+  Namensfelder bestehender Zeilen nachgetragen, ohne vorhandene Werte zu
+  überschreiben.
 
 - **[FU003#AK03]** Zeilen ohne Pflichtwert (Mitgliedsnummer, Vorname, Name
   oder gültige E-Mail) werden übersprungen und im Ergebnis als übersprungen
@@ -86,7 +95,7 @@ Abstimmung.
 - **[FU004#AK03]** Betreff und Text werden beim Versand als Vorlage
   gespeichert und beim nächsten Aufruf wieder vorbelegt.
 
-## [FU005] Admin-Audit- & Beteiligungs-Übersicht
+## [FU005] Admin-Audit- & Mitglieder-Übersicht
 
 ### Beschreibung
 
@@ -98,9 +107,9 @@ Stimmgeheimnisses.
 - **[FU005#AK01]** Der Admin sieht eine Liste aller importierten Mitglieder
   (Mitgliedsnummer, Name aus Vor-/Nachname, E-Mail) mit Status
   (*Hat gewählt: Ja/Nein* und *Gewählt am: [Zeitstempel]*); fehlt der Name,
-  steht dort „–“. Die Liste wird seitenweise angezeigt (100 Einträge pro
-  Seite); die Abstimmungsübersicht zeigt Teilnehmer- und Stimmenzahl je
-  Abstimmung.
+  steht dort „–“. Die Liste trägt die Überschrift „Stimmberechtigte
+  Mitglieder“ und wird seitenweise angezeigt (100 Einträge pro Seite); die
+  Abstimmungsübersicht zeigt Teilnehmer- und Stimmenzahl je Abstimmung.
 
 - **[FU005#AK02]** Es ist technisch unmöglich, im Backend einzusehen, welche
   Option (ja, nein, enthaltung) ein spezifisches Mitglied gewählt hat.

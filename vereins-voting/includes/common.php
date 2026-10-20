@@ -19,7 +19,7 @@ function vv_get_results( $poll_id ) {
 	global $wpdb;
 
 	$rows = $wpdb->get_results( $wpdb->prepare(
-		"SELECT vote_option, COUNT(*) AS n FROM {$wpdb->prefix}voting_ballots WHERE poll_id = %d GROUP BY vote_option",
+		"SELECT vote_option, COUNT(*) AS n FROM {$wpdb->prefix}voting_ballots WHERE poll_id = %s GROUP BY vote_option",
 		$poll_id
 	) );
 
@@ -56,6 +56,20 @@ function vv_normalize_dt( $dt ) {
 		$dt .= ':00';
 	}
 	return $dt;
+}
+
+/** [FU002#AK07] Poll-ID als zufällige UUID v4 – nicht erratbar, keine Reihenfolge. */
+function vv_uuid() {
+	$b    = random_bytes( 16 );
+	$b[6] = chr( ( ord( $b[6] ) & 0x0f ) | 0x40 ); // Version 4.
+	$b[8] = chr( ( ord( $b[8] ) & 0x3f ) | 0x80 ); // Variante RFC 4122.
+	return vsprintf( '%s%s-%s-%s-%s-%s%s%s', str_split( bin2hex( $b ), 4 ) );
+}
+
+/** Poll-ID aus GET/POST lesen. Nur UUID-artige Strings (auch Altzahlen), sonst ''. */
+function vv_poll_id( $raw ) {
+	$raw = strtolower( trim( (string) $raw ) );
+	return preg_match( '/^[a-z0-9-]{1,36}$/', $raw ) && '0' !== $raw ? $raw : '';
 }
 
 /**
@@ -114,7 +128,7 @@ function vv_cast_vote( $poll_id, $member_no, $email, $pin, $option ) {
 	$wpdb->query( 'START TRANSACTION' );
 	try {
 		$now  = current_time( 'mysql' );
-		$poll = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}voting_polls WHERE id = %d", $poll_id ) );
+		$poll = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}voting_polls WHERE id = %s", $poll_id ) );
 
 		if ( ! $poll ) {
 			throw new RuntimeException( 'Abstimmung nicht gefunden.' );
@@ -127,11 +141,11 @@ function vv_cast_vote( $poll_id, $member_no, $email, $pin, $option ) {
 			$ne = vv_normalize_dt( $poll->end_dt );
 			if ( '' !== $ns && '' !== $ne && $ns <= $now && $now < $ne ) {
 				$wpdb->query( $wpdb->prepare(
-					"UPDATE {$wpdb->prefix}voting_polls SET status = 'active' WHERE id = %d AND status = 'draft'",
+					"UPDATE {$wpdb->prefix}voting_polls SET status = 'active' WHERE id = %s AND status = 'draft'",
 					$poll_id
 				) );
 			}
-			$poll = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}voting_polls WHERE id = %d", $poll_id ) );
+			$poll = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}voting_polls WHERE id = %s", $poll_id ) );
 		}
 
 		$ns = vv_normalize_dt( $poll->start_dt );
@@ -144,7 +158,7 @@ function vv_cast_vote( $poll_id, $member_no, $email, $pin, $option ) {
 		// Zeile atomar sperren FOR UPDATE, damit Doppelvoting ausgeschlossen ist.
 		$voter = $wpdb->get_row( $wpdb->prepare(
 			"SELECT id, pin_hash, has_voted FROM {$wpdb->prefix}voting_voters
-			 WHERE poll_id = %d AND member_no = %s AND email = %s FOR UPDATE",
+			 WHERE poll_id = %s AND member_no = %s AND email = %s FOR UPDATE",
 			$poll_id,
 			$member_no,
 			$email

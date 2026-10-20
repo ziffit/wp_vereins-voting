@@ -2,10 +2,10 @@
 /**
  * Plugin Name:       vereins-voting
  * Description:       Vereins-Abstimmungen: Einladung per E-Mail-Link, PIN-Aktivierung durch das Mitglied, anonyme Stimmurne mit Receipt-Hash.
- * Version:           1.2.0
+ * Version:           1.3.0
  * Requires at least: 5.8
  * Requires PHP:      7.4
- * Author:            Felix
+ * Author:            Felix Tensing
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       vereins-voting
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Direktzugriff verweigern.
 }
 
-define( 'VEREINS_VOTING_VERSION', '1.2.0' );
+define( 'VEREINS_VOTING_VERSION', '1.3.0' );
 
 /*
  * [FU001#AK02] Bei Deaktivierung/Deinstallation werden KEINE Daten gelöscht —
@@ -33,18 +33,19 @@ function vv_create_schema() {
 
 	$charset = $wpdb->get_charset_collate();
 
-	// [FU001] Abstimmungen.
+	// [FU001] Abstimmungen. IDs sind zufällige UUIDs (FU002#AK07) statt
+	// aufsteigender Zahlen – Links verraten so keine Anzahl/Reihenfolge.
 	$polls = "{$wpdb->prefix}voting_polls";
 	dbDelta(
 		"CREATE TABLE $polls (
-			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			id CHAR(36) NOT NULL,
 			title VARCHAR(190) NOT NULL DEFAULT '',
 			question TEXT NULL,
 			start_dt DATETIME NULL,
 			end_dt DATETIME NULL,
 			status VARCHAR(20) NOT NULL DEFAULT 'draft',
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			PRIMARY KEY (id),
+			PRIMARY KEY  (id),
 			KEY status (status),
 			KEY end_dt (end_dt)
 		) $charset"
@@ -52,11 +53,13 @@ function vv_create_schema() {
 
 	// [FU001] Berechtigte + PIN-Hashes. Kein Foreign Key zur Urne.
 	// first_name/last_name (optional) dienen nur der persönlichen Ansprache.
+	// [FU003#AK02] Eindeutig ist die Kombination Mitgliedsnummer + E-Mail:
+	// dieselbe E-Mail darf mehrfach vorkommen (z. B. Ehepaare).
 	$voters = "{$wpdb->prefix}voting_voters";
 	dbDelta(
 		"CREATE TABLE $voters (
 			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-			poll_id BIGINT UNSIGNED NOT NULL,
+			poll_id CHAR(36) NOT NULL,
 			member_no VARCHAR(191) NOT NULL,
 			email VARCHAR(191) NOT NULL,
 			first_name VARCHAR(100) NULL DEFAULT NULL,
@@ -66,9 +69,8 @@ function vv_create_schema() {
 			has_voted TINYINT(1) NOT NULL DEFAULT 0,
 			voted_at DATETIME NULL,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			PRIMARY KEY (id),
-			KEY poll_email (poll_id, email),
-			KEY poll_member (poll_id, member_no),
+			PRIMARY KEY  (id),
+			UNIQUE KEY poll_member_email (poll_id, member_no, email),
 			KEY activation_token (activation_token)
 		) $charset"
 	);
@@ -78,11 +80,11 @@ function vv_create_schema() {
 	dbDelta(
 		"CREATE TABLE $ballots (
 			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-			poll_id BIGINT UNSIGNED NOT NULL,
+			poll_id CHAR(36) NOT NULL,
 			vote_option VARCHAR(20) NOT NULL,
 			receipt_hash CHAR(64) NOT NULL,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			PRIMARY KEY (id),
+			PRIMARY KEY  (id),
 			UNIQUE KEY receipt_hash (receipt_hash),
 			KEY poll_id (poll_id)
 		) $charset"
@@ -92,13 +94,45 @@ function vv_create_schema() {
 }
 register_activation_hook( __FILE__, 'vv_create_schema' );
 
-/** [FU001#AK03] Bestandsinstallationen nach einem Plugin-Update nachziehen. */
+/**
+ * [FU001#AK03] Bestandsinstallationen nach einem Plugin-Update nachziehen.
+ * Vor 1.3.0 waren Poll-IDs aufsteigende Zahlen; sie werden auf UUIDs
+ * umgestellt, damit die Spaltentypen wieder zusammenpassen.
+ */
 function vv_maybe_upgrade() {
-	if ( get_option( 'vv_db_version' ) !== VEREINS_VOTING_VERSION ) {
-		vv_create_schema();
+	if ( get_option( 'vv_db_version' ) === VEREINS_VOTING_VERSION ) {
+		return;
 	}
+	vv_upgrade_poll_ids_to_uuid();
+	vv_create_schema();
 }
 add_action( 'plugins_loaded', 'vv_maybe_upgrade' );
+
+/** [FU001#AK03] Alte Zahlen-IDs (BIGINT) auf UUID-Spalten und -Werte heben. */
+function vv_upgrade_poll_ids_to_uuid() {
+	global $wpdb;
+
+	$polls = "{$wpdb->prefix}voting_polls";
+	if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $polls ) ) ) {
+		return; // Frische Installation: vv_create_schema() legt UUID-Spalten an.
+	}
+
+	// Spaltentypen angleichen (auf leerer Tabelle sofort, sonst Werte umschreiben).
+	foreach ( [ [ $polls, 'id' ], [ "{$wpdb->prefix}voting_voters", 'poll_id' ], [ "{$wpdb->prefix}voting_ballots", 'poll_id' ] ] as [ $table, $col ] ) {
+		$row = $wpdb->get_row( "SHOW COLUMNS FROM `$table` LIKE '$col'" );
+		if ( $row && 0 !== stripos( (string) $row->Type, 'char(36)' ) ) {
+			$wpdb->query( "ALTER TABLE `$table` MODIFY `$col` CHAR(36) NOT NULL" );
+		}
+	}
+
+	// Legacies: kurze (numerische) IDs durch UUIDs ersetzen; Urne und Wähler folgen.
+	foreach ( (array) $wpdb->get_col( "SELECT id FROM `$polls` WHERE CHAR_LENGTH(id) < 36" ) as $old ) {
+		$new = vv_uuid();
+		$wpdb->update( $polls, [ 'id' => $new ], [ 'id' => (string) $old ] );
+		$wpdb->update( "{$wpdb->prefix}voting_voters", [ 'poll_id' => $new ], [ 'poll_id' => (string) $old ] );
+		$wpdb->update( "{$wpdb->prefix}voting_ballots", [ 'poll_id' => $new ], [ 'poll_id' => (string) $old ] );
+	}
+}
 
 // Ein minimales Stylesheet für Formulare/Tabellen, damit es in jedes Theme passt.
 add_action( 'wp_enqueue_scripts', function () {

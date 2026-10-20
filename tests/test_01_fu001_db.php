@@ -50,7 +50,7 @@ return [
 		$pid = vv_fx_poll();
 		$h   = 'aa' . str_repeat( '0', 62 );
 		vv_fx_ballot( $pid, 'ja', $h );
-		$dup = $wpdb->query( $wpdb->prepare( 'INSERT INTO ' . vv_tbl( 'voting_ballots' ) . ' (poll_id, vote_option, receipt_hash) VALUES (%d, %s, %s)', $pid, 'nein', $h ) );
+		$dup = $wpdb->query( $wpdb->prepare( 'INSERT INTO ' . vv_tbl( 'voting_ballots' ) . ' (poll_id, vote_option, receipt_hash) VALUES (%s, %s, %s)', $pid, 'nein', $h ) );
 		vv_check( false === $dup, '[FU001#AK01] Doppel-Receipt-Hash in Urne abgelehnt (UNIQUE-Index)' );
 	},
 
@@ -99,5 +99,39 @@ return [
 			'[FU001#AK03] Upgrade zieht fehlende Namensspalten nach' );
 		vv_check( 1 === vv_fx_voter_count( $pid ) && vv_fx_voter_row( 'alt@example.org' ),
 			'[FU001#AK03] Bestandsdaten bleiben beim Upgrade erhalten' );
+	},
+
+	'test_01_fu002_ak07_poll_id_ist_uuid' => function () {
+		global $wpdb;
+		$pid  = vv_fx_poll();
+		$type = $wpdb->get_row( 'SHOW COLUMNS FROM ' . vv_tbl( 'voting_polls' ) . " LIKE 'id'" );
+
+		vv_check( (bool) preg_match( '/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/', $pid ),
+			'[FU002#AK07] Poll-ID ist eine UUID v4 (keine aufsteigende Zahl)' );
+		vv_check( $type && 0 === stripos( (string) $type->Type, 'char(36)' ) && 'auto_increment' !== ( $type->Extra ?? '' ),
+			'[FU002#AK07] polls.id ist CHAR(36) ohne AUTO_INCREMENT' );
+	},
+
+	'test_01_fu001_ak03_alte_zahlen_ids_werden_zu_uuid' => function () {
+		global $wpdb;
+		// Altbestand simulieren: Poll mit kurzer Zahlen-ID inkl. Wähler und Urne.
+		$wpdb->query( $wpdb->prepare(
+			'INSERT INTO ' . vv_tbl( 'voting_polls' ) . ' (id, title, status) VALUES (%s, %s, %s)',
+			'9001', 'Altbestand 1.2', 'draft'
+		) );
+		vv_fx_voter( '9001', '1', 'alt-id@example.org', 'tok9' );
+		vv_fx_ballot( '9001' );
+
+		update_option( 'vv_db_version', '1.2.0' );
+		vv_maybe_upgrade();
+
+		$new = $wpdb->get_var( $wpdb->prepare(
+			'SELECT id FROM ' . vv_tbl( 'voting_polls' ) . ' WHERE title = %s', 'Altbestand 1.2'
+		) );
+		vv_check( $new && 36 === strlen( $new ) && '9001' !== $new,
+			'[FU001#AK03] alte Zahlen-Poll-ID wird beim Upgrade durch eine UUID ersetzt' );
+		vv_check( 1 === vv_fx_voter_count( $new ) && 1 === vv_fx_ballots_count( $new ),
+			'[FU001#AK03] Wähler und Urne folgen der neuen Poll-ID (kein Datenverlust)' );
+		vv_check( null === vv_fx_poll_row( '9001' ), '[FU001#AK03] alte ID ist nicht mehr vorhanden' );
 	},
 ];

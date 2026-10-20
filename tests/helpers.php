@@ -20,7 +20,7 @@ function vv_tbl( $table ) {
 // Fixtures
 // ---------------------------------------------------------------------------
 
-/** Erzeugt Abstimmung per Direkt-SQL; $o: title, question, status, start_off, end_off. Gibt ID zurück. */
+/** Erzeugt Abstimmung per Direkt-SQL; $o: title, question, status, start_off, end_off. Gibt UUID zurück. */
 function vv_fx_poll( $o = [] ) {
 	global $wpdb;
 	$o = array_merge( [
@@ -31,15 +31,16 @@ function vv_fx_poll( $o = [] ) {
 		'end_off'   => '+1 day',
 	], $o );
 
+	$id = vv_uuid();
 	$wpdb->query( $wpdb->prepare(
-		"INSERT INTO " . vv_tbl( 'voting_polls' ) . " (title, question, start_dt, end_dt, status, created_at)
-		 VALUES (%s, %s, %s, %s, %s, NOW())",
-		$o['title'], $o['question'],
+		"INSERT INTO " . vv_tbl( 'voting_polls' ) . " (id, title, question, start_dt, end_dt, status, created_at)
+		 VALUES (%s, %s, %s, %s, %s, %s, NOW())",
+		$id, $o['title'], $o['question'],
 		date( 'Y-m-d H:i:s', strtotime( $o['start_off'] ) ),
 		date( 'Y-m-d H:i:s', strtotime( $o['end_off'] ) ),
 		$o['status']
 	) );
-	return (int) $wpdb->insert_id;
+	return $id;
 }
 
 /** Erzeugt Wähler-Zeile; token null = bereits verbraucht; pin als Klartext→Hash. Gibt [id, token]. */
@@ -48,7 +49,7 @@ function vv_fx_voter( $pid, $member = '101', $email = 'wahl@example.org', $token
 	$pin_hash = $pin ? password_hash( (string) $pin, PASSWORD_DEFAULT ) : '';
 	$wpdb->query( $wpdb->prepare(
 		"INSERT INTO " . vv_tbl( 'voting_voters' ) . " (poll_id, member_no, email, first_name, last_name, activation_token, pin_hash, created_at)
-		 VALUES (%d, %s, %s, %s, %s, %s, %s, NOW())",
+		 VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())",
 		$pid, (string) $member, $email, $first, $last, $token, $pin_hash
 	) );
 	return [ (int) $wpdb->insert_id, $token ];
@@ -66,7 +67,7 @@ function vv_fx_ballot( $pid, $option = 'ja', $hash = null ) {
 	$hash = $hash ?? hash( 'sha256', uniqid( 'vvtest', true ) );
 	$wpdb->query( $wpdb->prepare(
 		"INSERT INTO " . vv_tbl( 'voting_ballots' ) . " (poll_id, vote_option, receipt_hash, created_at)
-		 VALUES (%d, %s, %s, NOW())",
+		 VALUES (%s, %s, %s, NOW())",
 		$pid, $option, $hash
 	) );
 	return $hash;
@@ -75,18 +76,18 @@ function vv_fx_ballot( $pid, $option = 'ja', $hash = null ) {
 /** Wähler-Count in Urne. */
 function vv_fx_ballots_count( $pid ) {
 	global $wpdb;
-	return (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . vv_tbl( 'voting_ballots' ) . ' WHERE poll_id = ' . (int) $pid );
+	return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . vv_tbl( 'voting_ballots' ) . ' WHERE poll_id = %s', $pid ) );
 }
 
 function vv_fx_voter_count( $pid ) {
 	global $wpdb;
-	return (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . vv_tbl( 'voting_voters' ) . ' WHERE poll_id = ' . (int) $pid );
+	return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . vv_tbl( 'voting_voters' ) . ' WHERE poll_id = %s', $pid ) );
 }
 
 /** Poll-Zeile als Objekt. */
 function vv_fx_poll_row( $pid ) {
 	global $wpdb;
-	return $wpdb->get_row( 'SELECT * FROM ' . vv_tbl( 'voting_polls' ) . ' WHERE id = ' . (int) $pid );
+	return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . vv_tbl( 'voting_polls' ) . ' WHERE id = %s', $pid ) );
 }
 
 /** Wähler-Zeile per Mail. */

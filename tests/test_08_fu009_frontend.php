@@ -71,6 +71,24 @@ return [
 		}
 	},
 
+	'test_08_fu008_ak06_formular_nur_im_zeitraum' => function () {
+		// Vor dem Start: kein Formular, Hinweis wann die Abstimmung aktiv ist.
+		$pid = vv_fx_poll( [ 'status' => 'draft', 'start_off' => '+1 day', 'end_off' => '+2 days' ] );
+		vv_fx_http( [ 'poll' => $pid ] );
+		$html = vv_shortcode_form();
+		vv_check( ! str_contains( $html, '<form' ) && ! str_contains( $html, 'name="pin"' ),
+			'[FU008#AK06] vor dem Start kein Stimmformular' );
+		vv_check( str_contains( $html, 'noch nicht aktiv' ) && str_contains( $html, vv_fmt( vv_fx_poll_row( $pid )->start_dt ) ),
+			'[FU008#AK06] Hinweis nennt den Zeitraum vor dem Start' );
+
+		// Nach dem Ende: kein Formular, Hinweis „beendet“.
+		$pid2 = vv_fx_poll( [ 'status' => 'active', 'start_off' => '-2 days', 'end_off' => '-1 day' ] );
+		vv_fx_http( [ 'poll' => $pid2 ] );
+		$html2 = vv_shortcode_form();
+		vv_check( ! str_contains( $html2, '<form' ), '[FU008#AK06] nach dem Ende kein Stimmformular' );
+		vv_check( str_contains( $html2, 'beendet' ), '[FU008#AK06] Hinweis nach dem Ende' );
+	},
+
 	'test_08_fu008_ak02_formular_kein_poll' => function () {
 		vv_fx_http( [] );
 		$html = vv_shortcode_form();
