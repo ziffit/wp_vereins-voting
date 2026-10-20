@@ -180,6 +180,8 @@ switch ( $step ) {
 			'mail_intro'        => "Hallo {vorname} {nachname},\r\n\r\nbitte nimm an der Abstimmung teil.",
 			'mail_footer'       => "Testverein e.V.\r\nMusterstraße 1, 12345 Musterstadt\r\nImpressum: https://example.org/impressum/",
 			'mail_activate_url' => 'https://example.org/aktivierungen/',
+			'mail_vote_url'     => 'https://example.org/waehlen/',
+			'mail_results_url'  => 'https://example.org/ergebnis/',
 			'mail_rate'         => '1',
 		];
 		try { vv_save_mail_settings(); } catch ( VVRedirectFound $r ) {}
@@ -228,8 +230,12 @@ switch ( $step ) {
 		vv_assert( str_contains( $mail['body'], 'Kassenprüfung 2026' ), '[FU006#AK01] Mail enthält Abstimmungstitel' );
 		vv_assert( str_contains( $mail['body'], 'Testverein e.V.' ), '[FU006#AK01] Mail enthält Vereinsnamen aus dem Footer' );
 		vv_assert( str_contains( $mail['body'], 'Wahlzeitraum' ), '[FU006#AK01] Mail enthält Frist' );
-		vv_assert( str_contains( $mail['body'], 'https://example.org/verein/' ) && str_contains( $mail['body'], 'Zur Website' ),
+		vv_assert( str_contains( $mail['body'], 'https://example.org/verein/' ) && str_contains( $mail['body'], 'Mehr zum Ablauf' ),
 			'[FU004#AK03] optionaler Website-Link steht in der Mail' );
+		vv_assert( str_contains( $mail['body'], 'https://example.org/waehlen/' ) && str_contains( $mail['body'], 'Jetzt abstimmen' ),
+			'[FU006#AK01] Schritt 2 mit Button zur Stimmformular-Seite' );
+		vv_assert( str_contains( $mail['body'], 'https://example.org/ergebnis/' ) && str_contains( $mail['body'], 'Ergebnisse ansehen' ),
+			'[FU006#AK01] Schritt 3 mit Link zur Ergebnisseite' );
 		vv_assert( (bool) preg_match( '/https:\/\/example\.org\/aktivierungen\/\?poll=[0-9a-f-]{36}/', $mail['body'] ), '[FU006#AK01] Mail enthält personalisierten Aktivierungslink (UUID)' );
 		// [FU006#AK04] Namen je Empfänger ersetzt:
 		$all = implode( "\n", array_map( fn( $m ) => $m['body'], $GLOBALS['vv_mails'] ) );

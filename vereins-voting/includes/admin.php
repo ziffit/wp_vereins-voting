@@ -641,7 +641,7 @@ function vv_render_invite_form( $poll ) {
 				<th><label for="vv-mail-url">Link zur Website (optional)</label></th>
 				<td><input name="mail_url" id="vv-mail-url" type="url" class="large-text"
 					value="<?php echo esc_attr( $mail_url ); ?>" placeholder="<?php echo esc_attr( home_url( '/' ) ); ?>">
-					<p class="description">Wird als zusätzlicher Link „Zur Website“ in die Mail gesetzt.</p></td>
+					<p class="description">Wird als Hinweis „Mehr zum Ablauf der Wahl und der eingesetzten Software“ in die Mail gesetzt.</p></td>
 			</tr>
 		</table>
 		<p><button type="submit" class="button">Text speichern</button></p>

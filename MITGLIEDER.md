@@ -10,7 +10,8 @@ und warum sie gleichzeitig **anonym**, **sicher** und **nachvollziehbar** ist.
 Wenn eine Abstimmung gestartet wird, erhältst du eine E-Mail mit einem
 **persönlichen Link**. Der Link ist für dich allein bestimmt und kann nur
 einmal verwendet werden. Er öffnet eine Seite, auf der du deinen
-Wahl-PIN festlegst.
+Wahl-PIN festlegst. Die Mail führt dich der Reihe nach durch die drei
+Schritte: PIN setzen, abstimmen und nach Wahlende die Ergebnisse prüfen.
 
 > **Was ist ein „Token"?** Der persönliche Link enthält einen einmaligen
 > Code, der nach der Benutzung gelöscht wird. Wer den Link später mitliest,

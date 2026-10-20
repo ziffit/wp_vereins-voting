@@ -16,7 +16,8 @@ function vv_mail_defaults() {
 	return [
 		'subject'      => 'Einladung zur Abstimmung: {poll_title}',
 		'intro'        => "Hallo {vorname} {nachname},\r\n\r\n"
-			. 'du bist eingeladen, an der folgenden Abstimmung teilzunehmen.',
+			. 'du bist eingeladen, an der folgenden Abstimmung teilzunehmen. '
+			. 'Deine Stimme ist anonym – niemand kann sehen, wie du wählst.',
 		'footer'       => '',
 		'activate_url' => '',
 		'rate'         => 10,
@@ -45,6 +46,18 @@ function vv_mail_footer() {
 
 function vv_mail_activate_url() {
 	return trim( (string) get_option( 'vv_mail_activate_url', '' ) );
+}
+
+/** [FU006] Optionale URL der Seite mit dem Stimmformular (Schritt 2 der Mail). */
+function vv_mail_vote_url() {
+	$url = trim( (string) get_option( 'vv_mail_vote_url', '' ) );
+	return vv_mail_url_valid( $url ) ? $url : '';
+}
+
+/** [FU006] Optionale URL der Ergebnisseite (Schritt 3 der Mail). */
+function vv_mail_results_url() {
+	$url = trim( (string) get_option( 'vv_mail_results_url', '' ) );
+	return vv_mail_url_valid( $url ) ? $url : '';
 }
 
 /** [FU004] Globales Versandfenster: 1–500 Mails pro 5 Minuten. */
@@ -137,6 +150,8 @@ function vv_mail_parts( $poll, $voter, $overrides = [] ) {
 	$footer_tpl  = $overrides['footer'] ?? vv_mail_footer();
 	$poll_tpl    = $overrides['poll_text'] ?? vv_mail_poll_text_template( $poll );
 	$activate    = $overrides['activate_url'] ?? vv_mail_activate_url();
+	$vote        = $overrides['vote_url'] ?? vv_mail_vote_url();
+	$results     = $overrides['results_url'] ?? vv_mail_results_url();
 	$website     = $overrides['website_url'] ?? vv_mail_poll_url( $poll );
 
 	$subject   = vv_mail_replace( $subject_tpl, $poll, $voter );
@@ -160,14 +175,16 @@ function vv_mail_parts( $poll, $voter, $overrides = [] ) {
 	}
 
 	return [
-		'subject'   => $subject,
-		'intro'     => $intro,
-		'poll_text' => $poll_text,
-		'footer'    => $footer,
-		'link'      => $link,
-		'website'   => $website,
-		'html'      => vv_mail_html( $subject, $intro, $poll_text, $footer, $link, $website ),
-		'plain'     => vv_mail_plain( $intro, $poll_text, $footer, $link, $website ),
+		'subject'     => $subject,
+		'intro'       => $intro,
+		'poll_text'   => $poll_text,
+		'footer'      => $footer,
+		'link'        => $link,
+		'vote_url'    => $vote,
+		'results_url' => $results,
+		'website'     => $website,
+		'html'        => vv_mail_html( $subject, $intro, $poll_text, $footer, $link, $website, $vote, $results ),
+		'plain'       => vv_mail_plain( $intro, $poll_text, $footer, $link, $website, $vote, $results ),
 	];
 }
 
@@ -207,11 +224,34 @@ function vv_mail_button( $url, $label ) {
 		. esc_html( (string) $label ) . '</a></td></tr></table>';
 }
 
-function vv_mail_html( $subject, $intro, $poll_text, $footer, $link, $website ) {
+/**
+ * [FU006#AK01] Ablaufschritte: Schritt 1 (PIN) immer, Schritt 2 und 3 erst,
+ * sobald die passenden URLs in den E-Mail-Einstellungen gesetzt sind.
+ */
+function vv_mail_steps( $link, $vote_url, $results_url ) {
+	$p    = 'style="font-size: 1em; margin: 8px 0"';
+	$step = 1;
+	$html = '<p style="font-size: 1em; margin: 24px 0 0"><strong>So geht’s weiter:</strong></p>';
+	$html .= '<p ' . $p . '>' . $step++ . '. Setze deinen persönlichen Wahl-PIN (6 Ziffern).</p>';
+	$html .= vv_mail_button( $link, 'Wahl-PIN setzen' );
+	if ( '' !== $vote_url ) {
+		$html .= '<p ' . $p . '>' . $step++ . '. Stimme im Wahlzeitraum ab – Ja, Nein oder Enthaltung.</p>';
+		$html .= vv_mail_button( $vote_url, 'Jetzt abstimmen' );
+	}
+	if ( '' !== $results_url ) {
+		$html .= '<p ' . $p . '>' . $step++ . '. Prüfe nach Wahlende das Ergebnis. Die ersten fünf Zeichen '
+			. 'deines Prüfcodes reichen, um deine Stimme wiederzufinden: '
+			. '<a href="' . esc_url( $results_url ) . '" style="color: #1a82e2; text-decoration: underline">Ergebnisse ansehen</a></p>';
+	}
+	return $html;
+}
+
+function vv_mail_html( $subject, $intro, $poll_text, $footer, $link, $website, $vote_url = '', $results_url = '' ) {
 	$content = vv_mail_paragraphs( $intro . "\n\n" . $poll_text );
-	$content .= vv_mail_button( $link, 'PIN setzen' );
+	$content .= vv_mail_steps( $link, $vote_url, $results_url );
 	if ( '' !== $website ) {
-		$content .= '<p style="font-size: 14px; margin: 16px 0"><a href="' . esc_url( $website ) . '" style="color: #1a82e2; text-decoration: underline">Zur Website</a></p>';
+		$content .= '<p style="font-size: 14px; margin: 16px 0">Mehr zum Ablauf der Wahl und der eingesetzten Software: '
+			. '<a href="' . esc_url( $website ) . '" style="color: #1a82e2; text-decoration: underline">Website des Vereins</a></p>';
 	}
 
 	$footer_html = '';
@@ -230,13 +270,17 @@ function vv_mail_html( $subject, $intro, $poll_text, $footer, $link, $website ) 
 	] );
 }
 
-function vv_mail_plain( $intro, $poll_text, $footer, $link, $website ) {
+function vv_mail_plain( $intro, $poll_text, $footer, $link, $website, $vote_url = '', $results_url = '' ) {
 	$text = rtrim( (string) $intro ) . "\n\n" . rtrim( (string) $poll_text );
-	if ( '' !== $link ) {
-		$text .= "\n\nPIN setzen: " . $link;
+	$text .= "\n\nSo geht’s weiter:\n1. Wahl-PIN setzen (6 Ziffern): " . $link;
+	if ( '' !== $vote_url ) {
+		$text .= "\n2. Im Wahlzeitraum abstimmen: " . $vote_url;
+	}
+	if ( '' !== $results_url ) {
+		$text .= "\n3. Nach Wahlende Ergebnisse prüfen: " . $results_url;
 	}
 	if ( '' !== $website ) {
-		$text .= "\n\nZur Website: " . $website;
+		$text .= "\n\nMehr zum Ablauf und zur eingesetzten Software: " . $website;
 	}
 	if ( '' !== trim( (string) $footer ) ) {
 		$text .= "\n\n" . trim( (string) $footer );
@@ -421,6 +465,8 @@ function vv_save_mail_settings() {
 	$intro    = trim( sanitize_textarea_field( wp_unslash( $_POST['mail_intro'] ?? '' ) ) );
 	$footer   = trim( sanitize_textarea_field( wp_unslash( $_POST['mail_footer'] ?? '' ) ) );
 	$activate = esc_url_raw( wp_unslash( $_POST['mail_activate_url'] ?? '' ) );
+	$vote     = esc_url_raw( wp_unslash( $_POST['mail_vote_url'] ?? '' ) );
+	$results  = esc_url_raw( wp_unslash( $_POST['mail_results_url'] ?? '' ) );
 	$rate     = (int) ( $_POST['mail_rate'] ?? 0 );
 
 	$errors = [];
@@ -435,6 +481,12 @@ function vv_save_mail_settings() {
 	}
 	if ( ! vv_mail_url_valid( $activate ) ) {
 		$errors[] = 'Bitte eine gültige http(s)-URL der Aktivierungsseite angeben.';
+	}
+	if ( '' !== $vote && ! vv_mail_url_valid( $vote ) ) {
+		$errors[] = 'Die URL der Stimmformular-Seite muss http(s) sein oder das Feld bleibt leer.';
+	}
+	if ( '' !== $results && ! vv_mail_url_valid( $results ) ) {
+		$errors[] = 'Die URL der Ergebnisseite muss http(s) sein oder das Feld bleibt leer.';
 	}
 	if ( $rate < 1 || $rate > 500 ) {
 		$errors[] = 'Die Versandrate muss zwischen 1 und 500 Mails pro 5 Minuten liegen.';
@@ -456,6 +508,8 @@ function vv_save_mail_settings() {
 			'mail_intro'        => $intro,
 			'mail_footer'       => $footer,
 			'mail_activate_url' => $activate,
+			'mail_vote_url'     => $vote,
+			'mail_results_url'  => $results,
 			'mail_rate'         => $rate,
 			'error'             => implode( ' ', $errors ),
 		], 60 );
@@ -467,6 +521,8 @@ function vv_save_mail_settings() {
 	update_option( 'vv_mail_intro', $intro );
 	update_option( 'vv_mail_footer', $footer );
 	update_option( 'vv_mail_activate_url', $activate );
+	update_option( 'vv_mail_vote_url', $vote );
+	update_option( 'vv_mail_results_url', $results );
 	update_option( 'vv_mail_rate', $rate );
 
 	wp_safe_redirect( add_query_arg( [ 'mail_saved' => 1 ], $page ) );
@@ -547,6 +603,8 @@ function vv_render_mail_settings() {
 	$intro    = $flash['mail_intro'] ?? vv_mail_intro_template();
 	$footer   = $flash['mail_footer'] ?? vv_mail_footer();
 	$activate = $flash['mail_activate_url'] ?? vv_mail_activate_url();
+	$vote     = $flash['mail_vote_url'] ?? vv_mail_vote_url();
+	$results  = $flash['mail_results_url'] ?? vv_mail_results_url();
 	$rate     = $flash['mail_rate'] ?? vv_mail_rate();
 
 	$user = function_exists( 'wp_get_current_user' ) ? wp_get_current_user() : null;
@@ -609,6 +667,12 @@ function vv_render_mail_settings() {
 	echo '<tr><th><label for="vv-mail-activate">URL der Aktivierungsseite</label></th><td>'
 		. '<input name="mail_activate_url" id="vv-mail-activate" type="url" class="large-text" value="' . esc_attr( $activate ) . '" placeholder="' . esc_attr( home_url( '/pin-setzen/' ) ) . '" required>'
 		. '<p class="description">Seite mit dem Shortcode <code>[verein_voting_activate]</code>.</p></td></tr>';
+	echo '<tr><th><label for="vv-mail-vote">URL der Stimmformular-Seite (optional)</label></th><td>'
+		. '<input name="mail_vote_url" id="vv-mail-vote" type="url" class="large-text" value="' . esc_attr( $vote ) . '" placeholder="' . esc_attr( home_url( '/abstimmen/' ) ) . '">'
+		. '<p class="description">Seite mit dem Shortcode <code>[verein_voting_form]</code>. Ohne Angabe bleibt Schritt 2 („Jetzt abstimmen“) in der Mail aus.</p></td></tr>';
+	echo '<tr><th><label for="vv-mail-results">URL der Ergebnisseite (optional)</label></th><td>'
+		. '<input name="mail_results_url" id="vv-mail-results" type="url" class="large-text" value="' . esc_attr( $results ) . '" placeholder="' . esc_attr( home_url( '/ergebnis/' ) ) . '">'
+		. '<p class="description">Seite mit dem Shortcode <code>[verein_voting_results]</code>. Ohne Angabe bleibt Schritt 3 in der Mail aus.</p></td></tr>';
 	echo '<tr><th><label for="vv-mail-rate">Mails pro 5 Minuten</label></th><td>'
 		. '<input name="mail_rate" id="vv-mail-rate" type="number" min="1" max="500" value="' . esc_attr( (string) $rate ) . '" required>'
 		. '<p class="description">Gilt global für alle Abstimmungen. Standard: 10.</p></td></tr>';

@@ -91,12 +91,16 @@ function vv_fx_mail_settings( $o = [] ) {
 		'intro'    => "Hallo {vorname} {nachname},\r\n\r\nbitte nimm an der Abstimmung teil.",
 		'footer'   => "Testverein e.V.\nMusterstraße 1, 12345 Musterstadt\nImpressum: https://admin.test/impressum/",
 		'activate' => 'https://seite.example.org/aktivieren/',
+		'vote'     => '',
+		'results'  => '',
 		'rate'     => 10,
 	], $o );
 	update_option( 'vv_mail_subject', $o['subject'] );
 	update_option( 'vv_mail_intro', $o['intro'] );
 	update_option( 'vv_mail_footer', $o['footer'] );
 	update_option( 'vv_mail_activate_url', $o['activate'] );
+	update_option( 'vv_mail_vote_url', $o['vote'] );
+	update_option( 'vv_mail_results_url', $o['results'] );
 	update_option( 'vv_mail_rate', $o['rate'] );
 	update_option( 'admin_email', 'admin@example.test' );
 }

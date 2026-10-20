@@ -147,6 +147,8 @@ return [
 			'mail_intro'         => "Hallo {vorname} {nachname},\r\n\r\nbitte abstimmen.",
 			'mail_footer'        => "Testverein e.V.\nImpressum: https://admin.test/impressum/",
 			'mail_activate_url'  => 'https://seite.example.org/aktivieren/',
+			'mail_vote_url'      => 'https://seite.example.org/waehlen/',
+			'mail_results_url'   => 'https://seite.example.org/ergebnis/',
 			'mail_rate'          => '12',
 		] );
 		[ $kind, $url ] = vv_fx_run( 'vv_save_mail_settings' );
@@ -156,6 +158,9 @@ return [
 			'[FU006#AK03] Betreff wird global gespeichert' );
 		vv_check( str_starts_with( (string) get_option( 'vv_mail_intro' ), 'Hallo {vorname} {nachname},' ),
 			'[FU006#AK03] Einleitung wird global gespeichert' );
+		vv_check( 'https://seite.example.org/waehlen/' === get_option( 'vv_mail_vote_url' )
+			&& 'https://seite.example.org/ergebnis/' === get_option( 'vv_mail_results_url' ),
+			'[FU006#AK02] optionale URLs der Stimmformular- und Ergebnisseite werden gespeichert' );
 		vv_check( 12 === (int) get_option( 'vv_mail_rate' ), '[FU004#AK04] Rate wird gespeichert' );
 
 		ob_start();
@@ -180,6 +185,26 @@ return [
 			'[FU006#AK04] unbekannter Platzhalter verhindert das Speichern' );
 		vv_check( 'Einladung: {poll_title}' === get_option( 'vv_mail_subject' ),
 			'[FU006#AK04] vorhandene Vorlage bleibt bei Fehler unverändert' );
+	},
+
+	'test_04_fu006_ak02_ungueltige_optionale_url_wird_abgewiesen' => function () {
+		vv_fx_mail_settings( [ 'vote' => 'https://seite.example.org/w/' ] );
+		vv_fx_http( [], [
+			'vv_action'         => 'save_mail_settings',
+			'mail_subject'      => 'Test',
+			'mail_intro'        => 'Hallo',
+			'mail_footer'       => 'Footer',
+			'mail_activate_url' => 'https://seite.example.org/a/',
+			'mail_vote_url'     => 'https:///pfad',
+			'mail_results_url'  => 'https://seite.example.org/e/',
+			'mail_rate'         => '10',
+		] );
+		[ $kind, $url ] = vv_fx_run( 'vv_save_mail_settings' );
+		vv_check( 'redirect' === $kind && str_contains( (string) $url, 'mail_error=1' ),
+			'[FU006#AK02] URL ohne Host wird abgewiesen' );
+		vv_check( 'https://seite.example.org/w/' === get_option( 'vv_mail_vote_url' )
+			&& '' === (string) get_option( 'vv_mail_results_url', '' ),
+			'[FU006#AK02] optionale URLs bleiben bei Abweisung unverändert' );
 	},
 
 	'test_04_fu006_ak03_nur_leerzeichen_ist_pflichtfeld_verletzung' => function () {
@@ -350,16 +375,18 @@ return [
 		];
 		$parts = vv_mail_parts( $poll, $voter );
 
-		vv_check( str_contains( $parts['html'], '<!DOCTYPE html>' ) && str_contains( $parts['html'], 'PIN setzen' ),
+		vv_check( str_contains( $parts['html'], '<!DOCTYPE html>' ) && str_contains( $parts['html'], 'Wahl-PIN setzen' ),
 			'[FU006#AK02] HTML-Teil enthält Layout und Aktivierungsbutton' );
-		vv_check( str_contains( $parts['html'], 'Zur Website' ) && str_contains( $parts['html'], 'https://verein.example.org/info/' ),
+		vv_check( str_contains( $parts['html'], 'Mehr zum Ablauf' ) && str_contains( $parts['html'], 'https://verein.example.org/info/' ),
 			'[FU006#AK02] optionaler Website-Link steht im HTML-Teil' );
 		vv_check( str_contains( $parts['html'], 'Testverein e.V.' ), '[FU006#AK02] Footer steht im HTML-Teil' );
-		vv_check( str_contains( $parts['plain'], 'PIN setzen: https://seite.example.org/aktivieren/' ),
+		vv_check( str_contains( $parts['plain'], 'Wahl-PIN setzen (6 Ziffern): https://seite.example.org/aktivieren/' ),
 			'[FU006#AK02] Text-Teil enthält den persönlichen Link' );
-		vv_check( str_contains( $parts['plain'], 'Zur Website: https://verein.example.org/info/' )
+		vv_check( str_contains( $parts['plain'], 'Mehr zum Ablauf und zur eingesetzten Software: https://verein.example.org/info/' )
 			&& str_contains( $parts['plain'], 'Testverein e.V.' ),
 			'[FU006#AK02] Text-Teil enthält Website-Link und Footer' );
+		vv_check( ! str_contains( $parts['html'], 'Jetzt abstimmen' ) && ! str_contains( $parts['html'], 'Ergebnisse ansehen' ),
+			'[FU006#AK01] ohne optionale URLs bleiben Schritt 2 und 3 aus' );
 
 		vv_mail_send_parts( 'layout@example.org', $parts );
 		$mail = vv_fx_mails()[0];
@@ -367,6 +394,33 @@ return [
 			'[FU006#AK02] Sendeweg setzt den HTML-Header' );
 		vv_check( ! preg_grep( '/^From:/i', $mail['headers'] ),
 			'[FU006#AK02] Plugin überschreibt den Absender nicht' );
+	},
+
+	'test_04_fu006_ak01_ablaufschritte_mit_optionalen_urls' => function () {
+		vv_fx_mail_settings( [
+			'vote'    => 'https://seite.example.org/waehlen/',
+			'results' => 'https://seite.example.org/ergebnis/',
+		] );
+		$pid  = vv_fx_poll( [ 'title' => 'Schrittwahl' ] );
+		$poll = vv_fx_poll_row( $pid );
+		$voter = (object) [
+			'member_no'        => '101',
+			'email'            => 'schritte@example.org',
+			'first_name'       => 'Erika',
+			'last_name'        => 'Muster',
+			'activation_token' => 'tokschritte',
+		];
+		$parts = vv_mail_parts( $poll, $voter );
+
+		vv_check( str_contains( $parts['html'], 'So geht’s weiter' ) && str_contains( $parts['html'], 'Wahl-PIN setzen' ),
+			'[FU006#AK01] Schritt 1: Aktivierungsbutton' );
+		vv_check( str_contains( $parts['html'], 'Jetzt abstimmen' ) && str_contains( $parts['html'], 'https://seite.example.org/waehlen/' ),
+			'[FU006#AK01] Schritt 2: Button zur Stimmformular-Seite' );
+		vv_check( str_contains( $parts['html'], 'Ergebnisse ansehen' ) && str_contains( $parts['html'], 'https://seite.example.org/ergebnis/' ),
+			'[FU006#AK01] Schritt 3: Link zur Ergebnisseite' );
+		vv_check( str_contains( $parts['plain'], '2. Im Wahlzeitraum abstimmen: https://seite.example.org/waehlen/' )
+			&& str_contains( $parts['plain'], '3. Nach Wahlende Ergebnisse prüfen: https://seite.example.org/ergebnis/' ),
+			'[FU006#AK01] Plain-Text nennt die drei Schritte' );
 	},
 
 	'test_04_fu006_ak05_vorschau_und_testversand' => function () {
