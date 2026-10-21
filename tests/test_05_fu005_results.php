@@ -62,9 +62,23 @@ return [
 		vv_check( ! str_contains( $html, 'ja' ), '[FU005#AK02] kein Urnen-Optionswert "ja" (kleingeschrieben) im Backend sichtbar' );
 		vv_check( ! str_contains( $html, 'enthaltung' ), '[FU005#AK02] kein Urnen-Optionswort "enthaltung" (kleingeschrieben) im Backend sichtbar' );
 
-		// [FU005#AK03] Aggregierte Zahl im Backend: nur Zählersummen, keine Personen-Verknüpfung.
-		vv_check( str_contains( $html, 'Gesamtergebnis' ), '[FU005#AK03] aggregiertes Ergebnis sichtbar nach Wahlende' );
-		vv_check( str_contains( $html, 'Enthaltung' ), '[FU005#AK03] Aggregatzeile für Enthaltung angezeigt' );
+		// [FU005#AK03] Aggregat steht in der eigenen Registerkarte, nicht in der Teilnehmerliste.
+		vv_check( ! str_contains( $html, 'Gesamtergebnis' ), '[FU005#AK03] Teilnehmerliste zeigt kein Ergebnis-Block mehr' );
+
+		ob_start();
+		vv_render_results_view( vv_fx_poll_row( $pid ) );
+		$res = (string) ob_get_clean();
+		vv_check( str_contains( $res, 'Gesamtergebnis' ), '[FU005#AK03] aggregiertes Ergebnis in der Registerkarte Wahlergebnis' );
+		vv_check( str_contains( $res, 'Enthaltung' ), '[FU005#AK03] Aggregatzeile für Enthaltung angezeigt' );
+	},
+
+	'test_05_fu005_ak03_ergebnis_registerkarte_vor_wahlende' => function () {
+		$pid = vv_fx_poll( [ 'status' => 'active' ] );
+		ob_start();
+		vv_render_results_view( vv_fx_poll_row( $pid ) );
+		$html = (string) ob_get_clean();
+		vv_check( str_contains( $html, 'erscheint hier, nachdem die Wahl beendet wurde' ) && ! str_contains( $html, 'Gesamtergebnis' ),
+			'[FU005#AK03] vor dem Wahlende: Hinweis statt Ergebnistabelle' );
 	},
 
 	'test_05_fu005_ak01_uebersicht_zaehler' => function () {
@@ -81,7 +95,7 @@ return [
 		vv_check( str_contains( $html, 'Zählwahl' ), '[FU005#AK01] Übersicht listet die Abstimmung' );
 		vv_check( str_contains( $html, '<code>' . $pid . '</code>' ), '[FU005#AK01] Übersicht zeigt die UUID der Abstimmung' );
 		vv_check( str_contains( $html, '<td>Zählwahl</td>' ), '[FU005#AK01] Titel ist nicht mehr verlinkt' );
-		vv_check( str_contains( $html, '>Bearbeiten</a>' ), '[FU005#AK01] Aktion „Bearbeiten“ vorhanden' );
+		vv_check( str_contains( $html, '>Details</a>' ), '[FU005#AK01] Aktion „Details“ vorhanden' );
 		vv_check( str_contains( $html, '<td>2</td>' ) && str_contains( $html, '<td>1</td>' ),
 			'[FU005#AK01] Übersicht zeigt Teilnehmer- und Stimmenzahl (eine Abfrage statt N+1)' );
 	},

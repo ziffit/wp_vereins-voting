@@ -319,10 +319,10 @@ return [
 			'[FU002#AK02] Urnenänderung nach dem Abschluss wird am Fingerprint erkannt' );
 
 		ob_start();
-		vv_render_members_table( vv_fx_poll_row( $pid ) );
+		vv_render_results_view( vv_fx_poll_row( $pid ) );
 		$html = (string) ob_get_clean();
 		vv_check( str_contains( $html, 'abweichend' ),
-			'[FU002#AK02] Backend-Verdict meldet die Abweichung' );
+			'[FU002#AK02] Ergebnis-Registerkarte meldet die Abweichung' );
 	},
 
 	'test_02_fu002_ak08_teilnehmerdaten_loeschen_nur_bei_beendeter_wahl' => function () {
@@ -373,8 +373,8 @@ return [
 		$html = (string) ob_get_clean();
 		vv_check( ! str_contains( $html, 'Teilnehmer (CSV-Import)' ) && ! str_contains( $html, 'Einladungen versenden' ),
 			'[FU002#AK08] beendete Wahl: Teilnehmeransicht ohne CSV-Import/Einladungsoptionen' );
-		vv_check( str_contains( $html, 'Gesamtergebnis' ) && str_contains( $html, '>Zurück</' ),
-			'[FU002#AK08] Ergebnisblock und Zurück (Seitenende) bleiben sichtbar' );
+		vv_check( str_contains( $html, 'nav-tab-wrapper' ) && str_contains( $html, '>Wahlergebnis</a>' ) && str_contains( $html, '>Zurück</' ),
+			'[FU002#AK05] Registerkarten sichtbar, Zurück am Seitenende' );
 		vv_check( ! str_contains( $html, 'Noch keine Teilnehmer importiert' ),
 			'[FU002#AK08] beendete Wahl: Hinweis "Noch keine Teilnehmer importiert" entfällt' );
 		vv_check( ! str_contains( $html, 'delete_voter_data' )
@@ -392,14 +392,27 @@ return [
 			'[FU002#AK08] mit Teilnehmern: Lösch-Button sichtbar' );
 
 		// Laufende Wahlen behalten die Optionen.
+		// Laufende Wahlen: Einladung bleibt (Versand noch möglich), Import wird zum Hinweis.
 		$pid2 = vv_fx_poll( [ 'status' => 'active' ] );
 		vv_fx_http( [ 'page' => 'vereins-voting', 'view' => 'members', 'poll' => $pid2 ] );
 		ob_start();
 		vv_render_admin_page();
 		$html2 = (string) ob_get_clean();
-		vv_check( str_contains( $html2, 'Teilnehmer (CSV-Import)' ) && str_contains( $html2, 'Einladungen versenden' ),
-			'[FU002#AK08] laufende Wahl: Optionen verbleiben' );
+		vv_check( ! str_contains( $html2, 'Teilnehmer (CSV-Import)' )
+			&& str_contains( $html2, 'keine Mitglieder mehr hinzugefügt' ),
+			'[FU002#AK05] laufende Wahl: Import-Hinweis statt Maske' );
+		vv_check( str_contains( $html2, 'Einladungen versenden' ),
+			'[FU002#AK05] laufende Wahl: Einladungsversand bleibt möglich' );
 		vv_check( str_contains( $html2, 'Noch keine Teilnehmer importiert' ),
 			'[FU002#AK08] laufende Wahl: Hinweis bleibt' );
+
+		// Entwurf: beide Masken vorhanden.
+		$pid4 = vv_fx_poll( [ 'status' => 'draft' ] );
+		vv_fx_http( [ 'page' => 'vereins-voting', 'view' => 'members', 'poll' => $pid4 ] );
+		ob_start();
+		vv_render_admin_page();
+		$html4 = (string) ob_get_clean();
+		vv_check( str_contains( $html4, 'Teilnehmer (CSV-Import)' ) && str_contains( $html4, 'Einladungen versenden' ),
+			'[FU002#AK05] Entwurf: Import- und Einladungsmaske vorhanden' );
 	},
 ];

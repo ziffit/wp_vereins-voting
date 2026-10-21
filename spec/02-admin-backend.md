@@ -22,8 +22,8 @@ löschen.
   (`active → closed`) wird der Abgabefingerprint erzeugt und in
   `urn_fingerprint` festgehalten – SHA-256 über alle Prüfcodes in
   aufsteigender Sortierung und die Option-Zählungen (ja, nein, Enthaltung);
-  das Rezept ist auf der Ergebnisseite dokumentiert. Die Teilnehmeransicht
-  berechnet den Wert bei jeder Ansicht aus der Urne nach und meldet
+  das Rezept ist auf der Ergebnisseite dokumentiert. Die Registerkarte
+  „Wahlergebnis“ berechnet den Wert bei jeder Ansicht aus der Urne nach und meldet
   Abweichungen deutlich sichtbar („Abgabefingerprint abweichend“), da jede
   nachträgliche Urnen-Änderung den Wert verändert. Ohne formellen Abschluss
   (bspw. automatisches Auslaufen) gibt es keinen Vergleichswert. Hat die
@@ -43,7 +43,15 @@ löschen.
 - **[FU002#AK05]** Alle Backend-Masken (Abstimmung, CSV-Import,
   Einladungsversand, E-Mail-Einstellungen) bieten neben der Hauptaktion einen
   Abbrechen-Link ohne Datenänderung; nach dem Speichern bzw. Löschen erscheint
-  eine Bestätigungsmeldung. Eingabefehler der Abstimmungsmaske (fehlende
+  eine Bestätigungsmeldung. Die Detailansicht einer Abstimmung ist in drei
+  Registerkarten gegliedert – **Wahl** (Titel, Frage, Zeitraum, Status,
+  vorzeitiges Beenden, Löschen im Entwurf), **Teilnehmer** (CSV-Import,
+  Liste mit PIN-Reset, Einladungsversand, Räumung der Teilnehmerdaten) und
+  **Wahlergebnis** (Gesamtergebnis, Abgabefingerprint, Wahlniederschrift).
+  Es werden nur mögliche Aktionen angeboten; nicht mögliche erscheinen als
+  Hinweistext (z. B. „Die Wahl läuft bereits – es können keine Mitglieder
+  mehr hinzugefügt werden.“). Die Übersicht verlinkt je Abstimmung nur noch
+  „Details“. Eingabefehler der Abstimmungsmaske (fehlende
   Pflichtfelder, Ende vor dem Start) werden als Meldung in der Maske
   angezeigt; die eingegebenen Werte bleiben erhalten und die Admin-Seite
   wird nicht durch `wp_die()` ersetzt. Fehler beim Speichern von E-Mail-Texten
@@ -179,13 +187,16 @@ Stimmgeheimnisses.
   zeigt je Person, ob eine PIN gesetzt ist (Ja/Nein) und ob die Einladung
   offen, gesendet oder fehlgeschlagen ist. Die Abstimmungsübersicht zeigt die
   UUID je Abstimmung, den Titel ohne Verlinkung sowie Teilnehmer- und
-  Stimmenzahl und die Aktionen „Bearbeiten“ und „Teilnehmer & Einladung“.
+  Stimmenzahl und öffnet per „Details“ die Registerkarten-Ansicht
+  (FU002#AK05).
 
 - **[FU005#AK02]** Es ist technisch unmöglich, im Backend einzusehen, welche
   Option (ja, nein, enthaltung) ein spezifisches Mitglied gewählt hat.
 
 - **[FU005#AK03]** Der Admin sieht nach Ablauf der Wahl die aggregierten
-  Gesamtergebnisse (Anzahl Ja, Nein, Enthaltung).
+  Gesamtergebnisse (Anzahl Ja, Nein, Enthaltung) in der Registerkarte
+  „Wahlergebnis“; vor dem Wahlende zeigt die Registerkarte einen Hinweis
+  statt einer Tabelle.
 
 - **[FU005#AK04]** Der Admin kann eine gesetzte PIN vor der Stimmabgabe
   zurücksetzen (z. B. bei vergessener PIN). Dabei werden nur der PIN-Hash

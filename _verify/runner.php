@@ -458,19 +458,26 @@ switch ( $step ) {
 		vv_assert( ! str_contains( $html, 'Zeitpunkt' ) && ! str_contains( $html, 'Stimmabgabe am' ),
 			'[FU009#AK03] Prüfliste ohne Uhrzeit (keine Korrelation mit voted_at)' );
 
-		// [FU005#AK01] Admin-Beteiligungsansicht.
+		// [FU005#AK01] Teilnehmer-Registerkarte.
 		ob_start();
 		vv_render_members_table( $poll );
 		$admin = ob_get_clean();
-		vv_assert( str_contains( $admin, 'Gesamtergebnis' ), "[FU005#AK03] aggregiertes Ergebnis im Backend" );
-		vv_assert( str_contains( $admin, 'Ja' ) && str_contains( $admin, '1</td>' ), '[FU005#AK03] Aggregate Zahlen stimmen' );
+		vv_assert( str_contains( $admin, 'Stimmberechtigte Mitglieder' ), '[FU005#AK01] Teilnehmerliste sichtbar' );
+		vv_assert( str_contains( $admin, 'delete_voter_data' ), '[FU002#AK08] Räumungs-Button in der Teilnehmer-Registerkarte (GUI)' );
+
+		// [FU005#AK03/FU002#AK02] Ergebnis-Registerkarte: Aggregat, Verdict, Niederschrift.
+		ob_start();
+		vv_render_results_view( $poll );
+		$res = ob_get_clean();
+		vv_assert( str_contains( $res, 'Gesamtergebnis' ) && str_contains( $res, 'Ja' ) && str_contains( $res, '1</td>' ),
+			'[FU005#AK03] aggregiertes Ergebnis in der Ergebnis-Registerkarte (GUI)' );
 
 		// [FU002#AK02] Abgabefingerprint beim Abschluss festgehalten.
 		$stored = (string) $poll->urn_fingerprint;
 		vv_assert( 64 === strlen( $stored ) && ctype_xdigit( $stored ), '[FU002#AK02] urn_fingerprint beim Abschluss gespeichert (64 hex)' );
 		vv_assert( hash_equals( $stored, vv_urn_fingerprint( $poll->id ) ), '[FU002#AK02] gespeicherter Fingerprint = Nachberechnung aus der Urne' );
-		vv_assert( str_contains( $admin, 'unverändert' ) && str_contains( $admin, 'Wahlniederschrift drucken (PDF)' )
-			&& str_contains( $admin, 'delete_voter_data' ), '[FU002#AK02/FU005#AK05] Backend zeigt Verdict + Niederschrift + Räumung (GUI)' );
+		vv_assert( str_contains( $res, 'unverändert' ) && str_contains( $res, 'Wahlniederschrift drucken (PDF)' ),
+			'[FU002#AK02/FU005#AK05] Verdict + Niederschrift in der Ergebnis-Registerkarte (GUI)' );
 
 		// [FU009#AK04] Ergebnisseite zeigt den Fingerprint.
 		$_GET = [ 'poll' => $poll->id ];
@@ -499,15 +506,20 @@ switch ( $step ) {
 		$res = vv_get_results( $poll_id );
 		vv_assert( 1 === $res['ja']['count'] && 1 === $res['nein']['count'], '[FU002#AK08] Ergebnis unverändert' );
 
-		// Backend bleibt nach dem Löschen vollständig nutzbar (Früh-Ausstieg umgangen).
+		// Teilnehmer-Registerkarte bleibt nach dem Löschen nutzbar (Früh-Ausstieg umgangen).
 		ob_start();
 		vv_render_members_table( vv_row( 'voting_polls', "WHERE id = '{$poll_id}'" ) );
 		$admin = ob_get_clean();
-		vv_assert( str_contains( $admin, 'Gesamtergebnis' ) && ! str_contains( $admin, 'Noch keine Teilnehmer importiert' ),
-			'[FU005#AK05] auch ohne Teilnehmer: Ergebnis + Fingerprint sichtbar (GUI)' );
-		vv_assert( ! str_contains( $admin, 'delete_voter_data' )
+		vv_assert( ! str_contains( $admin, 'Noch keine Teilnehmer importiert' )
 			&& str_contains( $admin, 'Keine Teilnehmerdaten mehr vorhanden' ),
 			'[FU002#AK08] nach der Räumung: Meldung statt Lösch-Button (GUI)' );
+
+		// Ergebnis-Registerkarte bleibt vollständig (Ergebnis + Niederschrift).
+		ob_start();
+		vv_render_results_view( vv_row( 'voting_polls', "WHERE id = '{$poll_id}'" ) );
+		$res = ob_get_clean();
+		vv_assert( str_contains( $res, 'Gesamtergebnis' ) && str_contains( $res, 'Wahlniederschrift drucken (PDF)' ),
+			'[FU005#AK05] nach der Räumung: Ergebnis-Registerkarte vollständig (GUI)' );
 
 		// Niederschrift nach dem Löschen: Ergebnis + Prüfliste bleiben, Zeiten Hinweis.
 		$_GET = [ 'poll' => $poll_id ];
@@ -515,13 +527,14 @@ switch ( $step ) {
 		vv_assert( str_contains( $html, 'Keine Teilnehmerzeiten' ) && str_contains( $html, 'Prüfliste' ),
 			'[FU005#AK05] Niederschrift nach der Räumung: Prüfliste bleibt, Zeiten gekennzeichnet' );
 
-		// [FU002#AK02/08] Beendete Wahl: keine Aktionsoptionen mehr in Bearbeiten-Sicht und Teilnehmeransicht.
+		// [FU002#AK02/05/08] Beendete Wahl: Registerkarten ohne unnötige Aktionen.
 		$_GET = [ 'page' => 'vereins-voting', 'view' => 'edit', 'poll' => $poll_id ];
 		ob_start();
 		vv_render_admin_page();
 		$pg = ob_get_clean();
-		vv_assert( ! str_contains( $pg, '>Speichern<' ) && str_contains( $pg, '>Zurück</' ),
-			'[FU002#AK02] beendete Wahl: Bearbeiten-Maske zeigt nur Zurück (GUI)' );
+		vv_assert( ! str_contains( $pg, '>Speichern<' ) && str_contains( $pg, '>Zurück</' )
+			&& str_contains( $pg, '>Wahlergebnis</a>' ),
+			'[FU002#AK02/05] beendete Wahl: Wahl-Tab ohne Speichern, mit Registerkarten (GUI)' );
 
 		$_GET = [ 'page' => 'vereins-voting', 'view' => 'members', 'poll' => $poll_id ];
 		ob_start();
@@ -530,6 +543,13 @@ switch ( $step ) {
 		vv_assert( ! str_contains( $pg, 'Teilnehmer (CSV-Import)' ) && ! str_contains( $pg, 'Einladungen versenden' )
 			&& str_contains( $pg, '>Zurück</' ),
 			'[FU002#AK08] beendete Wahl: Teilnehmeransicht ohne Import-/Einladungsoptionen (GUI)' );
+
+		$_GET = [ 'page' => 'vereins-voting', 'view' => 'results', 'poll' => $poll_id ];
+		ob_start();
+		vv_render_admin_page();
+		$pg = ob_get_clean();
+		vv_assert( str_contains( $pg, 'Gesamtergebnis' ) && str_contains( $pg, 'nav-tab-active' ),
+			'[FU005#AK03] Ergebnis-Registerkarte als eigene Ansicht (GUI)' );
 		break;
 	}
 
@@ -612,8 +632,8 @@ switch ( $step ) {
 		vv_render_admin_page();
 		$admin = ob_get_clean();
 		vv_assert( str_contains( $admin, 'Kassenprüfung' ), 'Admin-Übersicht rendert Abstimmungsliste' );
-		vv_assert( str_contains( $admin, '<code>' . $pid . '</code>' ) && str_contains( $admin, '>Bearbeiten</a>' ),
-			'[FU005#AK01] Übersicht zeigt UUID und Aktion „Bearbeiten“' );
+		vv_assert( str_contains( $admin, '<code>' . $pid . '</code>' ) && str_contains( $admin, '>Details</a>' ),
+			'[FU005#AK01] Übersicht zeigt UUID und Aktion „Details“' );
 
 		// Bearbeiten-Formular-Render für locked poll.
 		ob_start();
