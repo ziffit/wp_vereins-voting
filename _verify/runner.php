@@ -228,6 +228,14 @@ switch ( $step ) {
 		vv_run_send_queue();
 		$n = count( $GLOBALS['vv_mails'] );
 		vv_assert( 2 === $n, "[FU004#AK01/02] 2 Einladungen versendet (ist $n)" );
+
+		// [FU004#AK03/FU002#AK05] Einladungsversand in seiner eigenen Registerkarte.
+		$_GET = [ 'page' => 'vereins-voting', 'view' => 'mail', 'poll' => $poll->id ];
+		ob_start();
+		vv_render_admin_page();
+		$mailtab = ob_get_clean();
+		vv_assert( str_contains( $mailtab, 'Einladungen versenden' ) && str_contains( $mailtab, '>E-Mail</a>' ),
+			'[FU002#AK05] E-Mail-Registerkarte zeigt den Versand (GUI)' );
 		$mail = $GLOBALS['vv_mails'][0];
 		vv_assert( str_contains( $mail['body'], '<!DOCTYPE html>' ) && str_contains( $mail['body'], 'PIN setzen' ),
 			'[FU006#AK02] Einladung ist HTML mit Aktivierungsbutton' );

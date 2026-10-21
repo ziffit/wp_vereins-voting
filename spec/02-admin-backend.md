@@ -43,11 +43,13 @@ löschen.
 - **[FU002#AK05]** Alle Backend-Masken (Abstimmung, CSV-Import,
   Einladungsversand, E-Mail-Einstellungen) bieten neben der Hauptaktion einen
   Abbrechen-Link ohne Datenänderung; nach dem Speichern bzw. Löschen erscheint
-  eine Bestätigungsmeldung. Die Detailansicht einer Abstimmung ist in drei
+  eine Bestätigungsmeldung. Die Detailansicht einer Abstimmung ist in vier
   Registerkarten gegliedert – **Wahl** (Titel, Frage, Zeitraum, Status,
   vorzeitiges Beenden, Löschen im Entwurf), **Teilnehmer** (CSV-Import,
-  Liste mit PIN-Reset, Einladungsversand, Räumung der Teilnehmerdaten) und
-  **Wahlergebnis** (Gesamtergebnis, Abgabefingerprint, Wahlniederschrift).
+  Liste mit PIN-Reset, Räumung der Teilnehmerdaten), **E-Mail**
+  (Einladungsversand mit Textblock und Website-URL, Vorschau, Testmail,
+  Versandstatus) und **Wahlergebnis** (Gesamtergebnis, Abgabefingerprint,
+  Wahlniederschrift).
   Es werden nur mögliche Aktionen angeboten; nicht mögliche erscheinen als
   Hinweistext (z. B. „Die Wahl läuft bereits – es können keine Mitglieder
   mehr hinzugefügt werden.“). Die Übersicht verlinkt je Abstimmung nur noch

@@ -391,8 +391,7 @@ return [
 		vv_check( str_contains( $html3, 'delete_voter_data' ) && str_contains( $html3, 'Teilnehmerdaten löschen' ),
 			'[FU002#AK08] mit Teilnehmern: Lösch-Button sichtbar' );
 
-		// Laufende Wahlen behalten die Optionen.
-		// Laufende Wahlen: Einladung bleibt (Versand noch möglich), Import wird zum Hinweis.
+		// Laufende Wahlen: Import wird zum Hinweis; der Einladungsversand lebt im E-Mail-Tab.
 		$pid2 = vv_fx_poll( [ 'status' => 'active' ] );
 		vv_fx_http( [ 'page' => 'vereins-voting', 'view' => 'members', 'poll' => $pid2 ] );
 		ob_start();
@@ -401,18 +400,26 @@ return [
 		vv_check( ! str_contains( $html2, 'Teilnehmer (CSV-Import)' )
 			&& str_contains( $html2, 'keine Mitglieder mehr hinzugefügt' ),
 			'[FU002#AK05] laufende Wahl: Import-Hinweis statt Maske' );
-		vv_check( str_contains( $html2, 'Einladungen versenden' ),
-			'[FU002#AK05] laufende Wahl: Einladungsversand bleibt möglich' );
+		vv_check( ! str_contains( $html2, 'Einladungen versenden' ),
+			'[FU002#AK05] laufende Wahl: Teilnehmer-Tab ohne Einladungsformular' );
 		vv_check( str_contains( $html2, 'Noch keine Teilnehmer importiert' ),
 			'[FU002#AK08] laufende Wahl: Hinweis bleibt' );
 
-		// Entwurf: beide Masken vorhanden.
+		vv_fx_http( [ 'page' => 'vereins-voting', 'view' => 'mail', 'poll' => $pid2 ] );
+		ob_start();
+		vv_render_admin_page();
+		$mail = (string) ob_get_clean();
+		vv_check( str_contains( $mail, 'Einladungen versenden' ) && str_contains( $mail, '>E-Mail</a>' ),
+			'[FU002#AK05] laufende Wahl: Einladungsversand im E-Mail-Tab' );
+
+		// Entwurf: Import im Teilnehmer-Tab, Einladungsversand im E-Mail-Tab.
 		$pid4 = vv_fx_poll( [ 'status' => 'draft' ] );
 		vv_fx_http( [ 'page' => 'vereins-voting', 'view' => 'members', 'poll' => $pid4 ] );
 		ob_start();
 		vv_render_admin_page();
 		$html4 = (string) ob_get_clean();
-		vv_check( str_contains( $html4, 'Teilnehmer (CSV-Import)' ) && str_contains( $html4, 'Einladungen versenden' ),
-			'[FU002#AK05] Entwurf: Import- und Einladungsmaske vorhanden' );
+		vv_check( str_contains( $html4, 'Teilnehmer (CSV-Import)' )
+			&& ! str_contains( $html4, 'Einladungen versenden' ),
+			'[FU002#AK05] Entwurf: Import-Maske im Teilnehmer-Tab, Formular ist im E-Mail-Tab' );
 	},
 ];

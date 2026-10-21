@@ -110,10 +110,10 @@ function vv_queue_cleanup_active() {
 	}
 }
 
-/** Mitglieder-Seite einer Abstimmung; $args sind Query-Argumente wie [ 'queued' => 1 ]. */
-function vv_members_url( $poll_id, $args = [] ) {
+/** E-Mail-Tab einer Abstimmung; $args sind Query-Argumente wie [ 'queued' => 1 ]. */
+function vv_mail_tab_url( $poll_id, $args = [] ) {
 	return add_query_arg(
-		array_merge( [ 'page' => 'vereins-voting', 'view' => 'members', 'poll' => (string) $poll_id ], $args ),
+		array_merge( [ 'page' => 'vereins-voting', 'view' => 'mail', 'poll' => (string) $poll_id ], $args ),
 		admin_url( 'admin.php' )
 	);
 }
@@ -291,7 +291,7 @@ function vv_send_invites() {
 	if ( 0 === $counts['pending'] ) {
 		delete_option( vv_queue_active_key( $poll_id ) );
 		delete_option( vv_queue_paused_key( $poll_id ) );
-		wp_safe_redirect( vv_members_url( $poll_id, [ 'queued' => 0 ] ) );
+		wp_safe_redirect( vv_mail_tab_url( $poll_id, [ 'queued' => 0 ] ) );
 		exit;
 	}
 
@@ -300,7 +300,7 @@ function vv_send_invites() {
 	vv_queue_schedule( 1, true );
 	$sent = vv_run_send_queue();
 
-	wp_safe_redirect( vv_members_url( $poll_id, [ 'queued' => 1, 'sent' => (int) $sent ] ) );
+	wp_safe_redirect( vv_mail_tab_url( $poll_id, [ 'queued' => 1, 'sent' => (int) $sent ] ) );
 	exit;
 }
 
@@ -312,7 +312,7 @@ function vv_pause_send() {
 		wp_die( 'Der Versand läuft für diese Abstimmung nicht.' );
 	}
 	update_option( vv_queue_paused_key( $poll_id ), 1 );
-	wp_safe_redirect( vv_members_url( $poll_id, [ 'paused' => 1 ] ) );
+	wp_safe_redirect( vv_mail_tab_url( $poll_id, [ 'paused' => 1 ] ) );
 	exit;
 }
 
@@ -329,7 +329,7 @@ function vv_resume_send() {
 	vv_queue_schedule( 1, true );
 	$sent = vv_run_send_queue();
 
-	wp_safe_redirect( vv_members_url( $poll_id, [ 'resumed' => 1, 'sent' => (int) $sent ] ) );
+	wp_safe_redirect( vv_mail_tab_url( $poll_id, [ 'resumed' => 1, 'sent' => (int) $sent ] ) );
 	exit;
 }
 
@@ -357,6 +357,6 @@ function vv_retry_send() {
 	vv_queue_schedule( 1, true );
 	$sent = vv_run_send_queue();
 
-	wp_safe_redirect( vv_members_url( $poll_id, [ 'retried' => 1, 'sent' => (int) $sent ] ) );
+	wp_safe_redirect( vv_mail_tab_url( $poll_id, [ 'retried' => 1, 'sent' => (int) $sent ] ) );
 	exit;
 }

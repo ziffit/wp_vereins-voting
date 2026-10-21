@@ -54,12 +54,13 @@ add_action( 'admin_notices', 'vv_timezone_notice' );
 // Rendering
 // ---------------------------------------------------------------------------
 
-/** [FU002#AK05] Detail-Registerkarten einer Abstimmung: Wahl / Teilnehmer / Wahlergebnis. */
+/** [FU002#AK05] Detail-Registerkarten einer Abstimmung: Wahl / Teilnehmer / E-Mail / Wahlergebnis. */
 function vv_render_detail_tabs( $poll, $active ) {
 	$base = 'admin.php?page=vereins-voting&poll=' . rawurlencode( $poll->id ) . '&view=';
 	echo '<h2 class="nav-tab-wrapper">'
 		. '<a class="nav-tab' . ( 'wahl' === $active ? ' nav-tab-active' : '' ) . '" href="' . esc_url( admin_url( $base . 'edit' ) ) . '">Wahl</a>'
 		. '<a class="nav-tab' . ( 'teilnehmer' === $active ? ' nav-tab-active' : '' ) . '" href="' . esc_url( admin_url( $base . 'members' ) ) . '">Teilnehmer</a>'
+		. '<a class="nav-tab' . ( 'mail' === $active ? ' nav-tab-active' : '' ) . '" href="' . esc_url( admin_url( $base . 'mail' ) ) . '">E-Mail</a>'
 		. '<a class="nav-tab' . ( 'ergebnis' === $active ? ' nav-tab-active' : '' ) . '" href="' . esc_url( admin_url( $base . 'results' ) ) . '">Wahlergebnis</a>'
 		. '</h2>';
 }
@@ -101,16 +102,24 @@ function vv_render_admin_page() {
 			// [FU002#AK05/FU003#AK01] Nur mögliche Aktionen zeigen: Import nur im Entwurf.
 			if ( 'draft' === $poll->status ) {
 				vv_render_import_form( $poll );
-				vv_render_invite_form( $poll );
 			} elseif ( 'active' === $poll->status ) {
 				echo '<p class="description">Die Wahl läuft bereits – es können keine Mitglieder mehr hinzugefügt werden.</p>';
-				vv_render_invite_form( $poll );
 			}
 			vv_render_members_table( $poll );
 			// [FU002#AK08] Beendete Wahl: keine Import-/Einladungsoptionen – Zurück am Seitenende.
 			if ( 'closed' === $poll->status ) {
 				echo '<p><a class="button" href="' . esc_url( admin_url( 'admin.php?page=vereins-voting' ) ) . '">Zurück</a></p>';
 			}
+		}
+	} elseif ( 'mail' === $view ) {
+		$poll_id = vv_poll_id( wp_unslash( $_GET['poll'] ?? '' ) );
+		$poll    = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}voting_polls WHERE id = %s", $poll_id ) );
+		if ( ! $poll ) {
+			echo '<p>Abstimmung nicht gefunden.</p>';
+		} else {
+			// [FU004#AK03] Einladungsversand in der eigenen E-Mail-Registerkarte.
+			vv_render_detail_tabs( $poll, 'mail' );
+			vv_render_invite_form( $poll );
 		}
 	} elseif ( 'results' === $view ) {
 		$poll_id = vv_poll_id( wp_unslash( $_GET['poll'] ?? '' ) );

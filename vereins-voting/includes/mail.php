@@ -544,7 +544,7 @@ function vv_save_poll_mail() {
 
 	$text = sanitize_textarea_field( wp_unslash( $_POST['mail_text'] ?? '' ) );
 	$url  = mb_substr( esc_url_raw( wp_unslash( $_POST['mail_url'] ?? '' ) ), 0, 500 );
-	$page = admin_url( 'admin.php?page=vereins-voting&view=members&poll=' . rawurlencode( $poll_id ) );
+	$page = admin_url( 'admin.php?page=vereins-voting&view=mail&poll=' . rawurlencode( $poll_id ) );
 
 	$errors = [];
 	$unknown = vv_mail_unknown_placeholders( $text );
@@ -581,7 +581,7 @@ function vv_test_mail() {
 	$result  = vv_send_test_mail( $poll_id );
 
 	$page = $poll_id
-		? admin_url( 'admin.php?page=vereins-voting&view=members&poll=' . rawurlencode( $poll_id ) )
+		? admin_url( 'admin.php?page=vereins-voting&view=mail&poll=' . rawurlencode( $poll_id ) )
 		: admin_url( 'admin.php?page=vereins-voting-mail' );
 
 	if ( true === $result ) {
