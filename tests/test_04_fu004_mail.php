@@ -436,6 +436,8 @@ return [
 			'[FU006#AK05] Vorschau enthält keine echten Mitgliedsdaten' );
 		vv_check( str_contains( $page, 'Vorschauwahl' ) && str_contains( $page, 'Frage zur Vorschau?' ),
 			'[FU006#AK05] Vorschau nutzt den Text der gewählten Abstimmung' );
+		vv_check( str_contains( $page, 'Schritt 2 („Jetzt abstimmen“)' ) && str_contains( $page, 'Schritt 3 („Ergebnisse ansehen“)' ),
+			'[FU006#AK05] Vorschau weist auf fehlende optionale URLs der Schritte hin' );
 
 		$before = count( vv_fx_mails() );
 		$result = vv_send_test_mail( $pid );

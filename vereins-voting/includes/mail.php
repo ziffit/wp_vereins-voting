@@ -371,6 +371,13 @@ function vv_mail_preview_page( $poll_id = '' ) {
 	if ( ! vv_mail_url_valid( vv_mail_activate_url() ) ) {
 		$warnings[] = 'Die URL der Aktivierungsseite fehlt noch. In der Vorschau wird die Startseite als Beispiel verwendet.';
 	}
+	// [FU006#AK01/AK05] Die Ablaufschritte 2/3 hängen an den optionalen globalen URLs.
+	if ( '' === vv_mail_vote_url() ) {
+		$warnings[] = 'Die URL der Stimmformular-Seite ist nicht gesetzt. Schritt 2 („Jetzt abstimmen“) erscheint in der Mail erst, wenn sie in den E-Mail-Einstellungen hinterlegt ist.';
+	}
+	if ( '' === vv_mail_results_url() ) {
+		$warnings[] = 'Die URL der Ergebnisseite ist nicht gesetzt. Schritt 3 („Ergebnisse ansehen“) erscheint in der Mail erst, wenn sie in den E-Mail-Einstellungen hinterlegt ist.';
+	}
 
 	$warning_html = '';
 	foreach ( $warnings as $warning ) {

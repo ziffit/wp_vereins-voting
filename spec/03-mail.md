@@ -57,4 +57,6 @@ arbeiten ausschließlich mit erfundenen Beispieldaten.
   Mitgliedsdaten werden nicht angezeigt oder versendet. Die Testmail geht an
   das angemeldete WordPress-Konto und verändert weder den Versandstatus noch
   den Queue-Zähler. Ohne Footer oder gültige Aktivierungs-URL ist kein
-  Testversand möglich; die Vorschau zeigt dann einen Hinweis.
+  Testversand möglich; die Vorschau zeigt dann einen Hinweis. Fehlen die
+  optionalen URLs der Stimmformular- oder Ergebnisseite, weist die Vorschau
+  darauf hin, dass die zugehörigen Schritte (2 und 3) in der Mail entfallen.
