@@ -530,6 +530,14 @@ switch ( $step ) {
 		vv_assert( ! str_contains( $pg, 'Teilnehmer (CSV-Import)' ) && ! str_contains( $pg, 'Einladungen versenden' )
 			&& str_contains( $pg, '>Zurück</' ),
 			'[FU002#AK08] beendete Wahl: Teilnehmeransicht ohne Import-/Einladungsoptionen (GUI)' );
+
+		// [FU004#AK02] Ein Verwaltungsbereich: E-Mail als Registerkarte.
+		$_GET = [ 'page' => 'vereins-voting', 'view' => 'mail' ];
+		ob_start();
+		vv_render_admin_page();
+		$pg = ob_get_clean();
+		vv_assert( str_contains( $pg, 'Mails pro 5 Minuten' ) && 1 === substr_count( $pg, 'nav-tab-active' ),
+			'[FU004#AK02] E-Mail-Tab auf der Plugin-Seite (GUI)' );
 		break;
 	}
 

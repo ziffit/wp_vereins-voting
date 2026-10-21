@@ -118,14 +118,17 @@ Website-Link.
   Bestätigungsabfrage die Zahl der offenen Empfänger (Aktivierungstoken
   vorhanden, noch nicht gesendet, weniger als drei Fehlversuche). Die Seite
   zeigt außerdem offene, gesendete und endgültig fehlgeschlagene Einladungen
-  sowie die globalen Einstellungen unter
-  `Vereinsvoting → E-Mail-Einstellungen`. Geschlossene oder abgelaufene
-  Abstimmungen erhalten keinen Versand-Button.
+  sowie die globalen Einstellungen in der Registerkarte
+  `E-Mail` derselben Plugin-Seite (`Vereinsvoting → E-Mail`). Geschlossene
+  oder abgelaufene Abstimmungen erhalten keinen Versand-Button.
 
 - **[FU004#AK02]** Die globalen E-Mail-Einstellungen enthalten Betreff,
   Einleitung/Anrede, Footer, URL der Aktivierungsseite, zwei optionale URLs
   (Seite mit dem Stimmformular und Ergebnisseite; gesetzte URLs müssen
-  http(s)-Adressen mit Host sein) und Versandrate.
+  http(s)-Adressen mit Host sein) und Versandrate. Sie liegen als
+  Registerkarte `E-Mail` auf der einen Plugin-Verwaltungsseite (Tab
+  `Abstimmungen` zeigt Liste, Masken und Teilnehmeransichten); es gibt
+  kein separates Untermenü mehr.
   Footer und Aktivierungs-URL sind Pflicht; fehlt eine der Angaben, wird nicht
   versendet. Die Rate liegt zwischen 1 und 500 Mails pro 5 Minuten (Standard
   10) und gilt global über alle Abstimmungen. Das HTML-Layout ist fest im

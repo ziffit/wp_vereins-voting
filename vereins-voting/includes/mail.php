@@ -501,7 +501,7 @@ function vv_save_mail_settings() {
 		$errors[] = 'Unbekannte Platzhalter: ' . implode( ', ', $unknown ) . '. Erlaubt: ' . implode( ', ', vv_mail_allowed_placeholders() ) . '.';
 	}
 
-	$page = admin_url( 'admin.php?page=vereins-voting-mail' );
+	$page = admin_url( 'admin.php?page=vereins-voting&view=mail' );
 	if ( $errors ) {
 		set_transient( vv_mail_settings_flash_key(), [
 			'mail_subject'      => $subject,
@@ -582,7 +582,7 @@ function vv_test_mail() {
 
 	$page = $poll_id
 		? admin_url( 'admin.php?page=vereins-voting&view=members&poll=' . rawurlencode( $poll_id ) )
-		: admin_url( 'admin.php?page=vereins-voting-mail' );
+		: admin_url( 'admin.php?page=vereins-voting&view=mail' );
 
 	if ( true === $result ) {
 		wp_safe_redirect( add_query_arg( [ 'tested' => 1 ], $page ) );
@@ -611,7 +611,6 @@ function vv_render_mail_settings() {
 	$test_address = $user && isset( $user->user_email ) ? (string) $user->user_email : '';
 	$settings_error = vv_mail_settings_error();
 
-	echo '<div class="wrap"><h1>E-Mail-Einstellungen</h1>';
 	echo '<p>Diese Angaben gelten für alle Abstimmungen. Der HTML-Rahmen ist fest im Plugin; '
 		. 'editierbar sind Betreff, Einleitung und Footer. Der Text je Abstimmung steht unter '
 		. '„Teilnehmer &amp; Einladung“.</p>';
@@ -699,7 +698,6 @@ function vv_render_mail_settings() {
 		. 'Das Plugin setzt nur <code>Reply-To</code>; Absenderadresse und -name gehören in die SMTP-Konfiguration. '
 		. 'Kein Öffnungs-Tracking, keine externen Bilder. SMTP-/Server-Logs dürfen keine Mailinhalte mit '
 		. 'Aktivierungstokens mitschneiden.</p>';
-	echo '</div>';
 }
 
 /** [FU006] Das feste HTML-Layout, an das Vorbild angelehnt. */

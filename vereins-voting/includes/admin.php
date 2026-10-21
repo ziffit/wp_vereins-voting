@@ -17,14 +17,6 @@ add_action( 'admin_menu', function () {
 		'vv_render_admin_page',
 		'dashicons-editor-ol'
 	);
-	add_submenu_page(
-		'vereins-voting',
-		'E-Mail-Einstellungen',
-		'E-Mail-Einstellungen',
-		'manage_options',
-		'vereins-voting-mail',
-		'vv_render_mail_settings'
-	);
 } );
 
 /** [FU002#AK04] Warnung, wenn WordPress keine Zeitzone kennt (UTC) – sonst weichen Wahlzeiten ab. */
@@ -60,6 +52,18 @@ function vv_render_admin_page() {
 	);
 
 	echo '<div class="wrap"><h1>Vereinsvoting</h1>';
+
+	// [FU004#AK02] Eine Verwaltungsseite: Tabs statt separater Einstellungsseite.
+	echo '<h2 class="nav-tab-wrapper">'
+		. '<a class="nav-tab' . ( 'mail' === $view ? '' : ' nav-tab-active' ) . '" href="' . esc_url( admin_url( 'admin.php?page=vereins-voting' ) ) . '">Abstimmungen</a>'
+		. '<a class="nav-tab' . ( 'mail' === $view ? ' nav-tab-active' : '' ) . '" href="' . esc_url( admin_url( 'admin.php?page=vereins-voting&view=mail' ) ) . '">E-Mail</a>'
+		. '</h2>';
+
+	if ( 'mail' === $view ) {
+		vv_render_mail_settings();
+		echo '</div>';
+		return;
+	}
 
 	if ( isset( $_GET['deleted'] ) ) {
 		echo '<div class="notice notice-success is-dismissible"><p>Abstimmung gelöscht.</p></div>';
@@ -636,7 +640,7 @@ function vv_render_invite_form( $poll ) {
 	$sendable       = vv_queue_poll_sendable( $poll );
 	$settings_error = vv_mail_settings_error();
 	$rate           = vv_mail_rate();
-	$settings_url   = admin_url( 'admin.php?page=vereins-voting-mail' );
+	$settings_url   = admin_url( 'admin.php?page=vereins-voting&view=mail' );
 
 	$flash = get_transient( vv_mail_poll_flash_key( $poll->id ) );
 	delete_transient( vv_mail_poll_flash_key( $poll->id ) );
@@ -652,7 +656,7 @@ function vv_render_invite_form( $poll ) {
 	?>
 	<h2>Einladungen versenden</h2>
 	<p>Vorlage, Betreff und Footer gelten global und stehen unter
-		<a href="<?php echo esc_url( $settings_url ); ?>">E-Mail-Einstellungen</a>.
+		<a href="<?php echo esc_url( $settings_url ); ?>">Registerkarte „E-Mail“</a>.
 		Hier steht nur der Text dieser Abstimmung und ein optionaler Website-Link.</p>
 	<?php if ( $flash && ! empty( $flash['error'] ) ) : ?>
 		<div class="notice notice-error"><p><?php echo esc_html( $flash['error'] ); ?></p></div>
@@ -669,7 +673,7 @@ function vv_render_invite_form( $poll ) {
 	<?php endif; ?>
 	<?php if ( '' !== $settings_error ) : ?>
 		<div class="notice notice-warning"><p><?php echo esc_html( $settings_error ); ?>
-			<a href="<?php echo esc_url( $settings_url ); ?>">E-Mail-Einstellungen öffnen</a></p></div>
+			<a href="<?php echo esc_url( $settings_url ); ?>">Registerkarte „E-Mail“ öffnen</a></p></div>
 	<?php endif; ?>
 	<?php if ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ) : ?>
 		<div class="notice notice-warning"><p>WP-Cron ist deaktiviert. Der Versand läuft dann nur über
@@ -855,10 +859,11 @@ function vv_render_members_table( $poll ) {
 				. '<input type="hidden" name="vv_action" value="delete_voter_data">'
 				. '<input type="hidden" name="poll_id" value="' . esc_attr( $poll->id ) . '">'
 				. '<button type="submit" class="button">Teilnehmerdaten löschen</button></form>';
+			echo '</p>';
 		} else {
-			echo ' <span class="description">Keine Teilnehmerdaten mehr vorhanden (bereits gelöscht oder nicht importiert).</span>';
+			// [FU002#AK08] Eigene Zeile statt Lösch-Button.
+			echo '</p><p class="description">Keine Teilnehmerdaten mehr vorhanden (bereits gelöscht oder nicht importiert).</p>';
 		}
-		echo '</p>';
 	}
 
 	if ( ! $voters ) {
