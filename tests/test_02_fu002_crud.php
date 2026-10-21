@@ -346,4 +346,43 @@ return [
 		vv_check( 1 === vv_get_results( $pid )['ja']['count'],
 			'[FU002#AK08] Ergebnis bleibt nach der Räumung unverändert' );
 	},
+
+	'test_02_fu002_ak02_beendete_maske_nur_zurueck' => function () {
+		$pid = vv_fx_poll( [ 'status' => 'closed' ] );
+		ob_start();
+		vv_render_poll_form( $pid );
+		$html = (string) ob_get_clean();
+		vv_check( ! str_contains( $html, 'Speichern' ) && ! str_contains( $html, '"save_poll"' ) && ! str_contains( $html, '<form' ),
+			'[FU002#AK02] beendete Wahl: Bearbeiten-Maske ohne Speichern-Aktion (kein POST-Formular)' );
+		vv_check( str_contains( $html, '>Zurück</' ), '[FU002#AK02] beendete Wahl: Maske zeigt nur „Zurück“' );
+
+		// Laufende Wahlen behalten Speichern/Abbrechen (z. B. vorzeitiges Beenden).
+		$pid2 = vv_fx_poll( [ 'status' => 'active' ] );
+		ob_start();
+		vv_render_poll_form( $pid2 );
+		$html2 = (string) ob_get_clean();
+		vv_check( str_contains( $html2, 'Speichern' ) && str_contains( $html2, '<form' ),
+			'[FU002#AK02] laufende Wahl: Maske behält die Aktionen' );
+	},
+
+	'test_02_fu002_ak08_beendete_teilnehmeransicht_ohne_optionen' => function () {
+		$pid = vv_fx_poll( [ 'status' => 'closed' ] );
+		vv_fx_http( [ 'page' => 'vereins-voting', 'view' => 'members', 'poll' => $pid ] );
+		ob_start();
+		vv_render_admin_page();
+		$html = (string) ob_get_clean();
+		vv_check( ! str_contains( $html, 'Teilnehmer (CSV-Import)' ) && ! str_contains( $html, 'Einladungen versenden' ),
+			'[FU002#AK08] beendete Wahl: Teilnehmeransicht ohne CSV-Import/Einladungsoptionen' );
+		vv_check( str_contains( $html, 'Gesamtergebnis' ) && str_contains( $html, '>Zurück</' ),
+			'[FU002#AK08] Ergebnisblock und Zurück bleiben sichtbar' );
+
+		// Laufende Wahlen behalten die Optionen.
+		$pid2 = vv_fx_poll( [ 'status' => 'active' ] );
+		vv_fx_http( [ 'page' => 'vereins-voting', 'view' => 'members', 'poll' => $pid2 ] );
+		ob_start();
+		vv_render_admin_page();
+		$html2 = (string) ob_get_clean();
+		vv_check( str_contains( $html2, 'Teilnehmer (CSV-Import)' ) && str_contains( $html2, 'Einladungen versenden' ),
+			'[FU002#AK08] laufende Wahl: Optionen verbleiben' );
+	},
 ];

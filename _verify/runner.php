@@ -511,6 +511,22 @@ switch ( $step ) {
 		$html = vv_report_html();
 		vv_assert( str_contains( $html, 'Keine Teilnehmerzeiten' ) && str_contains( $html, 'Prüfliste' ),
 			'[FU005#AK05] Niederschrift nach der Räumung: Prüfliste bleibt, Zeiten gekennzeichnet' );
+
+		// [FU002#AK02/08] Beendete Wahl: keine Aktionsoptionen mehr in Bearbeiten-Sicht und Teilnehmeransicht.
+		$_GET = [ 'page' => 'vereins-voting', 'view' => 'edit', 'poll' => $poll_id ];
+		ob_start();
+		vv_render_admin_page();
+		$pg = ob_get_clean();
+		vv_assert( ! str_contains( $pg, '>Speichern<' ) && str_contains( $pg, '>Zurück</' ),
+			'[FU002#AK02] beendete Wahl: Bearbeiten-Maske zeigt nur Zurück (GUI)' );
+
+		$_GET = [ 'page' => 'vereins-voting', 'view' => 'members', 'poll' => $poll_id ];
+		ob_start();
+		vv_render_admin_page();
+		$pg = ob_get_clean();
+		vv_assert( ! str_contains( $pg, 'Teilnehmer (CSV-Import)' ) && ! str_contains( $pg, 'Einladungen versenden' )
+			&& str_contains( $pg, '>Zurück</' ),
+			'[FU002#AK08] beendete Wahl: Teilnehmeransicht ohne Import-/Einladungsoptionen (GUI)' );
 		break;
 	}
 

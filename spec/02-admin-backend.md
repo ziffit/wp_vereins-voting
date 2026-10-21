@@ -26,7 +26,11 @@ löschen.
   berechnet den Wert bei jeder Ansicht aus der Urne nach und meldet
   Abweichungen deutlich sichtbar („Abgabefingerprint abweichend“), da jede
   nachträgliche Urnen-Änderung den Wert verändert. Ohne formellen Abschluss
-  (bspw. automatisches Auslaufen) gibt es keinen Vergleichswert.
+  (bspw. automatisches Auslaufen) gibt es keinen Vergleichswert. Hat die
+  Abstimmung den Status `closed`, zeigt die Bearbeiten-Maske keine
+  Speichern-/Abbrechen-Aktionen mehr, sondern nur „Zurück“ – es ist keine
+  Aktion mehr möglich; entfällt auch in der Teilnehmeransicht der
+  CSV-Import sowie das Einladungsformular.
 
 - **[FU002#AK03]** Der Statuswechsel `draft → active` ist nur innerhalb des
   Zeitraums möglich; außerhalb wird er verworfen und die Abstimmung startet

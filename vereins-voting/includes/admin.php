@@ -73,8 +73,11 @@ function vv_render_admin_page() {
 		if ( ! $poll ) {
 			echo '<p>Abstimmung nicht gefunden.</p>';
 		} else {
-			vv_render_import_form( $poll );
-			vv_render_invite_form( $poll );
+			// [FU002#AK08] Beendet: Import und Einladung entfallen (keine Wirkung mehr möglich).
+			if ( 'closed' !== $poll->status ) {
+				vv_render_import_form( $poll );
+				vv_render_invite_form( $poll );
+			}
 			vv_render_members_table( $poll );
 		}
 	} else {
@@ -549,10 +552,14 @@ function vv_render_poll_form( $poll_id = '' ) {
 	$start_val    = str_replace( ' ', 'T', $flash['data']['start_dt'] ?? ( $poll ? substr( (string) $poll->start_dt, 0, 16 ) : '' ) );
 	$end_val      = str_replace( ' ', 'T', $flash['data']['end_dt'] ?? ( $poll ? substr( (string) $poll->end_dt, 0, 16 ) : '' ) );
 
-	echo '<form method="post">';
-	wp_nonce_field( 'vv_admin', 'vv_nonce' );
-	echo '<input type="hidden" name="vv_action" value="save_poll">';
-	echo '<input type="hidden" name="poll_id" value="' . esc_attr( $poll_id ) . '">';
+	$closed = $poll && 'closed' === $poll->status;
+
+	echo $closed ? '' : '<form method="post">';
+	if ( ! $closed ) {
+		echo wp_nonce_field( 'vv_admin', 'vv_nonce' );
+		echo '<input type="hidden" name="vv_action" value="save_poll">';
+		echo '<input type="hidden" name="poll_id" value="' . esc_attr( $poll_id ) . '">';
+	}
 	if ( $flash ) {
 		echo '<div class="notice notice-error"><p>' . esc_html( $flash['error'] ) . '</p></div>';
 	}
@@ -584,8 +591,14 @@ function vv_render_poll_form( $poll_id = '' ) {
 		}
 		echo '</td></tr>';
 	}
-	echo '</table><p><button class="button button-primary" type="submit">Speichern</button> '
-		. '<a class="button" href="' . esc_url( admin_url( 'admin.php?page=vereins-voting' ) ) . '">Abbrechen</a></p></form>';
+	echo '</table>';
+	if ( $closed ) {
+		// [FU002#AK02] Beendet: keine Aktion mehr möglich – zurück zur Liste.
+		echo '<p><a class="button" href="' . esc_url( admin_url( 'admin.php?page=vereins-voting' ) ) . '">Zurück</a></p>';
+	} else {
+		echo '<p><button class="button button-primary" type="submit">Speichern</button> '
+			. '<a class="button" href="' . esc_url( admin_url( 'admin.php?page=vereins-voting' ) ) . '">Abbrechen</a></p></form>';
+	}
 
 	// Löschen nur für Entwürfe.
 	if ( $poll && 'draft' === $poll->status ) {
@@ -836,7 +849,8 @@ function vv_render_members_table( $poll ) {
 			. wp_nonce_field( 'vv_admin', 'vv_nonce', true, false )
 			. '<input type="hidden" name="vv_action" value="delete_voter_data">'
 			. '<input type="hidden" name="poll_id" value="' . esc_attr( $poll->id ) . '">'
-			. '<button type="submit" class="button">Teilnehmerdaten löschen</button></form></p>';
+			. '<button type="submit" class="button">Teilnehmerdaten löschen</button></form>'
+			. ' <a class="button" href="' . esc_url( admin_url( 'admin.php?page=vereins-voting' ) ) . '">Zurück</a></p>';
 	}
 
 	if ( ! $voters ) {
