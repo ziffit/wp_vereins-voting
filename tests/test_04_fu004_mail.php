@@ -160,7 +160,7 @@ return [
 			'[FU006#AK03] Einleitung wird global gespeichert' );
 		vv_check( 'https://seite.example.org/waehlen/' === get_option( 'vv_mail_vote_url' )
 			&& 'https://seite.example.org/ergebnis/' === get_option( 'vv_mail_results_url' ),
-			'[FU006#AK02] optionale URLs der Stimmformular- und Ergebnisseite werden gespeichert' );
+			'[FU006#AK02] Pflicht-URLs der Stimmformular- und Ergebnisseite werden gespeichert' );
 		vv_check( 12 === (int) get_option( 'vv_mail_rate' ), '[FU004#AK04] Rate wird gespeichert' );
 
 		ob_start();
@@ -188,7 +188,7 @@ return [
 	},
 
 	'test_04_fu006_ak02_ungueltige_optionale_url_wird_abgewiesen' => function () {
-		vv_fx_mail_settings( [ 'vote' => 'https://seite.example.org/w/' ] );
+		vv_fx_mail_settings( [ 'vote' => 'https://seite.example.org/w/', 'results' => '' ] );
 		vv_fx_http( [], [
 			'vv_action'         => 'save_mail_settings',
 			'mail_subject'      => 'Test',
@@ -205,6 +205,36 @@ return [
 		vv_check( 'https://seite.example.org/w/' === get_option( 'vv_mail_vote_url' )
 			&& '' === (string) get_option( 'vv_mail_results_url', '' ),
 			'[FU006#AK02] optionale URLs bleiben bei Abweisung unverändert' );
+	},
+
+	'test_04_fu006_ak01_url_pflichtfelder' => function () {
+		// Speichern ohne Stimmformular- oder Ergebnis-URL wird abgewiesen.
+		vv_fx_mail_settings( [ 'vote' => 'https://seite.example.org/w/', 'results' => 'https://seite.example.org/e/' ] );
+		vv_fx_http( [], [
+			'vv_action'         => 'save_mail_settings',
+			'mail_subject'      => 'Test',
+			'mail_intro'        => 'Hallo',
+			'mail_footer'       => 'Footer',
+			'mail_activate_url' => 'https://seite.example.org/a/',
+			'mail_vote_url'     => '',
+			'mail_results_url'  => '',
+			'mail_rate'         => '10',
+		] );
+		[ $kind, $url ] = vv_fx_run( 'vv_save_mail_settings' );
+		vv_check( 'redirect' === $kind && str_contains( (string) $url, 'mail_error=1' ),
+			'[FU006#AK01] leere Pflicht-URLs werden abgewiesen' );
+		vv_check( 'https://seite.example.org/w/' === get_option( 'vv_mail_vote_url' )
+			&& 'https://seite.example.org/e/' === get_option( 'vv_mail_results_url' ),
+			'[FU006#AK01] vorhandene Pflicht-URLs bleiben bei Abweisung unverändert' );
+
+		// Versand-Sperre: ohne Stimmformular-URL bricht der Versand ab.
+		vv_fx_mail_settings( [ 'vote' => '' ] );
+		$pid = vv_fx_poll();
+		vv_fx_voter( $pid, '1', 'pflicht@example.org', 't' );
+		vv_fx_http( [], [ 'vv_action' => 'send_invites', 'poll' => $pid ] );
+		[ $kind, $msg ] = vv_fx_run( 'vv_send_invites' );
+		vv_check( 'die' === $kind && str_contains( (string) $msg, 'Stimmformular-Seite' ),
+			'[FU006#AK01] ohne Stimmformular-URL bricht der Versand ab' );
 	},
 
 	'test_04_fu006_ak03_nur_leerzeichen_ist_pflichtfeld_verletzung' => function () {
@@ -361,7 +391,8 @@ return [
 	},
 
 	'test_04_fu006_ak02_html_und_plain_text' => function () {
-		vv_fx_mail_settings();
+		// Ohne URLs bleibt der renderer-basierte Schritt 2/3 aus (Restverhalten der Vorlage).
+		vv_fx_mail_settings( [ 'vote' => '', 'results' => '' ] );
 		$pid = vv_fx_poll( [ 'title' => 'Layoutwahl', 'question' => 'Frage?' ] );
 		global $wpdb;
 		$wpdb->update( vv_tbl( 'voting_polls' ), [ 'mail_url' => 'https://verein.example.org/info/' ], [ 'id' => $pid ] );
@@ -436,8 +467,17 @@ return [
 			'[FU006#AK05] Vorschau enthält keine echten Mitgliedsdaten' );
 		vv_check( str_contains( $page, 'Vorschauwahl' ) && str_contains( $page, 'Frage zur Vorschau?' ),
 			'[FU006#AK05] Vorschau nutzt den Text der gewählten Abstimmung' );
-		vv_check( str_contains( $page, 'Schritt 2 („Jetzt abstimmen“)' ) && str_contains( $page, 'Schritt 3 („Ergebnisse ansehen“)' ),
-			'[FU006#AK05] Vorschau weist auf fehlende optionale URLs der Schritte hin' );
+		// [FU006#AK05] Bestandsinstallation ohne Pflicht-URLs: Hinweis auf entfallene Schritte 2/3.
+		vv_fx_mail_settings( [ 'vote' => '', 'results' => '' ] );
+		$page2 = vv_mail_preview_page( $pid );
+		vv_check( str_contains( $page2, 'Schritt 2 („Jetzt abstimmen“)' ) && str_contains( $page2, 'Schritt 3 („Ergebnisse ansehen“)' ),
+			'[FU006#AK05] Vorschau weist auf fehlende Pflicht-URLs der Schritte hin' );
+
+		// Gespeicherte Pflicht-URLs: kein Schritt-Hinweis mehr.
+		vv_fx_mail_settings();
+		$page = vv_mail_preview_page( $pid );
+		vv_check( ! str_contains( $page, 'Schritt 2 („Jetzt abstimmen“)' ),
+			'[FU006#AK05] mit gesetzten Pflicht-URLs entfällt der Schritt-Hinweis' );
 
 		$before = count( vv_fx_mails() );
 		$result = vv_send_test_mail( $pid );

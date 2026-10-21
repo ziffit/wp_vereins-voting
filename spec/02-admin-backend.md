@@ -133,10 +133,11 @@ Website-Link.
   Abstimmungen erhalten keinen Versand-Button.
 
 - **[FU004#AK02]** Die globalen E-Mail-Einstellungen enthalten Betreff,
-  Einleitung/Anrede, Footer, URL der Aktivierungsseite, zwei optionale URLs
-  (Seite mit dem Stimmformular und Ergebnisseite; gesetzte URLs müssen
-  http(s)-Adressen mit Host sein) und Versandrate.
-  Footer und Aktivierungs-URL sind Pflicht; fehlt eine der Angaben, wird nicht
+  Einleitung/Anrede, Footer, URL der Aktivierungsseite, URL der
+  Stimmformular-Seite, URL der Ergebnisseite und Versandrate
+  (gesetzte URLs müssen http(s)-Adressen mit Host sein).
+  Footer, Aktivierungs-, Stimmformular- und Ergebnis-URL sind Pflicht;
+  fehlt eine der Angaben, wird das Speichern abgewiesen und nicht
   versendet. Die Rate liegt zwischen 1 und 500 Mails pro 5 Minuten (Standard
   10) und gilt global über alle Abstimmungen. Das HTML-Layout ist fest im
   Plugin; ein Roh-HTML-Feld gibt es nicht. Betreff, Einleitung, Footer und
@@ -149,9 +150,8 @@ Website-Link.
   Website-URL speichern. Der Textblock darf die dokumentierten Platzhalter
   verwenden; die URL muss `http` oder `https` sein. Die Mail führt durch die
   Schritte des Ablaufs: Wahl-PIN setzen (Aktivierungsbutton, immer), im
-  Wahlzeitraum abstimmen (Button, sobald die optionale globale URL der
-  Stimmformular-Seite gesetzt ist), nach Wahlende Ergebnisse prüfen (Link,
-  sobald die optionale globale URL der Ergebnisseite gesetzt ist). Der
+  Wahlzeitraum abstimmen (Button zur Stimmformular-Seite), nach Wahlende
+  Ergebnisse prüfen (Link zur Ergebnisseite). Der
   Website-Link erscheint optional als Hinweis „Mehr zum Ablauf der Wahl und
   der eingesetzten Software“. Der Textblock ersetzt
   nicht die globale Einleitung oder den Footer.

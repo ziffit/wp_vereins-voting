@@ -91,8 +91,8 @@ function vv_fx_mail_settings( $o = [] ) {
 		'intro'    => "Hallo {vorname} {nachname},\r\n\r\nbitte nimm an der Abstimmung teil.",
 		'footer'   => "Testverein e.V.\nMusterstraße 1, 12345 Musterstadt\nImpressum: https://admin.test/impressum/",
 		'activate' => 'https://seite.example.org/aktivieren/',
-		'vote'     => '',
-		'results'  => '',
+		'vote'     => 'https://seite.example.org/waehlen/',
+		'results'  => 'https://seite.example.org/ergebnis/',
 		'rate'     => 10,
 	], $o );
 	update_option( 'vv_mail_subject', $o['subject'] );

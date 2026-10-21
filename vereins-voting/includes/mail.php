@@ -296,6 +296,12 @@ function vv_mail_settings_error() {
 	if ( ! vv_mail_url_valid( vv_mail_activate_url() ) ) {
 		return 'Bitte zuerst die URL der Aktivierungsseite in den E-Mail-Einstellungen angeben.';
 	}
+	if ( ! vv_mail_url_valid( vv_mail_vote_url() ) ) {
+		return 'Bitte zuerst die URL der Stimmformular-Seite in den E-Mail-Einstellungen angeben.';
+	}
+	if ( ! vv_mail_url_valid( vv_mail_results_url() ) ) {
+		return 'Bitte zuerst die URL der Ergebnisseite in den E-Mail-Einstellungen angeben.';
+	}
 	return '';
 }
 
@@ -489,11 +495,12 @@ function vv_save_mail_settings() {
 	if ( ! vv_mail_url_valid( $activate ) ) {
 		$errors[] = 'Bitte eine gültige http(s)-URL der Aktivierungsseite angeben.';
 	}
-	if ( '' !== $vote && ! vv_mail_url_valid( $vote ) ) {
-		$errors[] = 'Die URL der Stimmformular-Seite muss http(s) sein oder das Feld bleibt leer.';
+	// [FU006#AK01] Stimmformular- und Ergebnis-Seite sind Pflichtfelder.
+	if ( ! vv_mail_url_valid( $vote ) ) {
+		$errors[] = 'Bitte eine gültige http(s)-URL der Stimmformular-Seite angeben.';
 	}
-	if ( '' !== $results && ! vv_mail_url_valid( $results ) ) {
-		$errors[] = 'Die URL der Ergebnisseite muss http(s) sein oder das Feld bleibt leer.';
+	if ( ! vv_mail_url_valid( $results ) ) {
+		$errors[] = 'Bitte eine gültige http(s)-URL der Ergebnisseite angeben.';
 	}
 	if ( $rate < 1 || $rate > 500 ) {
 		$errors[] = 'Die Versandrate muss zwischen 1 und 500 Mails pro 5 Minuten liegen.';
@@ -674,12 +681,12 @@ function vv_render_mail_settings() {
 	echo '<tr><th><label for="vv-mail-activate">URL der Aktivierungsseite</label></th><td>'
 		. '<input name="mail_activate_url" id="vv-mail-activate" type="url" class="large-text" value="' . esc_attr( $activate ) . '" placeholder="' . esc_attr( home_url( '/pin-setzen/' ) ) . '" required>'
 		. '<p class="description">Seite mit dem Shortcode <code>[verein_voting_activate]</code>.</p></td></tr>';
-	echo '<tr><th><label for="vv-mail-vote">URL der Stimmformular-Seite (optional)</label></th><td>'
-		. '<input name="mail_vote_url" id="vv-mail-vote" type="url" class="large-text" value="' . esc_attr( $vote ) . '" placeholder="' . esc_attr( home_url( '/abstimmen/' ) ) . '">'
-		. '<p class="description">Seite mit dem Shortcode <code>[verein_voting_form]</code>. Ohne Angabe bleibt Schritt 2 („Jetzt abstimmen“) in der Mail aus.</p></td></tr>';
-	echo '<tr><th><label for="vv-mail-results">URL der Ergebnisseite (optional)</label></th><td>'
-		. '<input name="mail_results_url" id="vv-mail-results" type="url" class="large-text" value="' . esc_attr( $results ) . '" placeholder="' . esc_attr( home_url( '/ergebnis/' ) ) . '">'
-		. '<p class="description">Seite mit dem Shortcode <code>[verein_voting_results]</code>. Ohne Angabe bleibt Schritt 3 in der Mail aus.</p></td></tr>';
+	echo '<tr><th><label for="vv-mail-vote">URL der Stimmformular-Seite</label></th><td>'
+		. '<input name="mail_vote_url" id="vv-mail-vote" type="url" class="large-text" value="' . esc_attr( $vote ) . '" placeholder="' . esc_attr( home_url( '/abstimmen/' ) ) . '" required>'
+		. '<p class="description">Pflicht. Seite mit dem Shortcode <code>[verein_voting_form]</code> – Schritt 2 („Jetzt abstimmen“).</p></td></tr>';
+	echo '<tr><th><label for="vv-mail-results">URL der Ergebnisseite</label></th><td>'
+		. '<input name="mail_results_url" id="vv-mail-results" type="url" class="large-text" value="' . esc_attr( $results ) . '" placeholder="' . esc_attr( home_url( '/ergebnis/' ) ) . '" required>'
+		. '<p class="description">Pflicht. Seite mit dem Shortcode <code>[verein_voting_results]</code> – Schritt 3 („Ergebnisse ansehen“).</p></td></tr>';
 	echo '<tr><th><label for="vv-mail-rate">Mails pro 5 Minuten</label></th><td>'
 		. '<input name="mail_rate" id="vv-mail-rate" type="number" min="1" max="500" value="' . esc_attr( (string) $rate ) . '" required>'
 		. '<p class="description">Gilt global für alle Abstimmungen. Standard: 10.</p></td></tr>';

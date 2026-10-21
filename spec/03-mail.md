@@ -15,11 +15,13 @@ arbeiten ausschließlich mit erfundenen Beispieldaten.
   Aktivierungslink. Der Standard begrüßt mit
   „Hallo {vorname} {nachname},“ und weist auf die Anonymität der Stimme hin.
   Nach dem Textblock der Abstimmung führt die Mail durch die Schritte:
-  (1) Wahl-PIN setzen per Aktivierungsbutton, (2) im Wahlzeitraum abstimmen,
-  sobald die optionale URL der Stimmformular-Seite gesetzt ist, (3) nach
-  Wahlende die Ergebnisse prüfen, sobald die optionale URL der Ergebnisseite
-  gesetzt ist; dabei wird erklärt, dass die ersten fünf Zeichen des
-  Prüfcodes zum Wiederfinden der eigenen Stimme reichen. Ein optionaler
+  (1) Wahl-PIN setzen per Aktivierungsbutton, (2) im Wahlzeitraum abstimmen
+  (Pflicht-URL der Stimmformular-Seite), (3) nach Wahlende die Ergebnisse
+  prüfen (Pflicht-URL der Ergebnisseite); dabei wird erklärt, dass die
+  ersten fünf Zeichen des Prüfcodes zum Wiederfinden der eigenen Stimme
+  reichen. Die URLs der Stimmformular-Seite und der Ergebnisseite sind
+  Pflichtfelder: ohne gültige http(s)-Adressen wird das Speichern der
+  E-Mail-Einstellungen abgewiesen und es wird nicht versendet. Ein optionaler
   Website-Link der Abstimmung erscheint als Hinweis „Mehr zum Ablauf der
   Wahl und der eingesetzten Software“.
 
@@ -57,6 +59,7 @@ arbeiten ausschließlich mit erfundenen Beispieldaten.
   Mitgliedsdaten werden nicht angezeigt oder versendet. Die Testmail geht an
   das angemeldete WordPress-Konto und verändert weder den Versandstatus noch
   den Queue-Zähler. Ohne Footer oder gültige Aktivierungs-URL ist kein
-  Testversand möglich; die Vorschau zeigt dann einen Hinweis. Fehlen die
-  optionalen URLs der Stimmformular- oder Ergebnisseite, weist die Vorschau
+  Testversand möglich; die Vorschau zeigt dann einen Hinweis. Fehlen auf
+  Bestandsinstallationen die Pflicht-URLs der Stimmformular- oder
+  Ergebnisseite, weist die Vorschau
   darauf hin, dass die zugehörigen Schritte (2 und 3) in der Mail entfallen.
