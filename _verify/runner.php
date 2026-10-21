@@ -503,7 +503,7 @@ switch ( $step ) {
 		ob_start();
 		vv_render_members_table( vv_row( 'voting_polls', "WHERE id = '{$poll_id}'" ) );
 		$admin = ob_get_clean();
-		vv_assert( str_contains( $admin, 'Gesamtergebnis' ) && str_contains( $admin, 'Noch keine Teilnehmer importiert' ),
+		vv_assert( str_contains( $admin, 'Gesamtergebnis' ) && ! str_contains( $admin, 'Noch keine Teilnehmer importiert' ),
 			'[FU005#AK05] auch ohne Teilnehmer: Ergebnis + Fingerprint sichtbar (GUI)' );
 		vv_assert( ! str_contains( $admin, 'delete_voter_data' )
 			&& str_contains( $admin, 'Keine Teilnehmerdaten mehr vorhanden' ),

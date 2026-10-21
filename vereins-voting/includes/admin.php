@@ -79,6 +79,10 @@ function vv_render_admin_page() {
 				vv_render_invite_form( $poll );
 			}
 			vv_render_members_table( $poll );
+			// [FU002#AK08] Beendete Wahl: keine Import-/Einladungsoptionen – Zurück am Seitenende.
+			if ( 'closed' === $poll->status ) {
+				echo '<p><a class="button" href="' . esc_url( admin_url( 'admin.php?page=vereins-voting' ) ) . '">Zurück</a></p>';
+			}
 		}
 	} else {
 		// Standardansicht: Abstimmungsliste.
@@ -854,11 +858,14 @@ function vv_render_members_table( $poll ) {
 		} else {
 			echo ' <span class="description">Keine Teilnehmerdaten mehr vorhanden (bereits gelöscht oder nicht importiert).</span>';
 		}
-		echo ' <a class="button" href="' . esc_url( admin_url( 'admin.php?page=vereins-voting' ) ) . '">Zurück</a></p>';
+		echo '</p>';
 	}
 
 	if ( ! $voters ) {
-		echo '<p>Noch keine Teilnehmer importiert.</p>';
+		// [FU002#AK08] Beendet: der Abschluss-Block oben erklärt den Zustand selbst.
+		if ( 'closed' !== $poll->status ) {
+			echo '<p>Noch keine Teilnehmer importiert.</p>';
+		}
 		return;
 	}
 	echo '<table class="widefat striped"><thead><tr><th>Mitgliedsnummer</th><th>Name</th><th>E-Mail</th><th>PIN gesetzt</th><th>Einladung</th><th>Hat gewählt</th><th>Gewählt am</th><th>Aktionen</th></tr></thead><tbody>';

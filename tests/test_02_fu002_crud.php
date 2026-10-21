@@ -374,7 +374,9 @@ return [
 		vv_check( ! str_contains( $html, 'Teilnehmer (CSV-Import)' ) && ! str_contains( $html, 'Einladungen versenden' ),
 			'[FU002#AK08] beendete Wahl: Teilnehmeransicht ohne CSV-Import/Einladungsoptionen' );
 		vv_check( str_contains( $html, 'Gesamtergebnis' ) && str_contains( $html, '>Zurück</' ),
-			'[FU002#AK08] Ergebnisblock und Zurück bleiben sichtbar' );
+			'[FU002#AK08] Ergebnisblock und Zurück (Seitenende) bleiben sichtbar' );
+		vv_check( ! str_contains( $html, 'Noch keine Teilnehmer importiert' ),
+			'[FU002#AK08] beendete Wahl: Hinweis "Noch keine Teilnehmer importiert" entfällt' );
 		vv_check( ! str_contains( $html, 'delete_voter_data' )
 			&& str_contains( $html, 'Keine Teilnehmerdaten mehr vorhanden' ),
 			'[FU002#AK08] ohne Teilnehmer: Meldung statt Lösch-Button' );
@@ -397,5 +399,7 @@ return [
 		$html2 = (string) ob_get_clean();
 		vv_check( str_contains( $html2, 'Teilnehmer (CSV-Import)' ) && str_contains( $html2, 'Einladungen versenden' ),
 			'[FU002#AK08] laufende Wahl: Optionen verbleiben' );
+		vv_check( str_contains( $html2, 'Noch keine Teilnehmer importiert' ),
+			'[FU002#AK08] laufende Wahl: Hinweis bleibt' );
 	},
 ];
