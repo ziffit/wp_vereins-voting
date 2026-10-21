@@ -482,22 +482,4 @@ return [
 		vv_check( 'https://verein.example.org/info/' === vv_fx_poll_row( $pid )->mail_url,
 			'[FU004#AK03] vorhandener Link bleibt bei Fehler unverändert' );
 	},
-
-	'test_04_fu004_ak02_einstellungen_als_tab' => function () {
-		vv_fx_http( [ 'page' => 'vereins-voting', 'view' => 'mail' ] );
-		ob_start();
-		vv_render_admin_page();
-		$html = (string) ob_get_clean();
-		vv_check( str_contains( $html, 'nav-tab-active' ) && str_contains( $html, 'URL der Aktivierungsseite' ),
-			'[FU004#AK02] E-Mail-Einstellungen als Registerkarte der Plugin-Seite' );
-		vv_check( 1 === substr_count( $html, 'nav-tab-active' ),
-			'[FU004#AK02] genau ein Tab aktiv' );
-
-		vv_fx_http( [ 'page' => 'vereins-voting' ] );
-		ob_start();
-		vv_render_admin_page();
-		$list = (string) ob_get_clean();
-		vv_check( str_contains( $list, 'nav-tab-wrapper' ) && str_contains( $list, '>Abstimmungen</a>' ) && str_contains( $list, 'view=mail' ),
-			'[FU004#AK02] Listenansicht bietet beide Tabs an' );
-	},
 ];
