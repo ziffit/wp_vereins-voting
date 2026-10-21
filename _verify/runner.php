@@ -234,8 +234,9 @@ switch ( $step ) {
 		ob_start();
 		vv_render_admin_page();
 		$mailtab = ob_get_clean();
-		vv_assert( str_contains( $mailtab, 'Einladungen versenden' ) && str_contains( $mailtab, '>E-Mail</a>' ),
-			'[FU002#AK05] E-Mail-Registerkarte zeigt den Versand (GUI)' );
+		vv_assert( str_contains( $mailtab, 'Einladungen versenden' ) && str_contains( $mailtab, '>E-Mail</a>' )
+			&& str_contains( $mailtab, '<h2>Kassenprüfung 2026 (korrigiert)</h2>' ),
+			'[FU002#AK05] E-Mail-Registerkarte zeigt Titel und Versand (GUI)' );
 		$mail = $GLOBALS['vv_mails'][0];
 		vv_assert( str_contains( $mail['body'], '<!DOCTYPE html>' ) && str_contains( $mail['body'], 'PIN setzen' ),
 			'[FU006#AK02] Einladung ist HTML mit Aktivierungsbutton' );

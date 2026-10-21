@@ -56,6 +56,7 @@ add_action( 'admin_notices', 'vv_timezone_notice' );
 
 /** [FU002#AK05] Detail-Registerkarten einer Abstimmung: Wahl / Teilnehmer / E-Mail / Wahlergebnis. */
 function vv_render_detail_tabs( $poll, $active ) {
+	echo '<h2>' . esc_html( $poll->title ) . '</h2>';
 	$base = 'admin.php?page=vereins-voting&poll=' . rawurlencode( $poll->id ) . '&view=';
 	echo '<h2 class="nav-tab-wrapper">'
 		. '<a class="nav-tab' . ( 'wahl' === $active ? ' nav-tab-active' : '' ) . '" href="' . esc_url( admin_url( $base . 'edit' ) ) . '">Wahl</a>'
