@@ -58,17 +58,17 @@ switch ( $step ) {
 
 		// Spalten exakt prüfen.
 		$pcols = array_map( fn( $r ) => $r->Field, $wpdb->get_results( "SHOW COLUMNS FROM wpx_voting_polls" ) );
-		foreach ( [ 'id', 'title', 'question', 'mail_text', 'mail_url', 'start_dt', 'end_dt', 'status' ] as $need ) {
+		foreach ( [ 'id', 'title', 'question', 'mail_text', 'mail_url', 'start_dt', 'end_dt', 'status', 'urn_fingerprint' ] as $need ) {
 			vv_assert( in_array( $need, $pcols, true ), "[FU001#AK01] polls-Spalte $need" );
 		}
 		$vcols = array_map( fn( $r ) => $r->Field, $wpdb->get_results( "SHOW COLUMNS FROM wpx_voting_voters" ) );
-		foreach ( [ 'poll_id', 'member_no', 'email', 'first_name', 'last_name', 'activation_token', 'pin_hash', 'has_voted', 'voted_at', 'invited_at', 'invite_attempts' ] as $need ) {
+		foreach ( [ 'poll_id', 'member_no', 'email', 'first_name', 'last_name', 'activation_token', 'pin_hash', 'has_voted', 'voted_at', 'invited_at', 'invite_attempts', 'pin_set_at' ] as $need ) {
 			vv_assert( in_array( $need, $vcols, true ), "[FU001#AK01] voters-Spalte $need" );
 		}
 
 		// [FU001#AK03] Bestandsinstallation ohne Namens-/Queue-/Mailspalten: Upgrade ergänzt additiv.
-		$wpdb->query( 'ALTER TABLE wpx_voting_voters DROP COLUMN first_name, DROP COLUMN last_name, DROP COLUMN invited_at, DROP COLUMN invite_attempts' );
-		$wpdb->query( 'ALTER TABLE wpx_voting_polls DROP COLUMN mail_text, DROP COLUMN mail_url' );
+		$wpdb->query( 'ALTER TABLE wpx_voting_voters DROP COLUMN first_name, DROP COLUMN last_name, DROP COLUMN invited_at, DROP COLUMN invite_attempts, DROP COLUMN pin_set_at' );
+		$wpdb->query( 'ALTER TABLE wpx_voting_polls DROP COLUMN mail_text, DROP COLUMN mail_url, DROP COLUMN urn_fingerprint' );
 		vv_maybe_upgrade();
 		$vcols = array_map( fn( $r ) => $r->Field, $wpdb->get_results( "SHOW COLUMNS FROM wpx_voting_voters" ) );
 		vv_assert( in_array( 'first_name', $vcols, true ) && in_array( 'last_name', $vcols, true )
@@ -77,6 +77,8 @@ switch ( $step ) {
 		$pcols = array_map( fn( $r ) => $r->Field, $wpdb->get_results( "SHOW COLUMNS FROM wpx_voting_polls" ) );
 		vv_assert( in_array( 'mail_text', $pcols, true ) && in_array( 'mail_url', $pcols, true ),
 			'[FU001#AK03] Upgrade ergänzt mail_text/mail_url' );
+		vv_assert( in_array( 'pin_set_at', $vcols, true ) && in_array( 'urn_fingerprint', $pcols, true ),
+			'[FU001#AK03] Upgrade ergänzt pin_set_at/urn_fingerprint (1.5.2-Spalten)' );
 		$bcols = array_map( fn( $r ) => $r->Field, $wpdb->get_results( "SHOW COLUMNS FROM wpx_voting_ballots" ) );
 		foreach ( [ 'poll_id', 'vote_option', 'receipt_hash' ] as $need ) {
 			vv_assert( in_array( $need, $bcols, true ), "[FU001#AK01] ballots-Spalte $need" );
@@ -462,6 +464,53 @@ switch ( $step ) {
 		$admin = ob_get_clean();
 		vv_assert( str_contains( $admin, 'Gesamtergebnis' ), "[FU005#AK03] aggregiertes Ergebnis im Backend" );
 		vv_assert( str_contains( $admin, 'Ja' ) && str_contains( $admin, '1</td>' ), '[FU005#AK03] Aggregate Zahlen stimmen' );
+
+		// [FU002#AK02] Abgabefingerprint beim Abschluss festgehalten.
+		$stored = (string) $poll->urn_fingerprint;
+		vv_assert( 64 === strlen( $stored ) && ctype_xdigit( $stored ), '[FU002#AK02] urn_fingerprint beim Abschluss gespeichert (64 hex)' );
+		vv_assert( hash_equals( $stored, vv_urn_fingerprint( $poll->id ) ), '[FU002#AK02] gespeicherter Fingerprint = Nachberechnung aus der Urne' );
+		vv_assert( str_contains( $admin, 'unverändert' ) && str_contains( $admin, 'Wahlniederschrift drucken (PDF)' )
+			&& str_contains( $admin, 'delete_voter_data' ), '[FU002#AK02/FU005#AK05] Backend zeigt Verdict + Niederschrift + Räumung (GUI)' );
+
+		// [FU009#AK04] Ergebnisseite zeigt den Fingerprint.
+		$_GET = [ 'poll' => $poll->id ];
+		$html = vv_shortcode_results();
+		vv_assert( str_contains( $html, 'Abgabefingerprint: <code>' ),
+			'[FU009#AK04] Ergebnisseite nennt den Abgabefingerprint' );
+		vv_assert( str_contains( $html, $stored ), '[FU009#AK04] angezeigter Fingerprint stimmt mit der gespeicherten Referenz' );
+
+		// [FU005#AK05] Wahlniederschrift VOR dem Löschen: alles drin.
+		$html = vv_report_html();
+		vv_assert( str_contains( $html, 'Wahlniederschrift' ) && str_contains( $html, 'Kassenprüfung 2026 (korrigiert)' ),
+			'[FU005#AK05] Niederschrift erzeugt (Titel/Frage)' );
+		vv_assert( str_contains( $html, 'alice@example.com' ) && str_contains( $html, (string) vv_row( 'voting_voters', "WHERE email = 'alice@example.com'" )->member_no ),
+			'[FU005#AK05] Teilnahmetabelle mit Personen' );
+		vv_assert( str_contains( $html, $stored ) && str_contains( $html, 'Prüfliste' ),
+			'[FU005#AK05] Fingerprint + Prüfliste in der Niederschrift' );
+
+		// [FU002#AK08] Teilnehmerdaten löschen (nur Urne bleibt).
+		$poll_id = $poll->id;
+		$_POST = [ 'vv_action' => 'delete_voter_data', 'poll_id' => $poll_id ];
+		try { vv_delete_voter_data(); } catch ( VVRedirectFound $r ) {}
+		vv_assert( 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM wpx_voting_voters WHERE poll_id = '{$poll_id}'" ),
+			'[FU002#AK08] Wählerzeilen entfernt' );
+		vv_assert( 2 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM wpx_voting_ballots WHERE poll_id = '{$poll_id}'" ),
+			'[FU002#AK08] Urne vollständig erhalten' );
+		$res = vv_get_results( $poll_id );
+		vv_assert( 1 === $res['ja']['count'] && 1 === $res['nein']['count'], '[FU002#AK08] Ergebnis unverändert' );
+
+		// Backend bleibt nach dem Löschen vollständig nutzbar (Früh-Ausstieg umgangen).
+		ob_start();
+		vv_render_members_table( vv_row( 'voting_polls', "WHERE id = '{$poll_id}'" ) );
+		$admin = ob_get_clean();
+		vv_assert( str_contains( $admin, 'Gesamtergebnis' ) && str_contains( $admin, 'Noch keine Teilnehmer importiert' ),
+			'[FU005#AK05] auch ohne Teilnehmer: Ergebnis + Fingerprint sichtbar (GUI)' );
+
+		// Niederschrift nach dem Löschen: Ergebnis + Prüfliste bleiben, Zeiten Hinweis.
+		$_GET = [ 'poll' => $poll_id ];
+		$html = vv_report_html();
+		vv_assert( str_contains( $html, 'Keine Teilnehmerzeiten' ) && str_contains( $html, 'Prüfliste' ),
+			'[FU005#AK05] Niederschrift nach der Räumung: Prüfliste bleibt, Zeiten gekennzeichnet' );
 		break;
 	}
 

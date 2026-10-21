@@ -45,6 +45,25 @@ function vv_get_results( $poll_id ) {
 	return $results;
 }
 
+/**
+ * [FU002#AK02] Manipulier-Sicherung (Abgabefingerprint): sha256 über alle
+ * Receipt-Hashes in aufsteigender Sortierung und die Option-Zählungen.
+ * Rezept (nachrechenbar aus der Prüfliste):
+ *   sha256( hash1+hash2+…+ | ja=C,nein=C,enthaltung=C )
+ * Beim Abschluss festgehalten; jede spätere Urnen-Änderung weicht ab.
+ */
+function vv_urn_fingerprint( $poll_id ) {
+	global $wpdb;
+
+	$hashes = (array) $wpdb->get_col( $wpdb->prepare(
+		"SELECT receipt_hash FROM {$wpdb->prefix}voting_ballots WHERE poll_id = %s ORDER BY receipt_hash",
+		$poll_id
+	) );
+	$results = vv_get_results( $poll_id );
+	$counts  = $results['ja']['count'] . ',' . $results['nein']['count'] . ',' . $results['enthaltung']['count'];
+	return hash( 'sha256', implode( '', $hashes ) . '|' . $counts );
+}
+
 /** Normalisiert datetime-local/ISO-Eingaben auf das MySQL-Format 'YYYY-MM-DD HH:MM:SS'. */
 function vv_normalize_dt( $dt ) {
 	$dt = trim( (string) $dt );

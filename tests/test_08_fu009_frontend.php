@@ -67,6 +67,8 @@ return [
 		vv_check( 1 === substr_count( $html, '<strong>' . substr( $h1, 0, 5 ) . '</strong>' ),
 			'[FU009#AK03] jeder Receipt exakt einmal gelistet' );
 		vv_check( str_contains( $html, 'vv-version' ), '[FU007#AK05] Versionszeile auch bei den Ergebnissen' );
+		vv_check( preg_match( '/Abgabefingerprint: <code>[0-9a-f]{64}<\/code>/', $html ) === 1,
+			'[FU009#AK04] Ergebnisseite zeigt den Abgabefingerprint (sha256)' );
 	},
 
 	'test_08_fu008_ak01_formular_auswahl' => function () {
@@ -100,5 +102,14 @@ return [
 		vv_fx_http( [] );
 		$html = vv_shortcode_form();
 		vv_check( str_contains( $html, 'Keine Abstimmung ausgewählt' ), '[FU008#AK01] ohne ?poll= bricht kurz mit Hinweis' );
+	},
+
+	'test_08_fu008_ak05_nocache_detector' => function () {
+		vv_check( vv_page_has_voting_shortcode( 'Intro [verein_voting_form poll="x"] Ende' )
+			&& vv_page_has_voting_shortcode( '[verein_voting_results]' )
+			&& vv_page_has_voting_shortcode( '[verein_voting_activate]' ),
+			'[FU008#AK05] Detector erkennt jede Wahl-Shortcode-Seite (Cache-Ausschluss)' );
+		vv_check( ! vv_page_has_voting_shortcode( '[anderer_shortcode] [verein_voting_galerie]' ),
+			'[FU008#AK05] Detector ignoriert fremde Shortcodes' );
 	},
 ];

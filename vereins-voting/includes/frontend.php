@@ -19,6 +19,26 @@ add_shortcode( 'verein_voting_activate', 'vv_shortcode_activate' );
 add_shortcode( 'verein_voting_form', 'vv_shortcode_form' );
 add_shortcode( 'verein_voting_results', 'vv_shortcode_results' );
 
+/** Erkennt unsere Wahl-Shortcodes im Seiteninhalt (auch zusammengeführte Blöcke). */
+function vv_page_has_voting_shortcode( $content ) {
+	return (bool) preg_match( '/\[verein_voting_(activate|form|results)\b/', (string) $content );
+}
+
+/**
+ * [FU008#AK05] Shortcode-Seiten niemals aus einem Seiten-Cache ausliefern:
+ * URLs enthalten Token bzw. Poll-ID, eine zwischengespeicherte Aktivierungsseite
+ * könnte ansonsten fremde Personen mit einem unbenutzten Token erreichen.
+ */
+function vv_maybe_nocache_page() {
+	if ( is_singular() ) {
+		$post = get_post();
+		if ( $post && vv_page_has_voting_shortcode( $post->post_content ) ) {
+			nocache_headers();
+		}
+	}
+}
+add_action( 'wp', 'vv_maybe_nocache_page' );
+
 /** [FU007#AK05] Versionszeile – jede Shortcode-Ausgabe nennt die Plugin-Version. */
 function vv_version_note() {
 	return '<p class="vv-version">vereins-voting ' . esc_html( VEREINS_VOTING_VERSION ) . '</p>';
@@ -81,7 +101,8 @@ function vv_activate_html() {
 				$ok = $wpdb->update(
 					"{$wpdb->prefix}voting_voters",
 					[
-						'pin_hash'         => password_hash( $pin, PASSWORD_DEFAULT ),
+						'pin_hash'         => password_hash( $pin, PASSWORD_BCRYPT, [ 'cost' => 12 ] ),
+						'pin_set_at'       => current_time( 'mysql' ),
 						'activation_token' => null,
 					],
 					[ 'id' => $voter->id ]
@@ -265,6 +286,11 @@ function vv_results_html() {
 			$html .= '<tr><td>' . esc_html( ucfirst( $option ) ) . '</td><td>' . (int) $row['count'] . '</td><td>' . esc_html( number_format( $row['percent'], 1 ) ) . '%</td></tr>';
 		}
 		$html .= '</tbody></table>';
+
+		// [FU009#AK04] Abgabefingerprint: mit dem Wert aus einem früheren Abruf
+		// vergleichen – Abweichung heißt: Urne wurde nachträglich verändert.
+		$html .= '<p class="vv-fingerprint">Abgabefingerprint: <code>' . esc_html( vv_urn_fingerprint( $poll_id ) ) . '</code><br>'
+			. '<span class="vv-version">Referenzwert = SHA-256 aus allen Prüfcodes (sortiert) und den Zählungen; er muss mit dem Wert übereinstimmen, den das Backend beim formellen Abschluss festhält.</span></p>';
 
 		// [FU009#AK03] Vollständige anonyme Prüftabelle – ohne Uhrzeit und in
 		// Prüfcode-Reihenfolge, damit sie keine Rückschlüsse auf Zeitpunkt oder

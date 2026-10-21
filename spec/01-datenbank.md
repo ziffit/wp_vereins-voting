@@ -18,9 +18,12 @@ PIN-Hashes) und `wp_voting_ballots` (anonyme Stimmen).
   und Beteiligungsstatus die optionalen Felder `first_name` und `last_name`
   (je VARCHAR(100), NULL) für die persönliche Ansprache sowie
   `invited_at` (DATETIME NULL) und `invite_attempts` (TINYINT UNSIGNED,
-  Default 0) für den gedrosselten Einladungsversand. `wp_voting_polls`
-  enthält `mail_text` (TEXT NULL) und `mail_url` (VARCHAR(500) NULL) für den
-  Text und den optionalen Website-Link je Abstimmung. Die anonyme Urne
+  Default 0) für den gedrosselten Einladungsversand; ferner `pin_set_at`
+  (DATETIME NULL) als Zeitpunkt der PIN-Registrierung (FU007#AK03).
+  `wp_voting_polls` enthält `mail_text` (TEXT NULL) und `mail_url`
+  (VARCHAR(500) NULL) für den Text und den optionalen Website-Link je
+  Abstimmung sowie `urn_fingerprint` (CHAR(64) NULL) als Referenzwert der
+  Urne, der beim formellen Abschluss erzeugt wird (FU002#AK02). Die anonyme Urne
   `wp_voting_ballots` besteht ausschließlich aus `poll_id`, `vote_option`
   und `receipt_hash` (Primärschlüssel) – ohne Zeitstempel und ohne laufende
   Nummer, damit keine Korrelation mit `voted_at` möglich ist (FU008#AK03).

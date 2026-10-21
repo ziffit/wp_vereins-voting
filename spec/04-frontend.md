@@ -17,8 +17,10 @@ persönlichen Wahl-PIN festlegt.
   `wp_voting_voters`-Datensatz übereinstimmen.
 
 - **[FU007#AK03]** Nach erfolgreicher Validierung wird der PIN als
-  `pin_hash` (`password_hash()`) gespeichert, der `activation_token`
-  gelöscht (Einmalverwendung) und eine Erfolgsmeldung ausgegeben.
+  `pin_hash` (`password_hash()` mit bcrypt, Kostenfaktor 12) gespeichert,
+  der `activation_token` gelöscht (Einmalverwendung), `pin_set_at` auf den
+  aktuellen Zeitpunkt gesetzt und eine Erfolgsmeldung ausgegeben. Ein späterer
+  PIN-Reset löscht auch diesen Zeitpunkt (FU005#AK04).
 
 - **[FU007#AK04]** Das Formular ist durch ein Nonce gegen CSRF geschützt;
   nach 5 Fehlversuchen (falsche Mitgliedsdaten oder PIN) ist die Aktivierung
@@ -101,3 +103,13 @@ Prüftabelle.
   statt nach Einwurfzeit; sie erlaubt keine Rückschlüsse auf den Zeitpunkt
   einer Stimme und damit keine Korrelation mit „Gewählt am“ in der
   Teilnehmerliste.
+
+- **[FU009#AK04]** Unter dem Ergebnis zeigt die Ergebnisseite den
+  Abgabefingerprint: eine SHA-256 über alle Prüfcodes in aufsteigender
+  Sortierung und die Option-Zählungen (Rezept mit eigener Zeile
+  mitdokumentiert). Wird die Wahl erst mit dem formellen Abschluss beendet,
+  vergleicht das Backend diesen Wert bei jeder Ansicht mit dem beim
+  Abschluss festgehaltenen Referenzwert; die Ergebnisseite selbst zeigt den
+  live berechneten Wert, sodass jemand, der eine frühere Ergebnisseite
+  (z. B. als PDF) aufbewahrt hat, eine nachträgliche Urnen-Änderung selbst
+  erkennen kann.

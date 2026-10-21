@@ -40,6 +40,15 @@ return [
 			'[FU008#AK03] Urne ausschließlich poll_id/vote_option/receipt_hash (kein created_at, kein id)' );
 	},
 
+	'test_01_fu001_ak02_neue_spalten_v152' => function () {
+		$vcols = vv_cols( 'voting_voters' );
+		vv_check( in_array( 'pin_set_at', $vcols, true ),
+			'[FU001#AK01/FU007#AK03] voters-Spalte pin_set_at (Zeitpunkt der PIN-Setzung)' );
+		$pcols = vv_cols( 'voting_polls' );
+		vv_check( in_array( 'urn_fingerprint', $pcols, true ),
+			'[FU001#AK01/FU002#AK02] polls-Spalte urn_fingerprint (Abschluss-Referenzwert)' );
+	},
+
 	'test_01_fu001_ak01_kein_foreign_key' => function () {
 		global $wpdb;
 		$db   = $wpdb->prepare( '%s', VV_DB_NAME );

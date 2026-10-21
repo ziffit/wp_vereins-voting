@@ -18,7 +18,15 @@ löschen.
 
 - **[FU002#AK02]** Bestehende Abstimmungen können bearbeitet werden, solange
   sie den Status `draft` haben. Bei aktiven oder geschlossenen Abstimmungen
-  sind sicherheitsrelevante Felder gesperrt.
+  sind sicherheitsrelevante Felder gesperrt. Beim formellen Abschluss
+  (`active → closed`) wird der Abgabefingerprint erzeugt und in
+  `urn_fingerprint` festgehalten – SHA-256 über alle Prüfcodes in
+  aufsteigender Sortierung und die Option-Zählungen (ja, nein, Enthaltung);
+  das Rezept ist auf der Ergebnisseite dokumentiert. Die Teilnehmeransicht
+  berechnet den Wert bei jeder Ansicht aus der Urne nach und meldet
+  Abweichungen deutlich sichtbar („Abgabefingerprint abweichend“), da jede
+  nachträgliche Urnen-Änderung den Wert verändert. Ohne formellen Abschluss
+  (bspw. automatisches Auslaufen) gibt es keinen Vergleichswert.
 
 - **[FU002#AK03]** Der Statuswechsel `draft → active` ist nur innerhalb des
   Zeitraums möglich; außerhalb wird er verworfen und die Abstimmung startet
@@ -46,6 +54,16 @@ löschen.
 - **[FU002#AK07]** Jede Abstimmung erhält eine zufällige UUID v4 als ID
   (`CHAR(36)`, keine AUTO_INCREMENT-Zahl). Links und Formulare enthalten
   damit keine erratbaren, fortlaufenden IDs.
+
+- **[FU002#AK08]** Bei beendeten Abstimmungen kann der Administrator die
+  Teilnehmerdaten löschen: Wählerzeilen (Mitgliedsnummer, Name, E-Mail,
+  Token, PIN-Hash, alle Zeitstempel) werden entfernt, während Urne,
+  Ergebnis und Prüfliste vollständig erhalten bleiben. Die Aktion ist nur
+  im Status `closed` möglich und erfordert Nonce und Bestätigungsdialog mit
+  dem Hinweis, die Wahlniederschrift (FU005#AK05) vorher zu erstellen und
+  zu archivieren. Es bleiben keine Kopien oder Papierkorbeinträge zurück;
+  die Gesamtlöschen-Regel (nur im Status `draft`) und FU001#AK02 bleiben
+  unberührt.
 
 ## [FU003] Mitglieder-CSV-Import & Token-Generierung
 
@@ -170,3 +188,18 @@ Stimmgeheimnisses.
   Wahlgeheimnis bleiben unberührt. Nach der Stimmabgabe und bei geschlossenen
   Abstimmungen ist der Reset nicht möglich; eine bestehende Fehlversuchssperre
   wird aufgehoben.
+
+- **[FU005#AK05]** Der Administrator kann zu jeder Abstimmung eine
+  Wahlniederschrift als druckbare Seite erzeugen (Standalone-HTML ohne
+  Backend-Design, im Browser über „Drucken“ als PDF speicherbar; erreichbar
+  nur mit `manage_options` und Nonce). Sie enthält: Titel, Frage,
+  Wahlzeitraum, Status, Erstellungszeitpunkt, das Gesamtergebnis je Option
+  (absolute Zahlen und Anteile), den Abgabefingerprint samt Rezept und
+  Vergleich zur aktuellen Urne, die vollständige Prüfliste (Prüfcode,
+  gewählte Option, geordnet nach Prüfcode) sowie eine Teilnahmetabelle je
+  Person mit Mitgliedsnummer, Name, E-Mail und den Zeitpunkten Einladung
+  (`invited_at`), PIN-Registrierung (`pin_set_at`) und Stimmabgabe
+  (`voted_at`). Vor dem Löschen der Teilnehmerdaten (FU002#AK08) dient sie
+  als Archiv; danach zeigt sie Ergebnis und Prüfliste weiterhin und
+  kennzeichnet fehlende Teilnehmerzeiten mit „Keine Teilnehmerzeiten
+  vorhanden“.

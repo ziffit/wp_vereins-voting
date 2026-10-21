@@ -75,6 +75,10 @@ return [
 		vv_check( $row->pin_hash && password_verify( '123456', $row->pin_hash ), '[FU007#AK03] PIN als password_hash gespeichert, verify ok' );
 		vv_check( ! preg_match( '/123456$/', (string) $row->pin_hash ), '[FU007#AK03] kein Klartext-PIN in pin_hash' );
 		vv_check( null === $row->activation_token, '[FU007#AK03] activation_token gelöscht (Einmalverwendung)' );
+		vv_check( null !== $row->pin_set_at, '[FU007#AK03] pin_set_at hält den Zeitpunkt der PIN-Registrierung fest' );
+		$info = password_get_info( (string) $row->pin_hash );
+		vv_check( 'bcrypt' === $info['algoName'] && 12 === (int) $info['options']['cost'],
+			'[FU008#AK05] PIN-Hash mit bcrypt cost 12 (Offline-Brute-Force bei 6 Ziffern dämpfen)' );
 
 		// Erneuter Versuch mit gleichem Token:
 		vv_fx_http( [ 'poll' => $pid, 'token' => $tok ],

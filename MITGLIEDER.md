@@ -117,6 +117,11 @@ deine Stimme gewertet wurde, verrät aber nicht, wer du bist. Die öffentliche
 Prüftabelle macht das Ergebnis für alle prüfbar – jeder kann seinen Code
 wiederfinden und selbst nachzählen, statt einem Bericht glauben zu müssen.
 
+Zusätzlich hält das System am Wahlende einen **Abgabefingerprint** fest: eine
+eindeutige Prüfzahl, die sich aus allen Prüfcodes ergibt. Speichert jemand
+eine frühere Ergebnisseite, kann er später nachweisen, dass an der Urne
+nichts mehr verändert wurde.
+
 ---
 
 ## Häufige Fragen

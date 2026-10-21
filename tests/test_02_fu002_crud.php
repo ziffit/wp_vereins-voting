@@ -287,4 +287,63 @@ return [
 		[ $kind, ] = vv_fx_run( 'vv_save_poll' );
 		vv_check( 'redirect' === $kind && 'closed' === vv_fx_poll_row( $pid )->status, '[FU002#AK02] verdrehter Bestandszeitraum blockiert das Schließen nicht' );
 	},
+
+	'test_02_fu002_ak02_abschluss_speichert_fingerprint' => function () {
+		global $wpdb;
+		$pid = vv_fx_poll( [ 'status' => 'active' ] );
+		$ha  = str_repeat( 'a', 63 ) . '1';
+		$hb  = str_repeat( 'b', 63 ) . '2';
+		vv_fx_ballot( $pid, 'ja', $ha );
+		vv_fx_ballot( $pid, 'nein', $hb );
+
+		vv_fx_http( [], [
+			'vv_action' => 'save_poll', 'poll_id' => $pid, 'title' => 'Alt', 'question' => 'Q',
+			'start_dt' => date( 'Y-m-d\TH:00', strtotime( '-1 hour' ) ),
+			'end_dt'   => date( 'Y-m-d\TH:00', strtotime( '+1 hour' ) ), 'status' => 'closed',
+		] );
+		[ $kind, ] = vv_fx_run( 'vv_save_poll' );
+		$row = vv_fx_poll_row( $pid );
+
+		$hashes = [ min( $ha, $hb ), max( $ha, $hb ) ]; // Prüfcodes sortiert (Rezept aus FU002#AK02).
+		$expected = hash( 'sha256', implode( '', $hashes ) . '|1,1,0' );
+		vv_check( 'closed' === $row->status && hash_equals( $expected, (string) $row->urn_fingerprint ),
+			'[FU002#AK02] Abschluss hält den Abgabefingerprint fest (dokumentiertes Rezept)' );
+		vv_check( 64 === strlen( (string) $row->urn_fingerprint ) && ctype_xdigit( (string) $row->urn_fingerprint ),
+			'[FU002#AK02] Fingerprint im sha256-Format (64 hex)' );
+		vv_check( vv_urn_fingerprint( $pid ) === $row->urn_fingerprint,
+			'[FU002#AK02] Nachberechnung stimmt mit dem gespeicherten Abschlusswert überein' );
+
+		// Jede spätere Urnen-Änderung weicht ab.
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . vv_tbl( 'voting_ballots' ) . ' SET vote_option = %s WHERE receipt_hash = %s', 'enthaltung', $ha ) );
+		vv_check( vv_urn_fingerprint( $pid ) !== $row->urn_fingerprint,
+			'[FU002#AK02] Urnenänderung nach dem Abschluss wird am Fingerprint erkannt' );
+
+		ob_start();
+		vv_render_members_table( vv_fx_poll_row( $pid ) );
+		$html = (string) ob_get_clean();
+		vv_check( str_contains( $html, 'abweichend' ),
+			'[FU002#AK02] Backend-Verdict meldet die Abweichung' );
+	},
+
+	'test_02_fu002_ak08_teilnehmerdaten_loeschen_nur_bei_beendeter_wahl' => function () {
+		global $wpdb;
+		$pid  = vv_fx_poll( [ 'status' => 'closed' ] );
+		vv_fx_ballot( $pid, 'ja' );
+		$pid2 = vv_fx_poll( [ 'status' => 'active' ] );
+		vv_fx_voter( $pid, '77', 'weg@example.org', 'tok7' );
+
+		vv_fx_http( [], [ 'vv_action' => 'delete_voter_data', 'poll_id' => $pid2, 'vv_nonce' => wp_create_nonce( 'vv_admin' ) ] );
+		[ $kind, ] = vv_fx_run( 'vv_handle_admin_actions' );
+		vv_check( 'die' === $kind, '[FU002#AK08] Räumung nur bei beendeter Wahl' );
+
+		vv_fx_http( []   , [ 'vv_action' => 'delete_voter_data', 'poll_id' => $pid, 'vv_nonce' => wp_create_nonce( 'vv_admin' ) ] );
+		[ $kind, $url ] = vv_fx_run( 'vv_handle_admin_actions' );
+		vv_check( 'redirect' === $kind && str_contains( (string) $url, 'voters_deleted=1' ), '[FU002#AK08] Räumung bei beendeter Wahl erlaubt' );
+		vv_check( 0 === (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . vv_tbl( 'voting_voters' ) . ' WHERE poll_id = ' . $wpdb->prepare( '%s', $pid ) ),
+			'[FU002#AK08] Wählerzeilen entfernt' );
+		vv_check( 1 === (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . vv_tbl( 'voting_ballots' ) . ' WHERE poll_id = ' . $wpdb->prepare( '%s', $pid ) ),
+			'[FU002#AK08] Urne bleibt vollständig' );
+		vv_check( 1 === vv_get_results( $pid )['ja']['count'],
+			'[FU002#AK08] Ergebnis bleibt nach der Räumung unverändert' );
+	},
 ];

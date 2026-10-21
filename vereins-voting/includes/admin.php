@@ -171,11 +171,39 @@ function vv_handle_admin_actions() {
 		case 'reset_pin':
 			vv_reset_pin();
 			break;
+		case 'delete_voter_data':
+			vv_delete_voter_data();
+			break;
 	}
 }
 add_action( 'admin_init', 'vv_handle_admin_actions' );
 
 /** [FU002#AK02] Löschen nur im Entwurf; Daten werden nie heimlich entsorgt. */
+/**
+ * [FU002#AK08] Teilnehmerdaten einer beendeten Wahl löschen: Identität,
+ * PIN-Hashes und Zeitstempel der Wählerliste; Urne und Ergebnis bleiben.
+ * Vorher die Wahlniederschrift erstellen – danach fehlen die Zeitangaben.
+ */
+function vv_delete_voter_data() {
+	global $wpdb;
+
+	$poll_id = vv_poll_id( wp_unslash( $_POST['poll_id'] ?? '' ) );
+	$status  = $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$wpdb->prefix}voting_polls WHERE id = %s", $poll_id ) );
+
+	if ( 'closed' !== $status ) {
+		wp_die( 'Teilnehmerdaten löschen ist nur bei beendeten Abstimmungen möglich.' );
+	}
+
+	$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}voting_voters WHERE poll_id = %s", $poll_id ) );
+
+	wp_safe_redirect( admin_url( 'admin.php?page=vereins-voting&view=members&poll=' . rawurlencode( $poll_id ) . '&voters_deleted=1' ) );
+	exit;
+}
+
+/**
+ * [FU002#AK02] Gesamt-Wahl löschen: nur im Status Entwurf, zusammen mit
+ * Wählern und leeren Urnenzeilen.
+ */
 function vv_delete_poll() {
 	global $wpdb;
 
@@ -232,6 +260,7 @@ function vv_reset_pin() {
 		"{$wpdb->prefix}voting_voters",
 		[
 			'pin_hash'         => null,
+			'pin_set_at'       => null,
 			'activation_token' => bin2hex( random_bytes( 16 ) ),
 			'invited_at'       => null,
 			'invite_attempts'  => 0,
@@ -341,7 +370,11 @@ function vv_save_poll() {
 		} else {
 			// [FU002#AK02] Nur Verabschieden active -> closed; keine Änderung von Titel/Fristen.
 			if ( 'active' === $existing->status && 'closed' === $status ) {
-				$wpdb->update( "{$wpdb->prefix}voting_polls", [ 'status' => 'closed' ], [ 'id' => $poll_id ] );
+				// [FU002#AK02] Abgabefingerprint entsteht beim formellen Abschluss.
+				$wpdb->update( "{$wpdb->prefix}voting_polls",
+					[ 'status' => 'closed', 'urn_fingerprint' => vv_urn_fingerprint( $poll_id ) ],
+					[ 'id' => $poll_id ]
+				);
 			}
 		}
 	}
@@ -763,8 +796,49 @@ function vv_render_members_table( $poll ) {
 		echo '<div class="notice notice-success is-dismissible"><p>PIN zurückgesetzt. Die Person ist wieder für den Einladungsversand vorgemerkt '
 			. 'und erhält über „Einladungen versenden“ einen neuen Aktivierungslink.</p></div>';
 	}
+	if ( isset( $_GET['voters_deleted'] ) ) {
+		echo '<div class="notice notice-success is-dismissible"><p>Teilnehmerdaten gelöscht. Urne und Ergebnis bleiben unverändert erhalten.</p></div>';
+	}
 
 	/** [FU005#AK02] Liste zeigt nur has_voted/voted_at – niemals eine Stimme. */
+	// Abschluss-Block vor dem Früh-Ausstieg: nach dem Löschen der Teilnehmerdaten
+	// (FU002#AK08) bleiben Ergebnis, Fingerprint und Niederschrift sichtbar.
+	if ( 'closed' === $poll->status ) {
+		$results = vv_get_results( $poll->id );
+		echo '<h2>Gesamtergebnis</h2><table class="widefat striped"><thead><tr><th>Option</th><th>Stimmen</th><th>Anteil</th></tr></thead><tbody>';
+		foreach ( $results as $option => $row ) {
+			echo '<tr><td>' . esc_html( ucfirst( $option ) ) . '</td><td>' . (int) $row['count'] . '</td><td>' . esc_html( number_format( $row['percent'], 1 ) ) . '%</td></tr>';
+		}
+		echo '</tbody></table>';
+
+		// [FU002#AK02] Abgabefingerprint: gespeicherter Abschlusswert vs. aktuelle Urne.
+		$stored = (string) ( $poll->urn_fingerprint ?? '' );
+		$live   = vv_urn_fingerprint( $poll->id );
+		if ( '' === $stored ) {
+			echo '<p class="vv-fingerprint-note">Kein Abgabefingerprint gespeichert (formeller Abschluss versäumt).</p>';
+		} elseif ( hash_equals( $stored, $live ) ) {
+			echo '<p class="vv-fingerprint-note">Abgabefingerprint: unverändert (<code>' . esc_html( substr( $stored, 0, 16 ) ) . '…</code>).</p>';
+		} else {
+			echo '<div class="notice notice-error"><p><strong>Abgabefingerprint abweichend!</strong> Die Urne wurde nach dem Abschluss verändert '
+				. '(gespeichert <code>' . esc_html( substr( $stored, 0, 16 ) ) . '…</code>, jetzt <code>' . esc_html( substr( $live, 0, 16 ) ) . '…</code>). '
+				. 'Wahlergebnis nicht als gültig behandeln.</p></div>';
+		}
+
+		// [FU005#AK05] Wahlniederschrift als druckbare Seite.
+		$report_url = wp_nonce_url(
+			admin_url( 'admin-post.php?action=vereinsvoting_report&poll=' . rawurlencode( $poll->id ) ),
+			'vv_report'
+		);
+		echo '<p><a class="button button-primary" href="' . esc_url( $report_url ) . '" target="_blank">Wahlniederschrift drucken (PDF)</a>';
+
+		// [FU002#AK08] Identitätsdaten der Wählerliste entfernen – nach der Niederschrift.
+		echo ' <form method="post" style="display:inline" onsubmit="return confirm(\'Teilnehmerdaten löschen? Die Wahlniederschrift muss vorher erstellt/archiviert sein – danach sind Einladungs-, PIN- und Abgabezeiten weg. Die Urne bleibt.\')">'
+			. wp_nonce_field( 'vv_admin', 'vv_nonce', true, false )
+			. '<input type="hidden" name="vv_action" value="delete_voter_data">'
+			. '<input type="hidden" name="poll_id" value="' . esc_attr( $poll->id ) . '">'
+			. '<button type="submit" class="button">Teilnehmerdaten löschen</button></form></p>';
+	}
+
 	if ( ! $voters ) {
 		echo '<p>Noch keine Teilnehmer importiert.</p>';
 		return;
@@ -813,14 +887,130 @@ function vv_render_members_table( $poll ) {
 		}
 		echo '</p>';
 	}
+}
+// ---------------------------------------------------------------------------
+// [FU005#AK05] Wahlniederschrift: druckbare Seite (Browser-Druck → PDF)
+// ---------------------------------------------------------------------------
 
-	// [FU005#AK03] Aggregiertes Ergebnis nach Wahlende.
-	if ( 'closed' === $poll->status ) {
-		$results = vv_get_results( $poll->id );
-		echo '<h2>Gesamtergebnis</h2><table class="widefat striped"><thead><tr><th>Option</th><th>Stimmen</th><th>Anteil</th></tr></thead><tbody>';
-		foreach ( $results as $option => $row ) {
-			echo '<tr><td>' . esc_html( ucfirst( $option ) ) . '</td><td>' . (int) $row['count'] . '</td><td>' . esc_html( number_format( $row['percent'], 1 ) ) . '%</td></tr>';
-		}
-		echo '</tbody></table>';
+add_action( 'admin_post_vereinsvoting_report', 'vv_report_endpoint' );
+
+/** [FU005#AK05] Endpoint: Capability + Nonce, danach Standalone-Ausgabe mit Exit. */
+function vv_report_endpoint() {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_die( 'Keine Berechtigung.' );
 	}
+	check_admin_referer( 'vv_report' );
+	header( 'Content-Type: text/html; charset=' . get_option( 'blog_charset' ) );
+	echo vv_report_html();
+	exit;
+}
+
+/** [FU005#AK05] Niederschrift als vollständiges HTML-Dokument ohne Admin-Chrome (Tests rufen direkt). */
+function vv_report_html() {
+	global $wpdb;
+
+	$poll_id = vv_poll_id( wp_unslash( $_GET['poll'] ?? '' ) );
+	$poll    = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}voting_polls WHERE id = %s", $poll_id ) );
+	if ( ! $poll ) {
+		return '<!DOCTYPE html><html lang="de"><body><p>Abstimmung nicht gefunden.</p></body></html>';
+	}
+
+	$results  = vv_get_results( $poll_id );
+	$ballots  = $wpdb->get_results( $wpdb->prepare(
+		"SELECT receipt_hash, vote_option FROM {$wpdb->prefix}voting_ballots WHERE poll_id = %s ORDER BY receipt_hash",
+		$poll_id
+	) );
+	$voters   = $wpdb->get_results( $wpdb->prepare(
+		"SELECT member_no, first_name, last_name, email, invited_at, pin_set_at, voted_at
+		 FROM {$wpdb->prefix}voting_voters WHERE poll_id = %s ORDER BY member_no",
+		$poll_id
+	) );
+	$statuses = [ 'draft' => 'Entwurf', 'active' => 'läuft', 'closed' => 'beendet' ];
+
+	$stored = (string) ( $poll->urn_fingerprint ?? '' );
+	$live   = vv_urn_fingerprint( $poll_id );
+	$fp_txt = '' === $stored
+		? esc_html( $live ) . ' (live berechnet – kein formeller Abschluss, kein Vergleichswert vorhanden)'
+		: ( hash_equals( $stored, $live )
+			? esc_html( $stored ) . ' stimmt mit der aktuellen Urne überein'
+			: '<strong>Abweichung!</strong> gespeichert ' . esc_html( $stored ) . ', jetzt ' . esc_html( $live ) );
+
+	ob_start(); ?>
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="<?php echo esc_html( get_option( 'blog_charset' ) ?: 'UTF-8' ); ?>">
+<title>Wahlniederschrift – <?php echo esc_html( $poll->title ); ?></title>
+<style>
+	body { font-family: -apple-system, 'Segoe UI', sans-serif; font-size: 12pt; line-height: 1.4; margin: 15mm; color: #111; }
+	h1 { font-size: 1.4em; margin: 0 0 .2em; } h2 { font-size: 1.1em; margin: 1.4em 0 .4em; }
+	table { border-collapse: collapse; width: 100%; margin: .4em 0 1em; }
+	th, td { border: 1px solid #999; padding: 4px 7px; text-align: left; }
+	th { background: #f2f2f2; }
+	code { word-break: break-all; font-size: .85em; }
+	.vv-noprint { margin: 1em 0; }
+	@media print { .vv-noprint { display: none; } @page { margin: 15mm; } }
+</style>
+</head>
+<body>
+	<p class="vv-noprint"><button onclick="window.print()">Drucken / als PDF speichern</button></p>
+	<h1>Wahlniederschrift: <?php echo esc_html( $poll->title ); ?></h1>
+	<p>Frage: <?php echo esc_html( (string) $poll->question !== '' ? (string) $poll->question : '–' ); ?><br>
+	Wahlzeitraum: <?php echo esc_html( vv_fmt( $poll->start_dt ) ); ?> – <?php echo esc_html( vv_fmt( $poll->end_dt ) ); ?><br>
+	Status: <?php echo esc_html( $statuses[ $poll->status ] ?? $poll->status ); ?> ·
+	Niederschrift erstellt am: <?php echo esc_html( vv_fmt( current_time( 'mysql' ) ) ); ?></p>
+
+	<h2>1. Ergebnis</h2>
+	<table>
+		<thead><tr><th>Option</th><th>Stimmen</th><th>Anteil</th></tr></thead>
+		<tbody>
+		<?php foreach ( $results as $option => $row ) : ?>
+			<tr><td><?php echo esc_html( ucfirst( $option ) ); ?></td>
+			<td><?php echo (int) $row['count']; ?></td><td><?php echo esc_html( number_format( $row['percent'], 1 ) ); ?>%</td></tr>
+		<?php endforeach; ?>
+		</tbody>
+	</table>
+
+	<h2>2. Abgabefingerprint (Integrität der Urne)</h2>
+	<p>Rezept: SHA-256 über alle Prüfcodes in aufsteigender Sortierung und die Zählungen (ja,nein,enthaltung).<br>
+	Fingerprint: <code><?php // Output escaped in $fp_txt
+		echo $fp_txt; // phpcs:ignore WordPress.Security.EscapeOutput -- dynamisch zusammengebaut und dort escaped ?></code></p>
+
+	<h2>3. Prüfliste (<?php echo count( $ballots ); ?> Stimmen)</h2>
+	<table>
+		<thead><tr><th>Prüfcode</th><th>Stimme</th></tr></thead>
+		<tbody>
+		<?php foreach ( $ballots as $b ) : ?>
+			<tr><td><code><?php echo esc_html( $b->receipt_hash ); ?></code></td><td><?php echo esc_html( ucfirst( $b->vote_option ) ); ?></td></tr>
+		<?php endforeach; ?>
+		</tbody>
+	</table>
+
+	<h2>4. Teilnahmekette</h2>
+	<?php if ( ! $voters ) : ?>
+	<p>Keine Teilnehmerzeiten vorhanden (bereits gelöscht oder keine Personen importiert). Ergebnis und Prüfliste oben bleiben unverändert gültig.</p>
+	<?php else : ?>
+	<table>
+		<thead><tr><th>Mitgliedsnr.</th><th>Name</th><th>E-Mail</th><th>Einladung</th><th>PIN gesetzt</th><th>Stimmabgabe</th></tr></thead>
+		<tbody>
+		<?php foreach ( $voters as $v ) : ?>
+			<?php $name = trim( (string) $v->first_name . ' ' . (string) $v->last_name ); ?>
+			<tr>
+				<td><?php echo esc_html( $v->member_no ); ?></td>
+				<td><?php echo esc_html( '' === $name ? '–' : $name ); ?></td>
+				<td><?php echo esc_html( $v->email ); ?></td>
+				<td><?php echo esc_html( vv_fmt( $v->invited_at ) ); ?></td>
+				<td><?php echo esc_html( vv_fmt( $v->pin_set_at ) ); ?></td>
+				<td><?php echo esc_html( vv_fmt( $v->voted_at ) ); ?></td>
+			</tr>
+		<?php endforeach; ?>
+		</tbody>
+	</table>
+	<?php endif; ?>
+
+	<p style="margin-top:1.4em; font-size:.8em; color:#555">Erzeugt mit vereins-voting <?php echo esc_html( VEREINS_VOTING_VERSION ); ?>. Die Urne enthält ausschließlich Prüfcode und Stimme – ohne Personenbezug, ohne Zeitstempel.</p>
+</body>
+</html>
+	<?php
+	return (string) ob_get_clean();
 }

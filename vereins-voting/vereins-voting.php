@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       vereins-voting
  * Description:       Vereins-Abstimmungen: Einladung per E-Mail-Link, PIN-Aktivierung durch das Mitglied, anonyme Stimmurne mit Receipt-Hash.
- * Version:           1.5.1
+ * Version:           1.5.2
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Felix Tensing
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Direktzugriff verweigern.
 }
 
-define( 'VEREINS_VOTING_VERSION', '1.5.1' );
+define( 'VEREINS_VOTING_VERSION', '1.5.2' );
 
 /*
  * [FU001#AK02] Bei Deaktivierung/Deinstallation werden KEINE Daten gelöscht —
@@ -47,6 +47,7 @@ function vv_create_schema() {
 			end_dt DATETIME NULL,
 			status VARCHAR(20) NOT NULL DEFAULT 'draft',
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			urn_fingerprint CHAR(64) NULL,
 			PRIMARY KEY  (id),
 			KEY status (status),
 			KEY end_dt (end_dt)
@@ -70,6 +71,7 @@ function vv_create_schema() {
 			pin_hash VARCHAR(255) NULL DEFAULT NULL,
 			has_voted TINYINT(1) NOT NULL DEFAULT 0,
 			voted_at DATETIME NULL,
+			pin_set_at DATETIME NULL,
 			invited_at DATETIME NULL,
 			invite_attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

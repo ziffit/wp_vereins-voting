@@ -154,6 +154,8 @@ return [
 		vv_check( $row && empty( $row->pin_hash ), '[FU005#AK04] PIN-Hash wird gelöscht' );
 		vv_check( $row && $row->activation_token && 32 === strlen( $row->activation_token ),
 			'[FU005#AK04] neuer Aktivierungstoken für eine neue Einladung' );
+		vv_check( null === $row->pin_set_at,
+			'[FU005#AK04/FU007#AK03] PIN-Zeitpunkt (pin_set_at) wird mit dem Hash zurückgesetzt' );
 		vv_check( $row && empty( $row->invited_at ) && 0 === (int) $row->invite_attempts,
 			'[FU005#AK04] Einladungsstatus wird für den erneuten Versand zurückgesetzt' );
 		vv_check( ! vv_rate_blocked( 'vote', $pid . '|101' ), '[FU005#AK04] Fehlversuchssperre wird aufgehoben' );
@@ -180,5 +182,45 @@ return [
 		[ $kind2 ] = vv_fx_run( 'vv_reset_pin' );
 		vv_check( 'die' === $kind2 && ! empty( vv_fx_voter_row( 'closed@example.org' )->pin_hash ),
 			'[FU005#AK04] geschlossene Wahl: kein PIN-Reset' );
+	},
+
+	'test_05_fu005_ak05_wahlniederschrift_komplett' => function () {
+		$pid = vv_fx_poll( [ 'status' => 'closed' ] );
+		vv_fx_ballot( $pid, 'ja', str_repeat( '7', 64 ) );
+		$poll = vv_fx_poll_row( $pid );
+		vv_fx_voter( $pid, '301', 'mitglied@example.org', null, '123456', 'Erika', 'Muster' );
+
+		vv_fx_http( [ 'poll' => $pid ] );
+		$html = vv_report_html();
+
+		vv_check( str_contains( $html, 'Wahlniederschrift' ) && str_contains( $html, (string) $poll->title ),
+			'[FU005#AK05] Niederschrift nennt Titel und Wahl' );
+		vv_check( str_contains( $html, '1</td>' ) && str_contains( $html, 'Ja' ),
+			'[FU005#AK05] Niederschrift enthält das Ergebnis' );
+		vv_check( str_contains( $html, str_repeat( '7', 64 ) ),
+			'[FU005#AK05] Niederschrift führt die Prüfliste vollständig auf' );
+		vv_check( str_contains( $html, '301' ) && str_contains( $html, 'mitglied@example.org' )
+			&& str_contains( $html, 'Erika Muster' ),
+			'[FU005#AK05] Teilnahmetabelle mit Mitgliedsnummer, E-Mail und Name' );
+		$row = vv_fx_voter_row( 'mitglied@example.org' );
+		vv_check( str_contains( $html, vv_fmt( $row->invited_at ) ) && str_contains( $html, vv_fmt( $row->pin_set_at ) )
+			&& str_contains( $html, vv_fmt( $row->voted_at ) ),
+			'[FU005#AK05] Einladungs-, PIN- und Abgabezeit je Person' );
+		vv_check( str_contains( $html, 'Abgabefingerprint' )
+			&& str_contains( $html, (string) $poll->urn_fingerprint ),
+			'[FU005#AK05] Niederschrift hält den Abgabefingerprint fest' );
+	},
+
+	'test_05_fu005_ak05_niederschrift_nach_raeumung' => function () {
+		global $wpdb;
+		$pid = vv_fx_poll( [ 'status' => 'closed' ] );
+		vv_fx_ballot( $pid, 'ja', str_repeat( '8', 64 ) );
+		vv_fx_voter( $pid, '401', 'neuer@example.org' );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . vv_tbl( 'voting_voters' ) . ' WHERE poll_id = %s', $pid ) );
+
+		vv_fx_http( [ 'poll' => $pid ] );
+		$html = vv_report_html();
+		vv_check( str_contains( $html, str_repeat( '8', 64 ) ) && str_contains( $html, 'Keine Teilnehmerzeiten' ),
+			'[FU005#AK05] nach der Räumung bleiben Ergebnis und Prüfliste; Zeiten sind gekennzeichnet' );
 	},
 ];
