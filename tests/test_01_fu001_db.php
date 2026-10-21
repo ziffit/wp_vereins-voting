@@ -34,6 +34,10 @@ return [
 		foreach ( [ 'poll_id', 'vote_option', 'receipt_hash' ] as $c ) {
 			vv_check( in_array( $c, $cols, true ), "[FU001#AK01] ballots-Spalte $c vorhanden" );
 		}
+		// [FU008#AK03] Urne ausschließlich diese drei Felder: kein Zeitstempel,
+		// keine laufende Nummer – sonst Korrelation mit voted_at möglich.
+		vv_check( [] === array_diff( $cols, [ 'poll_id', 'vote_option', 'receipt_hash' ] ),
+			'[FU008#AK03] Urne ausschließlich poll_id/vote_option/receipt_hash (kein created_at, kein id)' );
 	},
 
 	'test_01_fu001_ak01_kein_foreign_key' => function () {

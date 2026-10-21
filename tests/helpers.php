@@ -66,8 +66,8 @@ function vv_fx_ballot( $pid, $option = 'ja', $hash = null ) {
 	global $wpdb;
 	$hash = $hash ?? hash( 'sha256', uniqid( 'vvtest', true ) );
 	$wpdb->query( $wpdb->prepare(
-		"INSERT INTO " . vv_tbl( 'voting_ballots' ) . " (poll_id, vote_option, receipt_hash, created_at)
-		 VALUES (%s, %s, %s, NOW())",
+		"INSERT INTO " . vv_tbl( 'voting_ballots' ) . " (poll_id, vote_option, receipt_hash)
+		 VALUES (%s, %s, %s)",
 		$pid, $option, $hash
 	) );
 	return $hash;

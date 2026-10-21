@@ -81,6 +81,8 @@ switch ( $step ) {
 		foreach ( [ 'poll_id', 'vote_option', 'receipt_hash' ] as $need ) {
 			vv_assert( in_array( $need, $bcols, true ), "[FU001#AK01] ballots-Spalte $need" );
 		}
+		vv_assert( ! in_array( 'created_at', $bcols, true ) && ! in_array( 'id', $bcols, true ),
+			'[FU008#AK03] Urne ohne Zeitstempel und ohne laufende Nummer' );
 
 		// [FU002#AK07] Poll-IDs sind UUIDs (CHAR(36)), keine AUTO_INCREMENT-Zahlen.
 		$pidcol = $wpdb->get_row( "SHOW COLUMNS FROM wpx_voting_polls LIKE 'id'" );
@@ -100,12 +102,12 @@ switch ( $step ) {
 			WHERE TABLE_SCHEMA = 'vvtest' AND REFERENCED_TABLE_NAME IS NOT NULL AND TABLE_NAME LIKE 'wpx_voting_%'" );
 		vv_assert( 0 === $fks, '[FU001#AK02/Architektur] urnen-tabelle ohne foreign key beim aktivieren' );
 
-		// UNIQUE auf receipt_hash:
+		// Eindeutigkeit von receipt_hash (jetzt als Primärschlüssel):
 		$uni = (int) $wpdb->get_var( "
 			SELECT COUNT(DISTINCT INDEX_NAME) FROM information_schema.STATISTICS
 			WHERE TABLE_SCHEMA='vvtest' AND TABLE_NAME='wpx_voting_ballots'
-			  AND INDEX_NAME = 'receipt_hash' AND NON_UNIQUE = 0" );
-		vv_assert( 1 === $uni, '[FU001#AK01] ballot receipt_hash UNIQUE' );
+			  AND COLUMN_NAME = 'receipt_hash' AND NON_UNIQUE = 0" );
+		vv_assert( 1 === $uni, '[FU001#AK01] ballot receipt_hash UNIQUE (Primärschlüssel)' );
 		break;
 	}
 
@@ -365,6 +367,8 @@ switch ( $step ) {
 		vv_assert( 1 === (int) $alice->has_voted && $alice->voted_at, '[FU008#AK03] has_voted=1 + voted_at gesetzt' );
 		$b = vv_row( 'voting_ballots', "WHERE receipt_hash = '$receipt'" );
 		vv_assert( $b && 'ja' === $b->vote_option && $b->poll_id === $poll->id, '[FU008#AK03] Urnen-Zeile nur Option + PollID + Receipt' );
+		vv_assert( ! property_exists( $b, 'created_at' ) && ! property_exists( $b, 'id' ),
+			'[FU008#AK03] Urnenzeile hat keinen Zeitstempel und keine laufende Nummer' );
 		break;
 	}
 
@@ -448,6 +452,9 @@ switch ( $step ) {
 			'[FU009#AK03] Receipts in Prüftabelle gelistet (erste 5 Zeichen hervorgehoben)' );
 		// Kein Personenname in Urnenausgabe?
 		vv_assert( ! preg_match( '/(alice|bob@example)/i', $html ), '[FU009#AK03] Prüfliste anonym (kein Mail/Namen)' );
+		// [FU009#AK03] Keine Zeitangaben in der Prüfliste – sonst Korrelation mit „Gewählt am“.
+		vv_assert( ! str_contains( $html, 'Zeitpunkt' ) && ! str_contains( $html, 'Stimmabgabe am' ),
+			'[FU009#AK03] Prüfliste ohne Uhrzeit (keine Korrelation mit voted_at)' );
 
 		// [FU005#AK01] Admin-Beteiligungsansicht.
 		ob_start();

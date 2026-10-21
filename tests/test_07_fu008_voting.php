@@ -98,6 +98,10 @@ return [
 		// Anonymität: keine Mitgliedsnummer/E-Mail in der Urne.
 		vv_check( ! property_exists( $ballot, 'member_no' ) && ! property_exists( $ballot, 'email' ),
 			'[FU008#AK03] Urne enthält keine Mitgliederkategorien' );
+		// Kein Zeitstempel, keine laufende Nummer: voted_at/„Gewählt am“ und
+		// Urnenzeile sind weder über die Zeit noch über die Reihenfolge verknüpfbar.
+		vv_check( ! property_exists( $ballot, 'created_at' ) && ! property_exists( $ballot, 'id' ),
+			'[FU008#AK03] Urne ohne Zeitstempel und ohne laufende Nummer' );
 	},
 
 	'test_07_fu008_ak02_doppelvoting' => function () {

@@ -266,18 +266,20 @@ function vv_results_html() {
 		}
 		$html .= '</tbody></table>';
 
-		// [FU009#AK03] Vollständige anonyme Prüftabelle.
+		// [FU009#AK03] Vollständige anonyme Prüftabelle – ohne Uhrzeit und in
+		// Prüfcode-Reihenfolge, damit sie keine Rückschlüsse auf Zeitpunkt oder
+		// Person erlaubt (Korrelation mit „Gewählt am“ im Backend ausschließen).
 		$ballots = $wpdb->get_results( $wpdb->prepare(
-			"SELECT receipt_hash, vote_option, created_at FROM {$wpdb->prefix}voting_ballots WHERE poll_id = %s ORDER BY id",
+			"SELECT receipt_hash, vote_option FROM {$wpdb->prefix}voting_ballots WHERE poll_id = %s ORDER BY receipt_hash",
 			$poll_id
 		) );
 		$html .= '<h3>Prüfliste (anonym)</h3>';
 		$html .= '<p>Suche in der Liste deinen Prüfcode aus der Bestätigung – die ersten fünf Zeichen sind fett hervorgehoben. '
 			. 'Dann siehst du, ob deine Stimme korrekt gezählt wurde. Die Liste enthält keine Personen.</p>';
-		$html .= '<table class="vv-table"><thead><tr><th>Prüfcode</th><th>Stimme</th><th>Zeitpunkt</th></tr></thead><tbody>';
+		$html .= '<table class="vv-table"><thead><tr><th>Prüfcode</th><th>Stimme</th></tr></thead><tbody>';
 		foreach ( $ballots as $b ) {
 			$html .= '<tr><td><code><strong>' . esc_html( substr( $b->receipt_hash, 0, 5 ) ) . '</strong>'
-				. esc_html( substr( $b->receipt_hash, 5 ) ) . '</code></td><td>' . esc_html( ucfirst( $b->vote_option ) ) . '</td><td>' . esc_html( vv_fmt( $b->created_at ) ) . '</td></tr>';
+				. esc_html( substr( $b->receipt_hash, 5 ) ) . '</code></td><td>' . esc_html( ucfirst( $b->vote_option ) ) . '</td></tr>';
 		}
 		$html .= '</tbody></table>';
 		return $html;

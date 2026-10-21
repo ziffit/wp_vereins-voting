@@ -61,6 +61,9 @@ return [
 		// Anonymitätstest: keine Namen, keine Mailadressen, keine Tokens in der Prüfliste.
 		vv_check( ! str_contains( $html, 'geheim@example.org' ), '[FU009#AK03] anonym (keine E-Mail-Adresse)' );
 		vv_check( ! str_contains( $html, 'tokq' ), '[FU009#AK03] anonym (keine Token-Werte)' );
+		// Keine Uhrzeit in der Prüfliste – sonst Korrelation mit „Gewählt am“ möglich.
+		vv_check( ! str_contains( $html, 'Zeitpunkt' ),
+			'[FU009#AK03] Prüfliste ohne Zeitstempel (keine Korrelation mit voted_at)' );
 		vv_check( 1 === substr_count( $html, '<strong>' . substr( $h1, 0, 5 ) . '</strong>' ),
 			'[FU009#AK03] jeder Receipt exakt einmal gelistet' );
 		vv_check( str_contains( $html, 'vv-version' ), '[FU007#AK05] Versionszeile auch bei den Ergebnissen' );

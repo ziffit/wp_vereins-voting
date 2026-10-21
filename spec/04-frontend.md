@@ -54,7 +54,10 @@ Das eigentliche Wahlformular während des aktiven Wahlzeitraums.
   1. Setze `has_voted = 1` und `voted_at = NOW()` in `wp_voting_voters`.
   2. Generiere einen anonymen `receipt_hash` (sha256).
   3. Speichere nur `poll_id`, `vote_option` und `receipt_hash` in
-     `wp_voting_ballots`.
+     `wp_voting_ballots`. Die Urne führt bewusst **keinen Zeitstempel und
+     keine laufende Nummer** (Primärkey = `receipt_hash`): `voted_at` in der
+     Wählerliste und die Urnenzeile sind damit weder über einen Zeitpunkt
+     noch über die Einwurf-Reihenfolge einer Person zuzuordnen.
 
 - **[FU008#AK04]** Nach erfolgreicher Stimmabgabe wird dem Wähler der
   anonyme `receipt_hash` auf dem Bildschirm angezeigt mit dem Hinweis, die
@@ -93,4 +96,8 @@ Prüftabelle.
   verifizieren, dass seine Stimme korrekt gezählt wurde. Die ersten fünf
   Zeichen jedes Prüfcodes werden fett hervorgehoben; sie reichen
   normalerweise aus, um eine Stimme bei bis zu einigen Tausend Wählern
-  eindeutig wiederzufinden.
+  eindeutig wiederzufinden. Die Prüfliste zeigt ausschließlich Prüfcode und
+  gewählte Option – **ohne Uhrzeit und in der Reihenfolge des Prüfcodes**
+  statt nach Einwurfzeit; sie erlaubt keine Rückschlüsse auf den Zeitpunkt
+  einer Stimme und damit keine Korrelation mit „Gewählt am“ in der
+  Teilnehmerliste.

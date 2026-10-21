@@ -136,6 +136,12 @@ Der Code allein verrät keine Person – er steht in der Tabelle ohne Namen.
 Aber er verrät die Stimme dahinter. Behandle ihn wie einen Stimmzettel:
 deine Sache.
 
+**Kann der Vorstand aus Zeitangaben erkennen, was ich gewählt habe?**
+Nein. Die Teilnehmerliste zeigt dem Vorstand nur, *ob* und *wann* abgestimmt
+wurde – nicht die Stimme. Die Urne selbst enthält keine Uhrzeit und keine
+laufende Nummer, und die Prüfliste zeigt keine Zeitangaben. Es gibt damit
+keinen Wert, den man mit deinem Abstimmungszeitpunkt abgleichen könnte.
+
 **Was, wenn ich die Einladung nie bekommen habe?**
 Spam-Ordner prüfen, dann im Vorstand melden – die Adresse ist dann
 vermutlich veraltet.

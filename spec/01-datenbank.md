@@ -20,7 +20,11 @@ PIN-Hashes) und `wp_voting_ballots` (anonyme Stimmen).
   `invited_at` (DATETIME NULL) und `invite_attempts` (TINYINT UNSIGNED,
   Default 0) für den gedrosselten Einladungsversand. `wp_voting_polls`
   enthält `mail_text` (TEXT NULL) und `mail_url` (VARCHAR(500) NULL) für den
-  Text und den optionalen Website-Link je Abstimmung. Eindeutig ist die
+  Text und den optionalen Website-Link je Abstimmung. Die anonyme Urne
+  `wp_voting_ballots` besteht ausschließlich aus `poll_id`, `vote_option`
+  und `receipt_hash` (Primärschlüssel) – ohne Zeitstempel und ohne laufende
+  Nummer, damit keine Korrelation mit `voted_at` möglich ist (FU008#AK03).
+  Eindeutig ist die
   Kombination `(poll_id, member_no, email)`; die E-Mail-Adresse allein ist
   nicht eindeutig (Ehepaare können sie teilen).
 
