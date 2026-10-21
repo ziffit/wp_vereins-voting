@@ -65,7 +65,10 @@ löschen.
   Ergebnis und Prüfliste vollständig erhalten bleiben. Die Aktion ist nur
   im Status `closed` möglich und erfordert Nonce und Bestätigungsdialog mit
   dem Hinweis, die Wahlniederschrift (FU005#AK05) vorher zu erstellen und
-  zu archivieren. Es bleiben keine Kopien oder Papierkorbeinträge zurück;
+  zu archivieren. Existieren keine Teilnehmerdaten mehr (bereits gelöscht
+  oder nicht importiert), erscheint statt der Schaltfläche die Meldung
+  „Keine Teilnehmerdaten mehr vorhanden“. Es bleiben keine Kopien oder
+  Papierkorbeinträge zurück;
   die Gesamtlöschen-Regel (nur im Status `draft`) und FU001#AK02 bleiben
   unberührt.
 

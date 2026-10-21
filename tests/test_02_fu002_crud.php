@@ -375,6 +375,19 @@ return [
 			'[FU002#AK08] beendete Wahl: Teilnehmeransicht ohne CSV-Import/Einladungsoptionen' );
 		vv_check( str_contains( $html, 'Gesamtergebnis' ) && str_contains( $html, '>Zurück</' ),
 			'[FU002#AK08] Ergebnisblock und Zurück bleiben sichtbar' );
+		vv_check( ! str_contains( $html, 'delete_voter_data' )
+			&& str_contains( $html, 'Keine Teilnehmerdaten mehr vorhanden' ),
+			'[FU002#AK08] ohne Teilnehmer: Meldung statt Lösch-Button' );
+
+		// Mit Teilnehmern bleibt der Lösch-Button.
+		$pid3 = vv_fx_poll( [ 'status' => 'closed' ] );
+		vv_fx_voter( $pid3, '99', 'da@example.org' );
+		vv_fx_http( [ 'page' => 'vereins-voting', 'view' => 'members', 'poll' => $pid3 ] );
+		ob_start();
+		vv_render_admin_page();
+		$html3 = (string) ob_get_clean();
+		vv_check( str_contains( $html3, 'delete_voter_data' ) && str_contains( $html3, 'Teilnehmerdaten löschen' ),
+			'[FU002#AK08] mit Teilnehmern: Lösch-Button sichtbar' );
 
 		// Laufende Wahlen behalten die Optionen.
 		$pid2 = vv_fx_poll( [ 'status' => 'active' ] );

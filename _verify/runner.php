@@ -505,6 +505,9 @@ switch ( $step ) {
 		$admin = ob_get_clean();
 		vv_assert( str_contains( $admin, 'Gesamtergebnis' ) && str_contains( $admin, 'Noch keine Teilnehmer importiert' ),
 			'[FU005#AK05] auch ohne Teilnehmer: Ergebnis + Fingerprint sichtbar (GUI)' );
+		vv_assert( ! str_contains( $admin, 'delete_voter_data' )
+			&& str_contains( $admin, 'Keine Teilnehmerdaten mehr vorhanden' ),
+			'[FU002#AK08] nach der Räumung: Meldung statt Lösch-Button (GUI)' );
 
 		// Niederschrift nach dem Löschen: Ergebnis + Prüfliste bleiben, Zeiten Hinweis.
 		$_GET = [ 'poll' => $poll_id ];

@@ -845,12 +845,16 @@ function vv_render_members_table( $poll ) {
 		echo '<p><a class="button button-primary" href="' . esc_url( $report_url ) . '" target="_blank">Wahlniederschrift drucken (PDF)</a>';
 
 		// [FU002#AK08] Identitätsdaten der Wählerliste entfernen – nach der Niederschrift.
-		echo ' <form method="post" style="display:inline" onsubmit="return confirm(\'Teilnehmerdaten löschen? Die Wahlniederschrift muss vorher erstellt/archiviert sein – danach sind Einladungs-, PIN- und Abgabezeiten weg. Die Urne bleibt.\')">'
-			. wp_nonce_field( 'vv_admin', 'vv_nonce', true, false )
-			. '<input type="hidden" name="vv_action" value="delete_voter_data">'
-			. '<input type="hidden" name="poll_id" value="' . esc_attr( $poll->id ) . '">'
-			. '<button type="submit" class="button">Teilnehmerdaten löschen</button></form>'
-			. ' <a class="button" href="' . esc_url( admin_url( 'admin.php?page=vereins-voting' ) ) . '">Zurück</a></p>';
+		if ( $total > 0 ) {
+			echo ' <form method="post" style="display:inline" onsubmit="return confirm(\'Teilnehmerdaten löschen? Die Wahlniederschrift muss vorher erstellt/archiviert sein – danach sind Einladungs-, PIN- und Abgabezeiten weg. Die Urne bleibt.\')">'
+				. wp_nonce_field( 'vv_admin', 'vv_nonce', true, false )
+				. '<input type="hidden" name="vv_action" value="delete_voter_data">'
+				. '<input type="hidden" name="poll_id" value="' . esc_attr( $poll->id ) . '">'
+				. '<button type="submit" class="button">Teilnehmerdaten löschen</button></form>';
+		} else {
+			echo ' <span class="description">Keine Teilnehmerdaten mehr vorhanden (bereits gelöscht oder nicht importiert).</span>';
+		}
+		echo ' <a class="button" href="' . esc_url( admin_url( 'admin.php?page=vereins-voting' ) ) . '">Zurück</a></p>';
 	}
 
 	if ( ! $voters ) {
