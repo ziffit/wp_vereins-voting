@@ -47,7 +47,7 @@ löschen.
   Registerkarten gegliedert – **Wahl** (Titel, Frage, Zeitraum, Status,
   vorzeitiges Beenden, Löschen im Entwurf), **Teilnehmer** (CSV-Import,
   Liste mit Wahl-Code-Reset, Räumung der Teilnehmerdaten), **E-Mail**
-  (Einladungsversand mit Textblock und Website-URL, Vorschau, Testmail,
+  (Einladungsversand mit Textblock, Vorschau, Testmail,
   Versandstatus) und **Wahlergebnis** (Gesamtergebnis, Abgabefingerprint,
   Wahlniederschrift).
   Es werden nur mögliche Aktionen angeboten; nicht mögliche erscheinen als
@@ -118,8 +118,7 @@ Import einer Mitgliederliste per CSV-Upload pro Abstimmung.
 
 Gedrosselter Massenversand der Einladungs-E-Mails an alle importierten Wähler
 einer Abstimmung. Die Gestaltung und die globalen Texte gelten für alle
-Abstimmungen; je Abstimmung gibt es nur einen Textblock und einen optionalen
-Website-Link.
+Abstimmungen; je Abstimmung gibt es nur einen Textblock.
 
 ### Akzeptanzkriterien
 
@@ -146,14 +145,13 @@ Website-Link.
   bisherige Text `vv_invite_body` bleibt in der Datenbank, wird aber nicht
   automatisch übernommen.
 
-- **[FU004#AK03]** Je Abstimmung lassen sich ein Textblock und optional eine
-  Website-URL speichern. Der Textblock darf die dokumentierten Platzhalter
-  verwenden; die URL muss `http` oder `https` sein. Die Mail führt durch die
-  Schritte des Ablaufs: Wahl-Code erzeugen (Aktivierungsbutton, immer), im
-  Wahlzeitraum abstimmen (Button zur Stimmformular-Seite), nach Wahlende
-  Ergebnisse prüfen (Link zur Ergebnisseite). Der
-  Website-Link erscheint optional als Hinweis „Mehr zum Ablauf der Wahl und
-  der eingesetzten Software“. Der Textblock ersetzt
+- **[FU004#AK03]** Je Abstimmung lässt sich ein Textblock speichern. Der
+  Textblock darf die dokumentierten Platzhalter verwenden. Die Mail führt
+  durch die Schritte des Ablaufs: Wahl-Code erzeugen (Aktivierungsbutton,
+  immer), im Wahlzeitraum abstimmen (Button zur Stimmformular-Seite),
+  nach Wahlende Ergebnisse prüfen (Link zur Ergebnisseite). Einen
+  automatischen Website-Hinweis gibt es nicht; wer eine Adresse nennen
+  will, schreibt sie in den Textblock. Der Textblock ersetzt
   nicht die globale Einleitung oder den Footer.
 
 - **[FU004#AK04]** Der Versand läuft in Batches über `wp_mail()` und WP-Cron.

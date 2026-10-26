@@ -23,9 +23,9 @@ arbeiten ausschließlich mit erfundenen Beispieldaten.
   ersten fünf Zeichen des Prüfcodes zum Wiederfinden der eigenen Stimme
   reichen. Die URLs der Stimmformular-Seite und der Ergebnisseite sind
   Pflichtfelder: ohne gültige http(s)-Adressen wird das Speichern der
-  E-Mail-Einstellungen abgewiesen und es wird nicht versendet. Ein optionaler
-  Website-Link der Abstimmung erscheint als Hinweis „Mehr zum Ablauf der
-  Wahl und der eingesetzten Software“.
+  E-Mail-Einstellungen abgewiesen und es wird nicht versendet. Einen
+  automatischen Website-Hinweis gibt es nicht; wer eine Adresse nennen
+  will, schreibt sie in den Textblock je Abstimmung.
 
 - **[FU006#AK02]** Die Mail wird als HTML mit UTF-8 und als Plain-Text-
   Alternative versendet. Das HTML-Layout ist fest im Plugin (Tabellenlayout,
@@ -41,9 +41,9 @@ arbeiten ausschließlich mit erfundenen Beispieldaten.
   editierbar und bleiben als Optionen gespeichert. Der Versand überschreibt
   sie nicht. Der bisherige Betreff `vv_invite_subject` bleibt als Fallback
   lesbar; der bisherige Text `vv_invite_body` bleibt in der Datenbank, wird
-  aber nicht automatisch in die neue Vorlage übernommen. Der Textblock und
-  der optionale Website-Link je Abstimmung liegen in
-  `voting_polls.mail_text`/`mail_url`.
+  aber nicht automatisch in die neue Vorlage übernommen. Der Textblock je
+  Abstimmung liegt in `voting_polls.mail_text`; `mail_url` bleibt als
+  ungenutztes Altfeld bestehen.
 
 - **[FU006#AK04]** Betreff, Einleitung, Footer und der Text je Abstimmung
   dürfen die Platzhalter `{vorname}`, `{nachname}`, `{first_name}`,

@@ -397,6 +397,7 @@ return [
 		vv_fx_mail_settings( [ 'vote' => '', 'results' => '' ] );
 		$pid = vv_fx_poll( [ 'title' => 'Layoutwahl', 'question' => 'Frage?' ] );
 		global $wpdb;
+		// Alte gespeicherte Website-Links bleiben in der DB, werden aber ignoriert.
 		$wpdb->update( vv_tbl( 'voting_polls' ), [ 'mail_url' => 'https://verein.example.org/info/' ], [ 'id' => $pid ] );
 		$poll   = vv_fx_poll_row( $pid );
 		$voter  = (object) [
@@ -410,14 +411,14 @@ return [
 
 		vv_check( str_contains( $parts['html'], '<!DOCTYPE html>' ) && str_contains( $parts['html'], 'Wahl-Code erzeugen' ),
 			'[FU006#AK02] HTML-Teil enthält Layout und Aktivierungsbutton' );
-		vv_check( str_contains( $parts['html'], 'Mehr zum Ablauf' ) && str_contains( $parts['html'], 'https://verein.example.org/info/' ),
-			'[FU006#AK02] optionaler Website-Link steht im HTML-Teil' );
+		vv_check( ! str_contains( $parts['html'], 'Mehr zum Ablauf' ) && ! str_contains( $parts['html'], 'https://verein.example.org/info/' ),
+			'[FU004#AK03] kein Website-Link-Hinweis im HTML-Teil' );
 		vv_check( str_contains( $parts['html'], 'Testverein e.V.' ), '[FU006#AK02] Footer steht im HTML-Teil' );
 		vv_check( str_contains( $parts['plain'], 'Wahl-Code erzeugen (6 Zeichen: Buchstaben und Ziffern): https://seite.example.org/aktivieren/' ),
 			'[FU006#AK02] Text-Teil enthält den persönlichen Link' );
-		vv_check( str_contains( $parts['plain'], 'Mehr zum Ablauf und zur eingesetzten Software: https://verein.example.org/info/' )
+		vv_check( ! str_contains( $parts['plain'], 'Mehr zum Ablauf' )
 			&& str_contains( $parts['plain'], 'Testverein e.V.' ),
-			'[FU006#AK02] Text-Teil enthält Website-Link und Footer' );
+			'[FU004#AK03] kein Website-Link-Hinweis im Text-Teil, Footer bleibt' );
 		vv_check( ! str_contains( $parts['html'], 'Jetzt abstimmen' ) && ! str_contains( $parts['html'], 'Ergebnisse ansehen' ),
 			'[FU006#AK01] ohne optionale URLs bleiben Schritt 2 und 3 aus' );
 
@@ -496,7 +497,7 @@ return [
 			'[FU006#AK05] Testmail verändert den Versandstatus nicht' );
 	},
 
-	'test_04_fu004_ak03_poll_text_und_link_speichern' => function () {
+	'test_04_fu004_ak03_poll_text_speichern' => function () {
 		vv_fx_mail_settings();
 		$pid = vv_fx_poll();
 
@@ -504,26 +505,23 @@ return [
 			'vv_action' => 'save_poll_mail',
 			'poll'      => $pid,
 			'mail_text' => "Hallo {vorname},\r\n\r\n{poll_title}: {question}",
-			'mail_url'  => 'https://verein.example.org/info/',
 		] );
 		[ $kind, $url ] = vv_fx_run( 'vv_save_poll_mail' );
 		$row = vv_fx_poll_row( $pid );
 		vv_check( 'redirect' === $kind && str_contains( (string) $url, 'mail_saved=1' ),
 			'[FU004#AK03] Textblock wird gespeichert' );
-		vv_check( "Hallo {vorname},\r\n\r\n{poll_title}: {question}" === $row->mail_text
-			&& 'https://verein.example.org/info/' === $row->mail_url,
-			'[FU004#AK03] Textblock und Website-Link stehen an der Abstimmung' );
+		vv_check( "Hallo {vorname},\r\n\r\n{poll_title}: {question}" === $row->mail_text,
+			'[FU004#AK03] Textblock steht an der Abstimmung' );
 
 		vv_fx_http( [], [
 			'vv_action' => 'save_poll_mail',
 			'poll'      => $pid,
-			'mail_text' => 'Text',
-			'mail_url'  => 'javascript:alert(1)',
+			'mail_text' => 'Text mit {member_no}',
 		] );
 		[ $kind, $url ] = vv_fx_run( 'vv_save_poll_mail' );
 		vv_check( 'redirect' === $kind && str_contains( (string) $url, 'mail_error=1' ),
-			'[FU004#AK03] ungültiger Website-Link wird abgewiesen' );
-		vv_check( 'https://verein.example.org/info/' === vv_fx_poll_row( $pid )->mail_url,
-			'[FU004#AK03] vorhandener Link bleibt bei Fehler unverändert' );
+			'[FU006#AK04] unbekannter Platzhalter {member_no} wird abgewiesen' );
+		vv_check( "Hallo {vorname},\r\n\r\n{poll_title}: {question}" === vv_fx_poll_row( $pid )->mail_text,
+			'[FU004#AK03] vorhandener Text bleibt bei Fehler unverändert' );
 	},
 ];

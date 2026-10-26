@@ -76,10 +76,6 @@ function vv_mail_poll_text_template( $poll ) {
 	return '' === $text ? vv_mail_poll_text_default() : $text;
 }
 
-function vv_mail_poll_url( $poll ) {
-	return $poll && isset( $poll->mail_url ) ? trim( (string) $poll->mail_url ) : '';
-}
-
 /** Nur http(s)-Adressen; verhindert javascript:-Links in Mails. */
 function vv_mail_url_valid( $url ) {
 	$parts = parse_url( trim( (string) $url ) );
@@ -138,9 +134,8 @@ function vv_mail_replace( $text, $poll, $voter = null ) {
 /**
  * Baut Betreff, HTML und Text einer Einladung.
  *
- * Der persönliche Aktivierungslink ist immer ein Button; der Website-Link der
- * Abstimmung ist zusätzlich und optional. Beide werden nicht aus dem Freitext
- * geraten, damit kein Link verschwindet oder doppelt entsteht.
+ * Der persönliche Aktivierungslink ist immer ein Button. Er wird nicht aus
+ * dem Freitext geraten, damit kein Link verschwindet oder doppelt entsteht.
  */
 function vv_mail_parts( $poll, $voter, $overrides = [] ) {
 	$subject_tpl = $overrides['subject'] ?? vv_mail_subject_template();
@@ -150,7 +145,6 @@ function vv_mail_parts( $poll, $voter, $overrides = [] ) {
 	$activate    = $overrides['activate_url'] ?? vv_mail_activate_url();
 	$vote        = $overrides['vote_url'] ?? vv_mail_vote_url();
 	$results     = $overrides['results_url'] ?? vv_mail_results_url();
-	$website     = $overrides['website_url'] ?? vv_mail_poll_url( $poll );
 
 	$subject   = vv_mail_replace( $subject_tpl, $poll, $voter );
 	$intro     = vv_mail_replace( $intro_tpl, $poll, $voter );
@@ -168,10 +162,6 @@ function vv_mail_parts( $poll, $voter, $overrides = [] ) {
 		);
 	}
 
-	if ( ! vv_mail_url_valid( $website ) ) {
-		$website = '';
-	}
-
 	return [
 		'subject'     => $subject,
 		'intro'       => $intro,
@@ -180,9 +170,8 @@ function vv_mail_parts( $poll, $voter, $overrides = [] ) {
 		'link'        => $link,
 		'vote_url'    => $vote,
 		'results_url' => $results,
-		'website'     => $website,
-		'html'        => vv_mail_html( $subject, $intro, $poll_text, $footer, $link, $website, $vote, $results ),
-		'plain'       => vv_mail_plain( $intro, $poll_text, $footer, $link, $website, $vote, $results ),
+		'html'        => vv_mail_html( $subject, $intro, $poll_text, $footer, $link, $vote, $results ),
+		'plain'       => vv_mail_plain( $intro, $poll_text, $footer, $link, $vote, $results ),
 	];
 }
 
@@ -244,13 +233,9 @@ function vv_mail_steps( $link, $vote_url, $results_url ) {
 	return $html;
 }
 
-function vv_mail_html( $subject, $intro, $poll_text, $footer, $link, $website, $vote_url = '', $results_url = '' ) {
+function vv_mail_html( $subject, $intro, $poll_text, $footer, $link, $vote_url = '', $results_url = '' ) {
 	$content = vv_mail_paragraphs( $intro . "\n\n" . $poll_text );
 	$content .= vv_mail_steps( $link, $vote_url, $results_url );
-	if ( '' !== $website ) {
-		$content .= '<p style="font-size: 14px; margin: 16px 0">Mehr zum Ablauf der Wahl und der eingesetzten Software: '
-			. '<a href="' . esc_url( $website ) . '" style="color: #1a82e2; text-decoration: underline">Website des Vereins</a></p>';
-	}
 
 	$footer_html = '';
 	if ( '' !== trim( (string) $footer ) ) {
@@ -268,7 +253,7 @@ function vv_mail_html( $subject, $intro, $poll_text, $footer, $link, $website, $
 	] );
 }
 
-function vv_mail_plain( $intro, $poll_text, $footer, $link, $website, $vote_url = '', $results_url = '' ) {
+function vv_mail_plain( $intro, $poll_text, $footer, $link, $vote_url = '', $results_url = '' ) {
 	$text = rtrim( (string) $intro ) . "\n\n" . rtrim( (string) $poll_text );
 	$text .= "\n\nSo geht’s weiter:\n1. Wahl-Code erzeugen (6 Zeichen: Buchstaben und Ziffern): " . $link;
 	if ( '' !== $vote_url ) {
@@ -276,9 +261,6 @@ function vv_mail_plain( $intro, $poll_text, $footer, $link, $website, $vote_url 
 	}
 	if ( '' !== $results_url ) {
 		$text .= "\n3. Nach Wahlende Ergebnisse prüfen: " . $results_url;
-	}
-	if ( '' !== $website ) {
-		$text .= "\n\nMehr zum Ablauf und zur eingesetzten Software: " . $website;
 	}
 	if ( '' !== trim( (string) $footer ) ) {
 		$text .= "\n\n" . trim( (string) $footer );
@@ -342,7 +324,6 @@ function vv_mail_preview_data( $poll_id = '' ) {
 			'start_dt'   => date( 'Y-m-d H:i:s', strtotime( '+1 day' ) ),
 			'end_dt'     => date( 'Y-m-d H:i:s', strtotime( '+8 days' ) ),
 			'mail_text'  => '',
-			'mail_url'   => home_url( '/' ),
 			'status'     => 'draft',
 		];
 	}
@@ -540,7 +521,7 @@ function vv_save_mail_settings() {
 	exit;
 }
 
-/** [FU006] Textblock und optionalen Website-Link einer Abstimmung speichern. */
+/** [FU006] Textblock einer Abstimmung speichern. */
 function vv_save_poll_mail() {
 	global $wpdb;
 
@@ -554,7 +535,6 @@ function vv_save_poll_mail() {
 	}
 
 	$text = sanitize_textarea_field( wp_unslash( $_POST['mail_text'] ?? '' ) );
-	$url  = mb_substr( esc_url_raw( wp_unslash( $_POST['mail_url'] ?? '' ) ), 0, 500 );
 	$page = admin_url( 'admin.php?page=vereins-voting&view=mail&poll=' . rawurlencode( $poll_id ) );
 
 	$errors = [];
@@ -562,14 +542,10 @@ function vv_save_poll_mail() {
 	if ( $unknown ) {
 		$errors[] = 'Unbekannte Platzhalter: ' . implode( ', ', $unknown ) . '.';
 	}
-	if ( '' !== $url && ! vv_mail_url_valid( $url ) ) {
-		$errors[] = 'Bitte eine gültige http(s)-URL für den Website-Link angeben.';
-	}
 
 	if ( $errors ) {
 		set_transient( vv_mail_poll_flash_key( $poll_id ), [
 			'mail_text' => $text,
-			'mail_url'  => $url,
 			'error'     => implode( ' ', $errors ),
 		], 60 );
 		wp_safe_redirect( add_query_arg( [ 'mail_error' => 1 ], $page ) );
@@ -578,7 +554,7 @@ function vv_save_poll_mail() {
 
 	$wpdb->update(
 		"{$wpdb->prefix}voting_polls",
-		[ 'mail_text' => $text, 'mail_url' => $url ],
+		[ 'mail_text' => $text ],
 		[ 'id' => $poll_id ]
 	);
 

@@ -130,13 +130,13 @@ return [
 			'[FU008#AK04] Shortcode zeigt Receipt-Hash nach Erfolg im Browser' );
 		vv_check( str_contains( $html, 'ersten 5 Stellen' ),
 			'[FU008#AK04] Hinweis: ersten 5 Stellen des Prüfcodes notieren' );
-		// [FU008#AK04] Die ersten 5 Zeichen stehen zusätzlich als eigener
-		// vv-receipt-Ausschnitt im Text (ein Klick markiert genau sie).
+		// [FU008#AK04] Die ersten 5 Zeichen stehen direkt hinter dem Notier-Satz
+		// als eigener vv-receipt-Ausschnitt (ein Klick markiert genau sie).
 		vv_check( (bool) preg_match(
-			'/Urne liegt\. <code class="vv-receipt">([0-9a-f]{5})<\/code><\/small>/',
+			'/Codes: <code class="vv-receipt">([0-9a-f]{5})<\/code><br/',
 			$html,
 			$m5 ) && (bool) preg_match( '/vv-receipt">([0-9a-f]{64})</', $html, $m64 ) && $m5[1] === substr( $m64[1], 0, 5 ),
-			'[FU008#AK04] ersten 5 Prüfcode-Zeichen erneut angezeigt und einzeln selektierbar' );
+			'[FU008#AK04] ersten 5 Prüfcode-Zeichen direkt nach dem Hinweis, einzeln selektierbar' );
 		vv_check( str_contains( $html, 'vv-version' ), '[FU007#AK05] Versionszeile auch bei der Stimmabgabe' );
 		vv_check( ! str_contains( $html, '<form' ), '[FU008#AK04] Formular nach Abstimmung ausgeblendet' );
 		vv_check( 1 === vv_fx_ballots_count( $pid ), '[FU008#AK04] Urne erhielt genau eine Stimme' );

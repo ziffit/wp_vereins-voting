@@ -200,9 +200,10 @@ function vv_form_html() {
 				// (vv-receipt: user-select all) — ein Klick markiert genau sie.
 				return '<div class="vv-box vv-success"><strong>Deine Stimme wurde gezählt. Danke!</strong><br>'
 					. 'Dein persönlicher Prüfcode (Receipt-Hash):<br><code class="vv-receipt">' . esc_html( $receipt ) . '</code><br>'
-					. '<small>Notiere dir die ersten 5 Stellen des Codes – deine Stimme ist damit normalerweise eindeutig auffindbar. '
-					. 'Damit kannst du nach Wahlende prüfen, dass deine Stimme in der Urne liegt. '
-					. '<code class="vv-receipt">' . esc_html( substr( $receipt, 0, 5 ) ) . '</code></small></div>';
+					. '<small>Notiere dir die ersten 5 Stellen des Codes: '
+					. '<code class="vv-receipt">' . esc_html( substr( $receipt, 0, 5 ) ) . '</code><br>'
+					. 'Deine Stimme ist damit normalerweise eindeutig auffindbar. '
+					. 'Damit kannst du nach Wahlende prüfen, dass deine Stimme in der Urne liegt.</small></div>';
 			} catch ( \Throwable $e ) {
 				$error = $e->getMessage();
 			}

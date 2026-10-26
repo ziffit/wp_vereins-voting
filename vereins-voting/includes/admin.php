@@ -686,7 +686,6 @@ function vv_render_invite_form( $poll ) {
 	$flash = get_transient( vv_mail_poll_flash_key( $poll->id ) );
 	delete_transient( vv_mail_poll_flash_key( $poll->id ) );
 	$mail_text = $flash['mail_text'] ?? ( '' !== trim( (string) $poll->mail_text ) ? (string) $poll->mail_text : vv_mail_poll_text_default() );
-	$mail_url  = $flash['mail_url'] ?? (string) $poll->mail_url;
 
 	$user = function_exists( 'wp_get_current_user' ) ? wp_get_current_user() : null;
 	$test_address = $user && isset( $user->user_email ) ? (string) $user->user_email : '';
@@ -698,7 +697,7 @@ function vv_render_invite_form( $poll ) {
 	<h2>Einladungen versenden</h2>
 	<p>Vorlage, Betreff und Footer gelten global und stehen unter
 		<a href="<?php echo esc_url( $settings_url ); ?>">E-Mail-Einstellungen</a>.
-		Hier steht nur der Text dieser Abstimmung und ein optionaler Website-Link.</p>
+		Hier steht nur der Text dieser Abstimmung.</p>
 	<?php if ( $flash && ! empty( $flash['error'] ) ) : ?>
 		<div class="notice notice-error"><p><?php echo esc_html( $flash['error'] ); ?></p></div>
 	<?php elseif ( isset( $_GET['mail_error'] ) ) : ?>
@@ -722,7 +721,7 @@ function vv_render_invite_form( $poll ) {
 	<?php endif; ?>
 
 	<h3>E-Mail-Text dieser Abstimmung</h3>
-	<p>Platzhalter: <code>{vorname} {nachname} {first_name} {last_name} {poll_title} {question} {start} {end} {member_no} {site_name} {site_url} {privacy_url}</code></p>
+	<p>Platzhalter: <code>{vorname} {nachname} {first_name} {last_name} {poll_title} {question} {start} {end} {site_name} {site_url} {privacy_url}</code></p>
 	<form method="post">
 		<?php wp_nonce_field( 'vv_admin', 'vv_nonce' ); ?>
 		<input type="hidden" name="vv_action" value="save_poll_mail">
@@ -731,12 +730,6 @@ function vv_render_invite_form( $poll ) {
 			<tr>
 				<th><label for="vv-mail-text">Textblock</label></th>
 				<td><textarea name="mail_text" id="vv-mail-text" rows="7" class="large-text"><?php echo esc_textarea( $mail_text ); ?></textarea></td>
-			</tr>
-			<tr>
-				<th><label for="vv-mail-url">Link zur Website (optional)</label></th>
-				<td><input name="mail_url" id="vv-mail-url" type="url" class="large-text"
-					value="<?php echo esc_attr( $mail_url ); ?>" placeholder="<?php echo esc_attr( home_url( '/' ) ); ?>">
-					<p class="description">Wird als Hinweis „Mehr zum Ablauf der Wahl und der eingesetzten Software“ in die Mail gesetzt.</p></td>
 			</tr>
 		</table>
 		<p><button type="submit" class="button">Text speichern</button></p>

@@ -20,9 +20,10 @@ Bei der Plugin-Aktivierung legt das System drei isolierte Tabellen an:
   `invited_at` (DATETIME NULL) und `invite_attempts` (TINYINT UNSIGNED,
   Default 0) für den gedrosselten Einladungsversand; ferner `pin_set_at`
   (DATETIME NULL) als Zeitpunkt der Wahl-Code-Aktivierung (FU007#AK03).
-  `wp_voting_polls` enthält `mail_text` (TEXT NULL) und `mail_url`
-  (VARCHAR(500) NULL) für den Text und den optionalen Website-Link je
-  Abstimmung sowie `urn_fingerprint` (CHAR(64) NULL) als Referenzwert der
+  `wp_voting_polls` enthält `mail_text` (TEXT NULL) für den Text je
+  Abstimmung. Die Spalte `mail_url` (VARCHAR(500) NULL) bleibt als
+  ungenutztes Altfeld bestehen (kein Schemaumbau, keine Migration) sowie
+  `urn_fingerprint` (CHAR(64) NULL) als Referenzwert der
   Urne, der beim formellen Abschluss erzeugt wird (FU002#AK02). Die anonyme Urne
   `wp_voting_ballots` besteht ausschließlich aus `poll_id`, `vote_option`
   und `receipt_hash` (Primärschlüssel) – ohne Zeitstempel und ohne laufende

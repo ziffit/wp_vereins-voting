@@ -196,11 +196,11 @@ switch ( $step ) {
 			'vv_action' => 'save_poll_mail',
 			'poll'      => $poll->id,
 			'mail_text' => "{question}\r\nWahlzeitraum: {start} – {end}\r\nBitte halte Mitgliedsnummer und E-Mail bereit.",
-			'mail_url'  => 'https://example.org/verein/',
 		];
 		try { vv_save_poll_mail(); } catch ( VVRedirectFound $r ) {}
 		$poll = vv_poll_by_title( 'Kassenprüfung 2026 (korrigiert)' );
-		vv_assert( 'https://example.org/verein/' === $poll->mail_url, '[FU004#AK03] Website-Link je Abstimmung gespeichert' );
+		vv_assert( "{question}\r\nWahlzeitraum: {start} – {end}\r\nBitte halte Mitgliedsnummer und E-Mail bereit." === $poll->mail_text,
+			'[FU004#AK03] Textblock je Abstimmung gespeichert' );
 
 		// [FU006#AK05] Vorschau und Testmail nutzen nur erfundene Daten.
 		$preview = vv_mail_preview_page( $poll->id );
@@ -243,8 +243,8 @@ switch ( $step ) {
 		vv_assert( str_contains( $mail['body'], 'Kassenprüfung 2026' ), '[FU006#AK01] Mail enthält Abstimmungstitel' );
 		vv_assert( str_contains( $mail['body'], 'Testverein e.V.' ), '[FU006#AK01] Mail enthält Vereinsnamen aus dem Footer' );
 		vv_assert( str_contains( $mail['body'], 'Wahlzeitraum' ), '[FU006#AK01] Mail enthält Frist' );
-		vv_assert( str_contains( $mail['body'], 'https://example.org/verein/' ) && str_contains( $mail['body'], 'Mehr zum Ablauf' ),
-			'[FU004#AK03] optionaler Website-Link steht in der Mail' );
+		vv_assert( ! str_contains( $mail['body'], 'Mehr zum Ablauf' ),
+			'[FU004#AK03] kein Website-Link-Hinweis in der Mail' );
 		vv_assert( str_contains( $mail['body'], 'https://example.org/waehlen/' ) && str_contains( $mail['body'], 'Jetzt abstimmen' ),
 			'[FU006#AK01] Schritt 2 mit Button zur Stimmformular-Seite' );
 		vv_assert( str_contains( $mail['body'], 'https://example.org/ergebnis/' ) && str_contains( $mail['body'], 'Ergebnisse ansehen' ),
