@@ -141,11 +141,7 @@ function vv_activate_html() {
 		<p><strong>Dein Wahl-Code:</strong> <code class="vv-receipt"><?php echo esc_html( $code ); ?></code></p>
 		<p>Der Code wird vom System erzeugt – so können schwache Codes (Geburtstage,
 		Namen, einfache Muster) nicht entstehen. Groß- und Kleinschreibung ist egal.</p>
-		<form method="get">
-			<input type="hidden" name="poll" value="<?php echo esc_attr( $poll_id ); ?>">
-			<input type="hidden" name="token" value="<?php echo esc_attr( $token ); ?>">
-			<button type="submit" class="vv-btn">Neuen Code erzeugen</button>
-		</form>
+		<p><a class="vv-btn" href="<?php echo esc_url( home_url( wp_unslash( $_SERVER['REQUEST_URI'] ?? '/' ) ) ); ?>">Neuen Code erzeugen</a></p>
 	</div>
 	<form method="post" class="vv-form">
 		<?php wp_nonce_field( 'vv_frontend', 'vv_frontend_nonce' ); ?>
@@ -199,11 +195,14 @@ function vv_form_html() {
 					sanitize_key( wp_unslash( $_POST['option'] ?? '' ) )
 				);
 
-				// [FU008#AK04] Formular ausblenden, ReceiptHash anzeigen.
+				// [FU008#AK04] Formular ausblenden, ReceiptHash anzeigen. Die
+				// ersten 5 Stellen erscheinen erneut als eigener Code-Ausschnitt
+				// (vv-receipt: user-select all) — ein Klick markiert genau sie.
 				return '<div class="vv-box vv-success"><strong>Deine Stimme wurde gezählt. Danke!</strong><br>'
 					. 'Dein persönlicher Prüfcode (Receipt-Hash):<br><code class="vv-receipt">' . esc_html( $receipt ) . '</code><br>'
 					. '<small>Notiere dir die ersten 5 Stellen des Codes – deine Stimme ist damit normalerweise eindeutig auffindbar. '
-					. 'Damit kannst du nach Wahlende prüfen, dass deine Stimme in der Urne liegt.</small></div>';
+					. 'Damit kannst du nach Wahlende prüfen, dass deine Stimme in der Urne liegt. '
+					. '<code class="vv-receipt">' . esc_html( substr( $receipt, 0, 5 ) ) . '</code></small></div>';
 			} catch ( \Throwable $e ) {
 				$error = $e->getMessage();
 			}

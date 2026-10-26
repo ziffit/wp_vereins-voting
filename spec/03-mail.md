@@ -11,8 +11,10 @@ arbeiten ausschließlich mit erfundenen Beispieldaten.
 ### Akzeptanzkriterien
 
 - **[FU006#AK01]** Die Einladungs-E-Mail enthält den Vereinsnamen, den Titel
-  der Abstimmung, den Wahlzeitraum, die Mitgliedsnummer und den persönlichen
-  Aktivierungslink. Der Standard begrüßt mit
+  der Abstimmung, den Wahlzeitraum und den persönlichen
+  Aktivierungslink — **nicht** die Mitgliedsnummer (wer die Mail eines
+  anderen erhält, kennt damit nicht automatisch auch dessen
+  Mitgliedsnummer). Der Standard begrüßt mit
   „Hallo {vorname} {nachname},“ und weist auf die Anonymität der Stimme hin.
   Nach dem Textblock der Abstimmung führt die Mail durch die Schritte:
   (1) Wahl-Code erzeugen per Aktivierungsbutton, (2) im Wahlzeitraum abstimmen
@@ -46,7 +48,8 @@ arbeiten ausschließlich mit erfundenen Beispieldaten.
 - **[FU006#AK04]** Betreff, Einleitung, Footer und der Text je Abstimmung
   dürfen die Platzhalter `{vorname}`, `{nachname}`, `{first_name}`,
   `{last_name}`, `{poll_title}`, `{question}`, `{start}`, `{end}`,
-  `{member_no}`, `{site_name}`, `{site_url}` und `{privacy_url}` verwenden.
+  `{site_name}`, `{site_url}` und `{privacy_url}` verwenden.
+  Die Mitgliedsnummer ist bewusst **kein** Mail-Platzhalter (FU006#AK01).
   Sie werden je Empfänger ersetzt; leere Namen ergeben eine leere Stelle.
   Unbekannte Platzhalter werden beim Speichern mit einer Meldung abgewiesen.
   Der persönliche Aktivierungslink wird nicht als Platzhalter im Freitext
@@ -55,7 +58,7 @@ arbeiten ausschließlich mit erfundenen Beispieldaten.
 - **[FU006#AK05]** Vorschau und Testversand sind auf der globalen
   Einstellungsseite und je Abstimmung verfügbar. Beide nutzen die
   gespeicherten Werte und ausschließlich erfundene Beispieldaten (Name,
-  Mitgliedsnummer, E-Mail und ein ungültiger Beispieltoken); echte
+  E-Mail und ein ungültiger Beispieltoken); echte
   Mitgliedsdaten werden nicht angezeigt oder versendet. Die Testmail geht an
   das angemeldete WordPress-Konto und verändert weder den Versandstatus noch
   den Queue-Zähler. Ohne Footer oder gültige Aktivierungs-URL ist kein

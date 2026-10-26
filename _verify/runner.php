@@ -195,7 +195,7 @@ switch ( $step ) {
 		$_POST = [
 			'vv_action' => 'save_poll_mail',
 			'poll'      => $poll->id,
-			'mail_text' => "{question}\r\nWahlzeitraum: {start} – {end}\r\nMitgliedsnummer: {member_no}",
+			'mail_text' => "{question}\r\nWahlzeitraum: {start} – {end}\r\nBitte halte Mitgliedsnummer und E-Mail bereit.",
 			'mail_url'  => 'https://example.org/verein/',
 		];
 		try { vv_save_poll_mail(); } catch ( VVRedirectFound $r ) {}

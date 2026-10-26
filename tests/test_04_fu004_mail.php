@@ -71,10 +71,12 @@ return [
 		vv_check( str_contains( $mail['body'], 'Testverein e.V.' ), '[FU006#AK01] Mailtext enthält Vereinsnamen aus dem Footer' );
 		vv_check( str_contains( $mail['body'], 'Satzungsänderung' ), '[FU006#AK01] Mailtext enthält Abstimmungstitel' );
 		vv_check( str_contains( $mail['body'], 'Wahlzeitraum' ), '[FU006#AK01] Mailtext enthält Fristen' );
-		vv_check( str_contains( $mail['body'], '101' ), '[FU006#AK01] Mailtext enthält Mitgliedsnummer' );
+		// [FU006#AK01] Die Mitgliedsnummer ist bewusst kein Mail-Bestandteil:
+		// Wer eine fremde E-Mail liest, kennt damit nicht die Mitgliedsnummer.
+		vv_check( ! str_contains( $mail['body'], '101' ), '[FU006#AK01] Mailtext enthält keine Mitgliedsnummer' );
 		vv_check( str_contains( $mail['body'], 'Hallo Erika Muster,' ), '[FU006#AK04] Standardtext begrüßt mit Vor- und Nachnamen' );
 		vv_check( str_contains( $mail['body'], 'Wahl-Code erzeugen' ), '[FU006#AK02] persönlicher Aktivierungslink ist ein Button' );
-		foreach ( [ '{link}', '{poll_title}', '{vorname}', '{nachname}', '{member_no}' ] as $ph ) {
+		foreach ( [ '{link}', '{poll_title}', '{vorname}', '{nachname}' ] as $ph ) {
 			vv_check( ! str_contains( $mail['body'], $ph ), "[FU006#AK04] Platzhalter $ph ist ersetzt" );
 		}
 	},

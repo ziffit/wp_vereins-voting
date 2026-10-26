@@ -15,8 +15,9 @@ damit schwache Codes (Geburtstage, Namen, einfache Muster) nicht entstehen.
   erzeugt das System serverseitig einen Wahl-Code (6 Zeichen aus A–Z ohne
   I/O und 2–9, mindestens 1 Buchstabe und 1 Ziffer) und zeigt ihn
   schreibgeschützt an. Das Formular fragt Mitgliedsnummer und E-Mail ab;
-  mit „Neuen Code erzeugen“ lässt sich per Seiten-Neuladen ein neuer Code
-  erzeugen (zählt nicht als Fehlversuch und verbraucht den Token nicht).
+  mit „Neuen Code erzeugen“ (Link) lädt die Seite sich selbst neu — inklusive
+  aller URL-Parameter (auch `page_id`) — und erzeugt so einen neuen Code,
+  ohne als Fehlversuch zu zählen oder den Token zu verbrauchen.
   Der Code wird nur als verdecktes Formularfeld übermittelt und ist auf der
   Seite jederzeit sichtbar (nicht als Passwortfeld verdeckt).
 
@@ -73,7 +74,9 @@ Das eigentliche Wahlformular während des aktiven Wahlzeitraums.
 - **[FU008#AK04]** Nach erfolgreicher Stimmabgabe wird dem Wähler der
   anonyme `receipt_hash` auf dem Bildschirm angezeigt mit dem Hinweis, die
   ersten 5 Stellen des Codes zu notieren – sie reichen normalerweise aus,
-  um die Stimme in der Prüfliste eindeutig wiederzufinden. Das Formular
+  um die Stimme in der Prüfliste eindeutig wiederzufinden. Die ersten
+  5 Zeichen erscheinen zusätzlich im Hinweistext als eigener Selektbereich
+  (ein Klick markiert genau sie). Das Formular
   wird ausgeblendet.
 
 - **[FU008#AK05]** Das Stimmformular ist durch ein Nonce gegen CSRF

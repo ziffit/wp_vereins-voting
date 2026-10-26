@@ -29,6 +29,14 @@
 	margin-top: 0.5em;
 }
 
+/* Der „Neuen Code erzeugen“-Reload ist ein Link (GET-Formular würde die
+   WordPress-URL-Parameter wie page_id verlieren) – sieht wie ein Knopf aus. */
+a.vv-btn {
+	padding: 0.3em 0.8em;
+	border: 1px solid currentColor;
+	text-decoration: none;
+}
+
 .vv-box {
 	border-left: 4px solid #888;
 	padding: 0.75em 1em;

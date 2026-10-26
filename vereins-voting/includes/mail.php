@@ -21,7 +21,7 @@ function vv_mail_defaults() {
 		'footer'       => '',
 		'activate_url' => '',
 		'rate'         => 10,
-		'poll_text'    => "{question}\r\n\r\nWahlzeitraum: {start} – {end}\r\nMitgliedsnummer: {member_no}",
+		'poll_text'    => "{question}\r\n\r\nWahlzeitraum: {start} – {end}\r\nBitte halte deine Mitgliedsnummer und E-Mail-Adresse bereit.",
 	];
 }
 
@@ -99,7 +99,6 @@ function vv_mail_allowed_placeholders() {
 		'{question}',
 		'{start}',
 		'{end}',
-		'{member_no}',
 		'{site_name}',
 		'{site_url}',
 		'{privacy_url}',
@@ -128,7 +127,6 @@ function vv_mail_replace( $text, $poll, $voter = null ) {
 		'{question}'    => $poll ? (string) ( $poll->question ?? '' ) : '',
 		'{start}'       => $poll ? vv_fmt( $poll->start_dt ?? '' ) : '',
 		'{end}'         => $poll ? vv_fmt( $poll->end_dt ?? '' ) : '',
-		'{member_no}'   => $voter ? (string) ( $voter->member_no ?? '' ) : '',
 		'{site_name}'   => get_bloginfo( 'name' ),
 		'{site_url}'    => home_url( '/' ),
 		'{privacy_url}' => $privacy,
@@ -352,7 +350,6 @@ function vv_mail_preview_data( $poll_id = '' ) {
 	$voter = (object) [
 		'first_name'       => 'Erika',
 		'last_name'        => 'Muster',
-		'member_no'        => '12345',
 		'email'            => 'erika@example.test',
 		'activation_token' => '0123456789abcdef0123456789abcdef',
 	];
@@ -672,7 +669,7 @@ function vv_render_mail_settings() {
 	echo '<tr><th><label for="vv-mail-intro">Einleitung / Anrede</label></th><td>'
 		. '<textarea name="mail_intro" id="vv-mail-intro" rows="6" class="large-text" required>' . esc_textarea( $intro ) . '</textarea>'
 		. '<p class="description">Platzhalter: <code>{vorname}</code>, <code>{nachname}</code>, <code>{poll_title}</code>, '
-		. '<code>{question}</code>, <code>{start}</code>, <code>{end}</code>, <code>{member_no}</code>, '
+		. '<code>{question}</code>, <code>{start}</code>, <code>{end}</code>, '
 		. '<code>{site_name}</code>, <code>{site_url}</code>, <code>{privacy_url}</code></p></td></tr>';
 	echo '<tr><th><label for="vv-mail-footer">Footer</label></th><td>'
 		. '<textarea name="mail_footer" id="vv-mail-footer" rows="7" class="large-text" required>' . esc_textarea( $footer ) . '</textarea>'
