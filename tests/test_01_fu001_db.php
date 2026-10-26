@@ -43,7 +43,7 @@ return [
 	'test_01_fu001_ak02_neue_spalten_v152' => function () {
 		$vcols = vv_cols( 'voting_voters' );
 		vv_check( in_array( 'pin_set_at', $vcols, true ),
-			'[FU001#AK01/FU007#AK03] voters-Spalte pin_set_at (Zeitpunkt der PIN-Setzung)' );
+			'[FU001#AK01/FU007#AK03] voters-Spalte pin_set_at (Zeitpunkt der Wahl-Code-Aktivierung)' );
 		$pcols = vv_cols( 'voting_polls' );
 		vv_check( in_array( 'urn_fingerprint', $pcols, true ),
 			'[FU001#AK01/FU002#AK02] polls-Spalte urn_fingerprint (Abschluss-Referenzwert)' );

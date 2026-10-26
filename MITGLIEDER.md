@@ -10,8 +10,9 @@ und warum sie gleichzeitig **anonym**, **sicher** und **nachvollziehbar** ist.
 Wenn eine Abstimmung gestartet wird, erhältst du eine E-Mail mit einem
 **persönlichen Link**. Der Link ist für dich allein bestimmt und kann nur
 einmal verwendet werden. Er öffnet eine Seite, auf der du deinen
-Wahl-PIN festlegst. Die Mail führt dich der Reihe nach durch die drei
-Schritte: PIN setzen, abstimmen und nach Wahlende die Ergebnisse prüfen.
+Wahl-Code erzeugst. Die Mail führt dich der Reihe nach durch die drei
+Schritte: Wahl-Code erzeugen, abstimmen und nach Wahlende die Ergebnisse
+prüfen.
 
 > **Was ist ein „Token"?** Der persönliche Link enthält einen einmaligen
 > Code, der nach der Benutzung gelöscht wird. Wer den Link später mitliest,
@@ -20,31 +21,39 @@ Schritte: PIN setzen, abstimmen und nach Wahlende die Ergebnisse prüfen.
 Nichts bekommen? Schau im Spam-Ordner nach und frage im Vorstand nach, ob
 deine Adresse im Mitgliederstand aktuell ist.
 
-### 2. Du legst deinen Wahl-PIN fest
+### 2. Du erzeugst deinen Wahl-Code
 
-Auf der Link-Seite gibst du ein:
+Auf der Link-Seite zeigt dir das System einen **Wahl-Code**: 6 Zeichen aus
+Buchstaben und Ziffern, vom System zufällig erzeugt – du wählst ihn nicht
+selbst. Damit können keine schwachen, erratbaren Codes entstehen
+(Geburtstage, Namen, einfache Muster). Auf der Seite gibst du ein:
 
 1. deine Mitgliedsnummer,
 2. deine E-Mail-Adresse,
-3. deinen neuen Wahl-PIN (6 Stellen, zweimal zur Bestätigung).
 
-Der PIN ist ab dann **dein persönliches Passwort für diese Wahl**. Niemand
-kennt ihn außer dir – nicht der Vorstand, nicht der Webseiten-Betreiber.
-Auch der Server speichert ihn nicht: dort liegt nur ein unumkehrbarer
-„Fingerabdruck" deines PIN, mit dem er bei der Abstimmung verglichen wird.
+und bestätigst den angezeigten Code mit „Diesen Code übernehmen“. Mit
+„Neuen Code erzeugen“ kannst du dir jederzeit einen anderen Code erzeugen.
+
+Der Wahl-Code ist ab dann **dein persönliches Passwort für diese Wahl**.
+Niemand kennt ihn außer dir – nicht der Vorstand, nicht der
+Webseiten-Betreiber. Er wird dir **nur einmal angezeigt**: notiere oder
+kopiere ihn sofort. Auch der Server speichert ihn nicht: dort liegt nur ein
+unumkehrbarer „Fingerabdruck" deines Codes, mit dem er bei der Abstimmung
+verglichen wird.
 Mehr dazu: [Passwort-Hashing (Wikipedia)](https://de.wikipedia.org/wiki/Passwort-Hashing).
 
-Falls du deinen PIN vergisst: Der Vorstand kann ihn zurücksetzen – du
-bekommst dann einen neuen Einladungs-Link und setzt dir einen neuen PIN.
+Falls du deinen Wahl-Code verlierst: Der Vorstand kann ihn nicht einsehen
+oder zurückgeben – er schickt dir eine **neue Einladung**, und du erzeugst
+dir damit einen neuen Code.
 
 ### 3. Du gibst deine Stimme ab
 
 Im Wahlzeitraum öffnest du die Wahlseite und wählst **Ja**, **Nein** oder
-**Enthaltung** – zusammen mit Mitgliedsnummer, E-Mail und deinem PIN.
+**Enthaltung** – zusammen mit Mitgliedsnummer, E-Mail und deinem Wahl-Code.
 
 * Eine Person kann nur **einmal** abstimmen.
 * Nach **5 falschen Eingaben** ist die Abstimmung für dich 15 Minuten
-  gesperrt – dein PIN lässt sich also nicht durchprobieren.
+  gesperrt – dein Wahl-Code lässt sich also nicht durchprobieren.
 * Deine Stimme und die Markierung „hat gewählt" werden in **einem einzigen,
   ununterbrechbaren Schritt** gespeichert. Ein Absturz mitten im Vorgang
   führt nie zu einer doppelten oder verlorenen Stimme.
@@ -88,16 +97,16 @@ aber **nie, was** du gewählt hast. Das ist kein Versehen, sondern
 Absicht.
 
 Dazu kommt: In keiner Log-Datei, Fehlermeldung oder Statistik tauchen
-Mitgliedsnummern, E-Mail-Adressen, PINs oder Stimmen auf. Die
+Mitgliedsnummern, E-Mail-Adressen, Wahl-Codes oder Stimmen auf. Die
 Einladungs-E-Mails enthalten kein Öffnungs- oder Klick-Tracking.
 
 ## Warum ist die Wahl sicher?
 
 * **Einmal-Link:** Der Einladungslink ist personenbezogen und wird nach
   der Benutzung gelöscht.
-* **6-stelliger PIN:** Bekannt nur bei dir, gespeichert nur als
-  Fingerabdruck, nach 5 Fehlversuchen 15 Minuten gesperrt
-  ([Brute Force (Wikipedia)](https://de.wikipedia.org/wiki/Brute-Force-Methode)).
+* **6-stelliger Wahl-Code:** Vom System erzeugt, bekannt nur bei dir,
+  gespeichert nur als Fingerabdruck, nach 5 Fehlversuchen 15 Minuten
+  gesperrt ([Brute Force (Wikipedia)](https://de.wikipedia.org/wiki/Brute-Force-Methode)).
 * **EINE Stimme pro Person:** Nach erfolgreicher Abstimmen ist Schluss.
 * **Wahlzeitraum:** Vor Start und nach Ende gibt es gar kein
   Eingabefeld.

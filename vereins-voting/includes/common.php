@@ -8,11 +8,39 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Falsche PIN als eigener Fehlertyp: Der Fehlversuch wird erst nach dem
+ * Falscher Wahl-Code als eigener Fehlertyp: Der Fehlversuch wird erst nach dem
  * ROLLBACK gezählt, weil Transienten in der Options-Tabelle liegen und
  * sonst mit der Stimm-Transaktion zurückgerollt würden.
  */
 class VV_PinFail extends RuntimeException {}
+
+/**
+ * [FU007#AK01] Wahl-Code (früher „PIN“): 6 Zeichen aus A–Z (ohne I/O) und
+ * 2–9 (ohne 0/1), mind. 1 Buchstabe + 1 Ziffer. Der Code wird serverseitig
+ * erzeugt und nur als Hash gespeichert – das Mitglied wählt ihn nicht selbst.
+ */
+const VV_CODE_LENGTH  = 6;
+const VV_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+/** Prüft das serverseitige Format (Groß-/Kleinschreibung egal). */
+function vv_valid_code( $code ) {
+	$code = strtoupper( trim( (string) $code ) );
+	return (bool) preg_match( '/^[A-HJ-NP-Z2-9]{6}$/', $code )
+		&& (bool) preg_match( '/[A-Z]/', $code )
+		&& (bool) preg_match( '/[0-9]/', $code );
+}
+
+/** Erzeugt einen gültigen Wahl-Code mit CSPRNG. */
+function vv_generate_code() {
+	$alphabet = VV_CODE_ALPHABET;
+	do {
+		$code = '';
+		for ( $i = 0; $i < VV_CODE_LENGTH; $i++ ) {
+			$code .= $alphabet[ random_int( 0, strlen( $alphabet ) - 1 ) ];
+		}
+	} while ( ! vv_valid_code( $code ) );
+	return $code;
+}
 
 /** Gemeinsame Helfer: Datenzugriff und Validierung; einheitliche Meldungen. */
 function vv_get_results( $poll_id ) {
@@ -124,7 +152,10 @@ function vv_cast_vote( $poll_id, $member_no, $email, $pin, $option ) {
 		throw new RuntimeException( 'Bitte wähle Ja, Nein oder Enthaltung.' );
 	}
 
-	// [FU008#AK05] Brute-Force-Bremse vor der PIN-Prüfung.
+	// [FU008#AK02] Wahl-Code groß-/klein-insensitiv und ohne Rand-Whitespace.
+	$pin = strtoupper( trim( (string) $pin ) );
+
+	// [FU008#AK05] Brute-Force-Bremse vor der Code-Prüfung.
 	$rate_id = $poll_id . '|' . strtolower( trim( (string) $member_no ) );
 	if ( vv_rate_blocked( 'vote', $rate_id ) ) {
 		throw new RuntimeException( 'Zu viele Fehlversuche. Bitte in 15 Minuten erneut versuchen.' );
@@ -178,7 +209,7 @@ function vv_cast_vote( $poll_id, $member_no, $email, $pin, $option ) {
 		}
 
 		if ( empty( $voter->pin_hash ) || ! password_verify( (string) $pin, $voter->pin_hash ) ) {
-			throw new VV_PinFail( 'Wahl-PIN ist falsch.' );
+			throw new VV_PinFail( 'Wahl-Code ist falsch.' );
 		}
 
 		// [FU008#AK03] Nur Urnen-Spalten befüllen – keine Personenbeziehung in der Urne.

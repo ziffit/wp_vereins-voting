@@ -233,7 +233,7 @@ add_action( 'admin_init', 'vv_handle_admin_actions' );
 /** [FU002#AK02] Löschen nur im Entwurf; Daten werden nie heimlich entsorgt. */
 /**
  * [FU002#AK08] Teilnehmerdaten einer beendeten Wahl löschen: Identität,
- * PIN-Hashes und Zeitstempel der Wählerliste; Urne und Ergebnis bleiben.
+ * PIN-Hashes (jetzt Wahl-Code-Hashes) und Zeitstempel der Wählerliste; Urne und Ergebnis bleiben.
  * Vorher die Wahlniederschrift erstellen – danach fehlen die Zeitangaben.
  */
 function vv_delete_voter_data() {
@@ -280,10 +280,10 @@ function vv_delete_poll() {
 }
 
 /**
- * [FU005#AK04] Wahl-PIN zurücksetzen (z. B. vergessen): Der PIN-Hash wird
+ * [FU005#AK04] Wahl-Code zurücksetzen (z. B. vergessen): Der Code-Hash wird
  * gelöscht und ein neuer Aktivierungstoken erzeugt, damit die Person über
- * eine neue Einladung einen neuen PIN setzen kann. Die Urne wird nicht
- * berührt; welches Mitglied wie gewählt hat, bleibt weiterhin unsichtbar.
+ * eine neue Einladung einen neuen Wahl-Code erzeugen kann. Die Urne wird
+ * nicht berührt; welches Mitglied wie gewählt hat, bleibt weiterhin unsichtbar.
  * Nur solange die Person noch nicht abgestimmt hat und die Wahl nicht
  * geschlossen ist – sonst wäre der Reset sinnlos oder irreführend.
  */
@@ -296,7 +296,7 @@ function vv_reset_pin() {
 
 	$poll = $wpdb->get_row( $wpdb->prepare( "SELECT id, status FROM {$wpdb->prefix}voting_polls WHERE id = %s", $poll_id ) );
 	if ( ! $poll || ! in_array( $poll->status, [ 'draft', 'active' ], true ) ) {
-		wp_die( 'PIN-Reset ist nur vor dem Schließen der Abstimmung möglich.' );
+		wp_die( 'Wahl-Code-Reset ist nur vor dem Schließen der Abstimmung möglich.' );
 	}
 
 	$voter = $wpdb->get_row( $wpdb->prepare(
@@ -305,7 +305,7 @@ function vv_reset_pin() {
 		$poll_id
 	) );
 	if ( ! $voter || empty( $voter->pin_hash ) || (int) $voter->has_voted ) {
-		wp_die( 'Für diese Person kann keine PIN zurückgesetzt werden.' );
+		wp_die( 'Für diese Person kann kein Wahl-Code zurückgesetzt werden.' );
 	}
 
 	$wpdb->update(
@@ -320,7 +320,7 @@ function vv_reset_pin() {
 		[ 'id' => $voter->id ]
 	);
 
-	// Eine vergessene PIN hat oft schon die Brute-Force-Sperre ausgelöst.
+	// Ein verlorener Wahl-Code hat oft schon die Brute-Force-Sperre ausgelöst.
 	vv_rate_clear( 'vote', $poll->id . '|' . strtolower( trim( (string) $voter->member_no ) ) );
 
 	wp_safe_redirect( admin_url(
@@ -855,8 +855,8 @@ function vv_render_members_table( $poll ) {
 			. (int) $_GET['imported'] . ' importiert, ' . (int) ( $_GET['skipped'] ?? 0 ) . ' übersprungen.</p></div>';
 	}
 	if ( isset( $_GET['reset'] ) ) {
-		echo '<div class="notice notice-success is-dismissible"><p>PIN zurückgesetzt. Die Person ist wieder für den Einladungsversand vorgemerkt '
-			. 'und erhält über „Einladungen versenden“ einen neuen Aktivierungslink.</p></div>';
+		echo '<div class="notice notice-success is-dismissible"><p>Wahl-Code zurückgesetzt. Die Person ist wieder für den Einladungsversand vorgemerkt '
+			. 'und kann nach der neuen Einladung einen neuen Wahl-Code erzeugen.</p></div>';
 	}
 	if ( isset( $_GET['voters_deleted'] ) ) {
 		echo '<div class="notice notice-success is-dismissible"><p>Teilnehmerdaten gelöscht. Urne und Ergebnis bleiben unverändert erhalten.</p></div>';
@@ -866,7 +866,7 @@ function vv_render_members_table( $poll ) {
 	// (vor dem Früh-Ausstieg, damit die Meldung auch ohne Wählerzeilen erscheint).
 	if ( 'closed' === $poll->status ) {
 		if ( $total > 0 ) {
-			echo '<p><form method="post" style="display:inline" onsubmit="return confirm(\'Teilnehmerdaten löschen? Die Wahlniederschrift muss vorher erstellt/archiviert sein – danach sind Einladungs-, PIN- und Abgabezeiten weg. Die Urne bleibt.\')">'
+			echo '<p><form method="post" style="display:inline" onsubmit="return confirm(\'Teilnehmerdaten löschen? Die Wahlniederschrift muss vorher erstellt/archiviert sein – danach sind Einladungs-, Wahl-Code- und Abgabezeiten weg. Die Urne bleibt.\')">'
 				. wp_nonce_field( 'vv_admin', 'vv_nonce', true, false )
 				. '<input type="hidden" name="vv_action" value="delete_voter_data">'
 				. '<input type="hidden" name="poll_id" value="' . esc_attr( $poll->id ) . '">'
@@ -884,7 +884,7 @@ function vv_render_members_table( $poll ) {
 		}
 		return;
 	}
-	echo '<table class="widefat striped"><thead><tr><th>Mitgliedsnummer</th><th>Name</th><th>E-Mail</th><th>PIN gesetzt</th><th>Einladung</th><th>Hat gewählt</th><th>Gewählt am</th><th>Aktionen</th></tr></thead><tbody>';
+	echo '<table class="widefat striped"><thead><tr><th>Mitgliedsnummer</th><th>Name</th><th>E-Mail</th><th>Wahl-Code gesetzt</th><th>Einladung</th><th>Hat gewählt</th><th>Gewählt am</th><th>Aktionen</th></tr></thead><tbody>';
 	foreach ( $voters as $v ) {
 		$name    = trim( (string) $v->first_name . ' ' . (string) $v->last_name );
 		$pin_set = ! empty( $v->pin_hash );
@@ -894,13 +894,13 @@ function vv_render_members_table( $poll ) {
 		$action  = '–';
 		// [FU005#AK04] Reset nur vor der Stimmabgabe und solange die Wahl offen ist.
 		if ( $pin_set && ! (int) $v->has_voted && 'closed' !== $poll->status ) {
-			$action = '<form method="post" style="margin:0" onsubmit="return confirm(\'PIN zurücksetzen? Die Person benötigt danach eine neue Einladung.\');">'
+			$action = '<form method="post" style="margin:0" onsubmit="return confirm(\'Wahl-Code zurücksetzen? Die Person benötigt danach eine neue Einladung.\');">'
 				. wp_nonce_field( 'vv_admin', 'vv_nonce', true, false )
 				. '<input type="hidden" name="vv_action" value="reset_pin">'
 				. '<input type="hidden" name="poll" value="' . esc_attr( $poll->id ) . '">'
 				. '<input type="hidden" name="voter_id" value="' . (int) $v->id . '">'
 				. '<input type="hidden" name="vv_page" value="' . (int) $page . '">'
-				. '<button type="submit" class="button button-small">PIN zurücksetzen</button></form>';
+				. '<button type="submit" class="button button-small">Wahl-Code zurücksetzen</button></form>';
 		}
 		echo '<tr>'
 			. '<td>' . esc_html( $v->member_no ) . '</td>'
@@ -1068,7 +1068,7 @@ function vv_report_html() {
 	<p>Keine Teilnehmerzeiten vorhanden (bereits gelöscht oder keine Personen importiert). Ergebnis und Prüfliste oben bleiben unverändert gültig.</p>
 	<?php else : ?>
 	<table>
-		<thead><tr><th>Mitgliedsnr.</th><th>Name</th><th>E-Mail</th><th>Einladung</th><th>PIN gesetzt</th><th>Stimmabgabe</th></tr></thead>
+		<thead><tr><th>Mitgliedsnr.</th><th>Name</th><th>E-Mail</th><th>Einladung</th><th>Wahl-Code gesetzt</th><th>Stimmabgabe</th></tr></thead>
 		<tbody>
 		<?php foreach ( $voters as $v ) : ?>
 			<?php $name = trim( (string) $v->first_name . ' ' . (string) $v->last_name ); ?>

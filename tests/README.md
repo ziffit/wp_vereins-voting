@@ -26,7 +26,7 @@ Voraussetzungen: `docker` plus die Images `mariadb:10.6` und
 | `test_03_fu003_csv.php` | Import, Trennzeichen-Erkennung, Duplikatsperre, Tokens |
 | `test_04_fu004_mail.php` | Globale Vorlage, Vorschau/Test, Drosselung, Pause/Fortsetzen, Retry |
 | `test_05_fu005_results.php` | `vv_get_results` Zählung, Backend-Ansicht anonym, Einladungsstatus |
-| `test_06_fu007_activation.php` | PIN-Registrierung: Guards, Hash, Token-Verbrauch |
+| `test_06_fu007_activation.php` | Wahl-Code-Aktivierung: Guards, Hash, Token-Verbrauch |
 | `test_07_fu008_voting.php` | Guards, auto-active, Transaktion, Doppelvoting |
 | `test_08_fu009_frontend.php` | Shortcodes' Ergebnisse + Formular-Felder |
 

@@ -225,15 +225,15 @@ function vv_mail_button( $url, $label ) {
 }
 
 /**
- * [FU006#AK01] Ablaufschritte: Schritt 1 (PIN) immer, Schritt 2 und 3 erst,
+ * [FU006#AK01] Ablaufschritte: Schritt 1 (Wahl-Code) immer, Schritt 2 und 3 erst,
  * sobald die passenden URLs in den E-Mail-Einstellungen gesetzt sind.
  */
 function vv_mail_steps( $link, $vote_url, $results_url ) {
 	$p    = 'style="font-size: 1em; margin: 8px 0"';
 	$step = 1;
 	$html = '<p style="font-size: 1em; margin: 24px 0 0"><strong>So geht’s weiter:</strong></p>';
-	$html .= '<p ' . $p . '>' . $step++ . '. Setze deinen persönlichen Wahl-PIN (6 Ziffern).</p>';
-	$html .= vv_mail_button( $link, 'Wahl-PIN setzen' );
+	$html .= '<p ' . $p . '>' . $step++ . '. Erzeuge deinen persönlichen Wahl-Code (6 Zeichen: Buchstaben und Ziffern).</p>';
+	$html .= vv_mail_button( $link, 'Wahl-Code erzeugen' );
 	if ( '' !== $vote_url ) {
 		$html .= '<p ' . $p . '>' . $step++ . '. Stimme im Wahlzeitraum ab – Ja, Nein oder Enthaltung.</p>';
 		$html .= vv_mail_button( $vote_url, 'Jetzt abstimmen' );
@@ -272,7 +272,7 @@ function vv_mail_html( $subject, $intro, $poll_text, $footer, $link, $website, $
 
 function vv_mail_plain( $intro, $poll_text, $footer, $link, $website, $vote_url = '', $results_url = '' ) {
 	$text = rtrim( (string) $intro ) . "\n\n" . rtrim( (string) $poll_text );
-	$text .= "\n\nSo geht’s weiter:\n1. Wahl-PIN setzen (6 Ziffern): " . $link;
+	$text .= "\n\nSo geht’s weiter:\n1. Wahl-Code erzeugen (6 Zeichen: Buchstaben und Ziffern): " . $link;
 	if ( '' !== $vote_url ) {
 		$text .= "\n2. Im Wahlzeitraum abstimmen: " . $vote_url;
 	}
@@ -679,7 +679,7 @@ function vv_render_mail_settings() {
 		. '<p class="description">Pflicht. Vereinsname, Anschrift, Kontakt und Datenschutz/Impressum. '
 		. 'Platzhalter: <code>{site_name}</code>, <code>{site_url}</code>, <code>{privacy_url}</code></p></td></tr>';
 	echo '<tr><th><label for="vv-mail-activate">URL der Aktivierungsseite</label></th><td>'
-		. '<input name="mail_activate_url" id="vv-mail-activate" type="url" class="large-text" value="' . esc_attr( $activate ) . '" placeholder="' . esc_attr( home_url( '/pin-setzen/' ) ) . '" required>'
+		. '<input name="mail_activate_url" id="vv-mail-activate" type="url" class="large-text" value="' . esc_attr( $activate ) . '" placeholder="' . esc_attr( home_url( '/wahl-code-erzeugen/' ) ) . '" required>'
 		. '<p class="description">Seite mit dem Shortcode <code>[verein_voting_activate]</code>.</p></td></tr>';
 	echo '<tr><th><label for="vv-mail-vote">URL der Stimmformular-Seite</label></th><td>'
 		. '<input name="mail_vote_url" id="vv-mail-vote" type="url" class="large-text" value="' . esc_attr( $vote ) . '" placeholder="' . esc_attr( home_url( '/abstimmen/' ) ) . '" required>'

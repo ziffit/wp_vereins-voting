@@ -1,7 +1,7 @@
 <?php
 /**
  * Frontend-Shortcodes:
- * [verein_voting_activate] – PIN-Registrierung per E-Mail-Link   [FU007]
+ * [verein_voting_activate] – Wahl-Code-Aktivierung per E-Mail-Link  [FU007]
  * [verein_voting_form]     – Stimmabgabe                        [FU008]
  * [verein_voting_results]  – Ergebnis + Prüf-Hash-Liste         [FU009]
  */
@@ -44,13 +44,13 @@ function vv_version_note() {
 	return '<p class="vv-version">vereins-voting ' . esc_html( VEREINS_VOTING_VERSION ) . '</p>';
 }
 
-/** Eingegebene Mitglieds-Nr/E-Mail/PIN nach Submit wieder anzeigen. */
+/** Eingegebene Mitglieds-Nr/E-Mail nach Submit wieder anzeigen. */
 function vv_re( $existing, $fallback ) {
 	return isset( $_POST[ $existing ] ) ? sanitize_text_field( wp_unslash( $_POST[ $existing ] ) ) : $fallback;
 }
 
 // ---------------------------------------------------------------------------
-// [FU007] PIN-Registrierung
+// [FU007] Wahl-Code-Aktivierung (Code wird serverseitig erzeugt, nicht gewählt)
 // ---------------------------------------------------------------------------
 
 function vv_shortcode_activate() {
@@ -86,22 +86,21 @@ function vv_activate_html() {
 		} else {
 			$member_no = sanitize_text_field( wp_unslash( $_POST['member_no'] ?? '' ) );
 			$email     = sanitize_email( wp_unslash( $_POST['email'] ?? '' ) );
-			$pin       = preg_replace( '/\D/', '', wp_unslash( $_POST['pin'] ?? '' ) );
-			$pin2      = preg_replace( '/\D/', '', wp_unslash( $_POST['pin2'] ?? '' ) );
+			$code      = strtoupper( trim( (string) wp_unslash( $_POST['pin'] ?? '' ) ) );
 
 			if ( ! hash_equals( (string) $voter->member_no, $member_no ) || ! hash_equals( strtolower( $voter->email ), strtolower( $email ) ) ) {
 				vv_rate_fail( 'activate', $rate_id );
 				$error = 'Mitgliedsnummer oder E-Mail stimmen nicht mit der Einladung überein.';
-			} elseif ( strlen( $pin ) !== 6 || $pin !== $pin2 ) {
+			} elseif ( ! vv_valid_code( $code ) ) {
 				vv_rate_fail( 'activate', $rate_id );
-				$error = 'Die PIN muss 6-stellig sein und in beiden Feldern gleich lauten.';
+				$error = 'Der Wahl-Code ist nicht gültig (6 Zeichen, Buchstaben und Ziffern). Bitte erzeuge einen neuen Code.';
 			} elseif ( ! empty( $voter->pin_hash ) ) {
-				$error = 'Für diese Einladung wurde bereits eine PIN gesetzt. Nutze direkt das Stimmformular.';
+				$error = 'Für diese Einladung wurde bereits ein Wahl-Code erzeugt. Nutze direkt das Stimmformular.';
 			} else {
 				$ok = $wpdb->update(
 					"{$wpdb->prefix}voting_voters",
 					[
-						'pin_hash'         => password_hash( $pin, PASSWORD_BCRYPT, [ 'cost' => 12 ] ),
+						'pin_hash'         => password_hash( $code, PASSWORD_BCRYPT, [ 'cost' => 12 ] ),
 						'pin_set_at'       => current_time( 'mysql' ),
 						'activation_token' => null,
 					],
@@ -109,10 +108,14 @@ function vv_activate_html() {
 				);
 				if ( $ok ) {
 					vv_rate_clear( 'activate', $rate_id );
-					// [FU007#AK03] Erfolg + Token einmalig verbraucht.
-					return '<div class="vv-box vv-success"><strong>Erfolgreich – deine Wahl-PIN ist gesetzt.</strong><br>'
-						. 'Nutze während des Wahlzeitraums die Seite mit dem Stimmformular, um abzustimmen. '
-						. 'Halte Mitgliedsnummer, E-Mail und deine 6-stellige PIN bereit.</div>';
+					// [FU007#AK03] Erfolg + Token einmalig verbraucht. Der Code wird
+					// nur hier angezeigt – danach nicht wiederherstellbar.
+					return '<div class="vv-box vv-success"><strong>Erfolgreich – dein Wahl-Code ist aktiv.</strong><br>'
+						. 'Dein Wahl-Code: <code class="vv-receipt">' . esc_html( $code ) . '</code><br>'
+						. 'Er wird nur einmal angezeigt – notiere oder kopiere ihn jetzt. '
+						. 'Nutze während des Wahlzeitraums die Seite mit dem Stimmformular, um abzustimmen; '
+						. 'halte Mitgliedsnummer, E-Mail und Wahl-Code bereit. '
+						. 'Wenn du den Code verlierst, schickt der Vorstand eine neue Einladung – er kann deinen Code nicht einsehen.</div>';
 				}
 				$error = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
 			}
@@ -124,25 +127,39 @@ function vv_activate_html() {
 			. 'Bitte nutze den Link aus deiner Einladungs-E-Mail.</div>';
 	}
 
+	// [FU007#AK01] Angezeigter Code: nach fehlgeschlagenem POST der gesendete,
+	// sonst ein frisch erzeugter. GET (auch „Neuen Code erzeugen") ändert ihn.
+	$code = isset( $_POST['pin'] ) ? strtoupper( trim( (string) wp_unslash( $_POST['pin'] ) ) ) : '';
+	if ( ! vv_valid_code( $code ) ) {
+		$code = vv_generate_code();
+	}
+
 	// Formular: Mitgliedsdaten vorbefüllen (E-Mail aus Einladung = Prefill).
 	ob_start();
 	?>
+	<div class="vv-box vv-info">
+		<p><strong>Dein Wahl-Code:</strong> <code class="vv-receipt"><?php echo esc_html( $code ); ?></code></p>
+		<p>Der Code wird vom System erzeugt – so können schwache Codes (Geburtstage,
+		Namen, einfache Muster) nicht entstehen. Groß- und Kleinschreibung ist egal.</p>
+		<form method="get">
+			<input type="hidden" name="poll" value="<?php echo esc_attr( $poll_id ); ?>">
+			<input type="hidden" name="token" value="<?php echo esc_attr( $token ); ?>">
+			<button type="submit" class="vv-btn">Neuen Code erzeugen</button>
+		</form>
+	</div>
 	<form method="post" class="vv-form">
 		<?php wp_nonce_field( 'vv_frontend', 'vv_frontend_nonce' ); ?>
 		<p><strong>Abstimmung:</strong> <?php echo esc_html( vv_poll_title( $poll_id ) ); ?></p>
+		<p>Kennst du deine Mitgliedsnummer und deine E-Mail? Dann bestätige unten,
+		dass dieser Wahl-Code für dich gilt.</p>
+		<input type="hidden" name="pin" value="<?php echo esc_attr( $code ); ?>">
 		<label for="vv-member-no">Mitgliedsnummer
-			<input type="text" id="vv-member-no" name="member_no" required value="">
+			<input type="text" id="vv-member-no" name="member_no" required value="<?php echo esc_attr( vv_re( 'member_no', '' ) ); ?>">
 		</label>
 		<label for="vv-email">E-Mail
-			<input type="email" id="vv-email" name="email" required value="">
+			<input type="email" id="vv-email" name="email" required value="<?php echo esc_attr( vv_re( 'email', '' ) ); ?>">
 		</label>
-		<label for="vv-pin">Neue Wahl-PIN (6 Ziffern)
-			<input type="password" id="vv-pin" name="pin" pattern="[0-9]{6}" maxlength="6" minlength="6" inputmode="numeric" autocomplete="new-password" required>
-		</label>
-		<label for="vv-pin2">PIN bestätigen
-			<input type="password" id="vv-pin2" name="pin2" pattern="[0-9]{6}" maxlength="6" minlength="6" inputmode="numeric" autocomplete="new-password" required>
-		</label>
-		<button type="submit" class="vv-btn">Wahl-PIN setzen</button>
+		<button type="submit" class="vv-btn">Diesen Code übernehmen</button>
 	</form>
 	<?php
 	return ob_get_clean() . ( $error ? '<div class="vv-box vv-error">' . esc_html( $error ) . '</div>' : '' );
@@ -178,7 +195,7 @@ function vv_form_html() {
 					$poll_id,
 					sanitize_text_field( wp_unslash( $_POST['member_no'] ?? '' ) ),
 					sanitize_email( wp_unslash( $_POST['email'] ?? '' ) ),
-					preg_replace( '/\D/', '', wp_unslash( $_POST['pin'] ?? '' ) ),
+					wp_unslash( $_POST['pin'] ?? '' ),
 					sanitize_key( wp_unslash( $_POST['option'] ?? '' ) )
 				);
 
@@ -228,8 +245,8 @@ function vv_form_html() {
 		<label for="vv-email">E-Mail
 			<input type="email" id="vv-email" name="email" required value="<?php echo esc_attr( vv_re( 'email', '' ) ); ?>">
 		</label>
-		<label for="vv-pin">Wahl-PIN
-			<input type="password" id="vv-pin" name="pin" pattern="[0-9]{6}" maxlength="6" inputmode="numeric" required>
+		<label for="vv-pin">Wahl-Code (Groß-/Kleinschreibung egal)
+			<input type="text" id="vv-pin" name="pin" maxlength="6" autocomplete="off" required>
 		</label>
 
 		<fieldset>

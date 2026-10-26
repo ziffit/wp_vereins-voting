@@ -17,23 +17,27 @@ Strikte Trennung von **Identitätsprüfung/Wahlberechtigung**
 (`wp_voting_voters`) und **anonymer Stimmurne** (`wp_voting_ballots`).
 
 - Keine Foreign Keys zwischen den Tabellen.
-- Speicherung von PINs ausschließlich als sichere Hashes (`password_hash`).
+- Speicherung des Wahl-Codes ausschließlich als sicherer Hash (`password_hash`).
+  Der Wahl-Code (6 Zeichen, mindestens 1 Buchstabe und 1 Ziffer) wird
+  **vom System erzeugt** – nie vom Mitglied gewählt; er hängt nicht von
+  Geburtstag, Name oder Datum ab und ist nur in der Aktivierungsansicht
+  einmal sichtbar.
 
 ## Datenschutz & Logging (hart)
 
 Es werden **niemals** Daten geloggt, die Rückschlüsse auf ein Mitglied, seine
-Stimmabgabe oder seine PIN zulassen. Das gilt für Code, Tests, Betrieb und
+Stimmabgabe oder seinen Wahl-Code zulassen. Das gilt für Code, Tests, Betrieb und
 gleichermaßen für Vorschläge von KI-Werkzeugen.
 
 - Verboten in Logs, Debug-Ausgaben, Fehlermeldungen, Transients und
-  Support-Antworten: Mitgliedsnummer, E-Mail, Name, PIN (auch gehasht),
+  Support-Antworten: Mitgliedsnummer, E-Mail, Name, Wahl-Code (auch gehasht),
   `activation_token`, `receipt_hash` in Verbindung mit einer Person, die
   gewählte Option sowie IP-Adresse in Verbindung mit einer Stimme.
 - Fehlermeldungen nennen nur den Grund, nie die eingegebenen Werte.
 - Rate-Limit-Schlüssel werden gehasht (`vv_rate_key()`). Die Urne enthält
   ausschließlich `poll_id`, `vote_option`, `receipt_hash`.
 - Der Einladungsversand speichert nur pollbezogene Statuswerte und Zähler;
-  E-Mail-Adressen, Namen, Mitgliedsnummern, Token und PIN-Hashes gehören nicht
+  E-Mail-Adressen, Namen, Mitgliedsnummern, Token und Wahl-Code-Hashes gehören nicht
   in Queue-Optionen, Cron-Ausgaben oder Fehlermeldungen. Vorschau und
   Testversand verwenden ausschließlich erfundene Beispieldaten und einen
   ungültigen Beispieltoken.

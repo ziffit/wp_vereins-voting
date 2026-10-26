@@ -43,7 +43,7 @@ return [
 		global $wpdb;
 		$pid     = vv_fx_poll( [ 'status' => 'closed' ] );
 		$member  = vv_fx_voter( $pid, '55', 'ein@beispiel.org', 'tokx', null, 'Erika', 'Muster' );
-		vv_fx_pin( $member[0], '123456' );
+		vv_fx_pin( $member[0], 'A2B3C4' );
 		$wpdb->query( "UPDATE " . vv_tbl( 'voting_voters' ) . " SET has_voted = 1, voted_at = NOW() WHERE id = " . (int) $member[0] );
 		vv_fx_ballot( $pid, 'ja' );  // diese Person hat für JA gestimmt (Backend darf das NICHT anzeigen können).
 
@@ -126,7 +126,7 @@ return [
 		global $wpdb;
 
 		$pid = vv_fx_poll();
-		vv_fx_voter( $pid, '201', 'pin@example.org', null, '123456' );
+		vv_fx_voter( $pid, '201', 'pin@example.org', null, 'A2B3C4' );
 		vv_fx_voter( $pid, '202', 'nopin@example.org', 'tok2' );
 		$wpdb->update( vv_tbl( 'voting_voters' ), [ 'invited_at' => current_time( 'mysql' ) ], [ 'email' => 'pin@example.org' ] );
 
@@ -135,21 +135,21 @@ return [
 		vv_render_members_table( vv_fx_poll_row( $pid ) );
 		$html = (string) ob_get_clean();
 
-		vv_check( str_contains( $html, 'PIN gesetzt' ), '[FU005#AK01] Spalte „PIN gesetzt“ vorhanden' );
+		vv_check( str_contains( $html, 'Wahl-Code gesetzt' ), '[FU005#AK01] Spalte „Wahl-Code gesetzt“ vorhanden' );
 		vv_check( str_contains( $html, 'Einladung' ) && str_contains( $html, 'offen' ) && str_contains( $html, 'gesendet' ),
 			'[FU005#AK01] Einladungsstatus je Person sichtbar' );
 		vv_check( str_contains( $html, '<td>Ja</td>' ) && str_contains( $html, '<td>Nein</td>' ),
-			'[FU005#AK01] PIN-Status je Person als Ja/Nein' );
-		vv_check( 1 === substr_count( $html, 'value="reset_pin"' ), '[FU005#AK01] Reset-Aktion nur bei gesetzter PIN' );
+			'[FU005#AK01] Code-Status je Person als Ja/Nein' );
+		vv_check( 1 === substr_count( $html, 'value="reset_pin"' ), '[FU005#AK01] Reset-Aktion nur bei erzeugtem Wahl-Code' );
 		vv_check( ! str_contains( $html, (string) vv_fx_voter_row( 'pin@example.org' )->pin_hash ),
-			'[FU005#AK02] PIN-Hash ist im Backend nicht sichtbar' );
+			'[FU005#AK02] Wahl-Code-Hash ist im Backend nicht sichtbar' );
 	},
 
 	'test_05_fu005_ak04_pin_reset' => function () {
 		global $wpdb;
 
 		$pid = vv_fx_poll( [ 'status' => 'active' ] );
-		[ $vid ] = vv_fx_voter( $pid, '101', 'reset@example.org', null, '123456' );
+		[ $vid ] = vv_fx_voter( $pid, '101', 'reset@example.org', null, 'A2B3C4' );
 		$wpdb->update( vv_tbl( 'voting_voters' ), [
 			'invited_at'      => current_time( 'mysql' ),
 			'invite_attempts' => 3,
@@ -165,11 +165,11 @@ return [
 		$row = vv_fx_voter_row( 'reset@example.org' );
 
 		vv_check( 'redirect' === $kind && str_contains( (string) $url, 'reset=1' ), '[FU005#AK04] Reset wird per Redirect bestätigt' );
-		vv_check( $row && empty( $row->pin_hash ), '[FU005#AK04] PIN-Hash wird gelöscht' );
+		vv_check( $row && empty( $row->pin_hash ), '[FU005#AK04] Wahl-Code-Hash wird gelöscht' );
 		vv_check( $row && $row->activation_token && 32 === strlen( $row->activation_token ),
 			'[FU005#AK04] neuer Aktivierungstoken für eine neue Einladung' );
 		vv_check( null === $row->pin_set_at,
-			'[FU005#AK04/FU007#AK03] PIN-Zeitpunkt (pin_set_at) wird mit dem Hash zurückgesetzt' );
+			'[FU005#AK04/FU007#AK03] Code-Zeitpunkt (pin_set_at) wird mit dem Hash zurückgesetzt' );
 		vv_check( $row && empty( $row->invited_at ) && 0 === (int) $row->invite_attempts,
 			'[FU005#AK04] Einladungsstatus wird für den erneuten Versand zurückgesetzt' );
 		vv_check( ! vv_rate_blocked( 'vote', $pid . '|101' ), '[FU005#AK04] Fehlversuchssperre wird aufgehoben' );
@@ -180,29 +180,29 @@ return [
 	'test_05_fu005_ak04_pin_reset_guards' => function () {
 		global $wpdb;
 
-		// Nach der Stimmabgabe ist die PIN irrelevant – kein Reset.
+		// Nach der Stimmabgabe ist die irrelevant – kein Reset.
 		$pid = vv_fx_poll( [ 'status' => 'active' ] );
-		[ $vid ] = vv_fx_voter( $pid, '102', 'done@example.org', null, '123456' );
+		[ $vid ] = vv_fx_voter( $pid, '102', 'done@example.org', null, 'A2B3C4' );
 		$wpdb->update( vv_tbl( 'voting_voters' ), [ 'has_voted' => 1 ], [ 'id' => $vid ] );
 		vv_fx_http( [], [ 'poll' => $pid, 'voter_id' => $vid ] );
 		[ $kind ] = vv_fx_run( 'vv_reset_pin' );
 		vv_check( 'die' === $kind && ! empty( vv_fx_voter_row( 'done@example.org' )->pin_hash ),
-			'[FU005#AK04] nach Stimmabgabe kein PIN-Reset' );
+			'[FU005#AK04] nach Stimmabgabe kein Wahl-Code-Reset' );
 
 		// Geschlossene Wahl: kein Reset.
 		$pid2 = vv_fx_poll( [ 'status' => 'closed' ] );
-		[ $vid2 ] = vv_fx_voter( $pid2, '103', 'closed@example.org', null, '123456' );
+		[ $vid2 ] = vv_fx_voter( $pid2, '103', 'closed@example.org', null, 'A2B3C4' );
 		vv_fx_http( [], [ 'poll' => $pid2, 'voter_id' => $vid2 ] );
 		[ $kind2 ] = vv_fx_run( 'vv_reset_pin' );
 		vv_check( 'die' === $kind2 && ! empty( vv_fx_voter_row( 'closed@example.org' )->pin_hash ),
-			'[FU005#AK04] geschlossene Wahl: kein PIN-Reset' );
+			'[FU005#AK04] geschlossene Wahl: kein Wahl-Code-Reset' );
 	},
 
 	'test_05_fu005_ak05_wahlniederschrift_komplett' => function () {
 		$pid = vv_fx_poll( [ 'status' => 'closed' ] );
 		vv_fx_ballot( $pid, 'ja', str_repeat( '7', 64 ) );
 		$poll = vv_fx_poll_row( $pid );
-		vv_fx_voter( $pid, '301', 'mitglied@example.org', null, '123456', 'Erika', 'Muster' );
+		vv_fx_voter( $pid, '301', 'mitglied@example.org', null, 'A2B3C4', 'Erika', 'Muster' );
 
 		vv_fx_http( [ 'poll' => $pid ] );
 		$html = vv_report_html();
@@ -219,7 +219,7 @@ return [
 		$row = vv_fx_voter_row( 'mitglied@example.org' );
 		vv_check( str_contains( $html, vv_fmt( $row->invited_at ) ) && str_contains( $html, vv_fmt( $row->pin_set_at ) )
 			&& str_contains( $html, vv_fmt( $row->voted_at ) ),
-			'[FU005#AK05] Einladungs-, PIN- und Abgabezeit je Person' );
+			'[FU005#AK05] Einladungs-, Wahl-Code- und Abgabezeit je Person' );
 		vv_check( str_contains( $html, 'Abgabefingerprint' )
 			&& str_contains( $html, (string) $poll->urn_fingerprint ),
 			'[FU005#AK05] Niederschrift hält den Abgabefingerprint fest' );

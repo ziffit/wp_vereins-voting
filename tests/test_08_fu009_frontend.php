@@ -47,7 +47,7 @@ return [
 	'test_08_fu009_ak03_pruefliste_vollstandig_und_anonym' => function () {
 		global $wpdb;
 		$pid = vv_fx_poll( [ 'status' => 'closed' ] );
-		$voter = vv_fx_voter( $pid, '55', 'geheim@example.org', 'tokq', '123456' ); // Teilnehmer existiert.
+		$voter = vv_fx_voter( $pid, '55', 'geheim@example.org', 'tokq', 'A2B3C4' ); // Teilnehmer existiert.
 		$h1 = vv_fx_ballot( $pid, 'ja' );
 		$h2 = vv_fx_ballot( $pid, 'nein' );
 		$h3 = vv_fx_ballot( $pid, 'enthaltung' );
@@ -75,7 +75,7 @@ return [
 		$pid = vv_fx_poll( [ 'title' => 'Wahlfrage', 'question' => 'Ja oder Nein?' ] );
 		vv_fx_http( [ 'poll' => $pid ] );
 		$html = vv_shortcode_form();
-		foreach ( [ 'Mitgliedsnummer', 'E-Mail', 'Wahl-PIN', 'value="ja"', 'value="nein"', 'value="enthaltung"' ] as $needle ) {
+		foreach ( [ 'Mitgliedsnummer', 'E-Mail', 'Wahl-Code', 'value="ja"', 'value="nein"', 'value="enthaltung"' ] as $needle ) {
 			vv_check( str_contains( $html, $needle ), "[FU008#AK01] Formularfeld $needle vorhanden" );
 		}
 	},

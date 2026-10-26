@@ -5,8 +5,7 @@
 ### Beschreibung
 
 Bei der Plugin-Aktivierung legt das System drei isolierte Tabellen an:
-`wp_voting_polls` (Abstimmungen), `wp_voting_voters` (Berechtigte &
-PIN-Hashes) und `wp_voting_ballots` (anonyme Stimmen).
+`wp_voting_polls` (Abstimmungen), `wp_voting_voters` (Berechtigte & Wahl-Code-Hashes) und `wp_voting_ballots` (anonyme Stimmen).
 
 ### Akzeptanzkriterien
 
@@ -14,12 +13,13 @@ PIN-Hashes) und `wp_voting_ballots` (anonyme Stimmen).
   `wp_voting_polls`, `wp_voting_voters` und `wp_voting_ballots` mit den
   korrekten Feldtypen und Indizes angelegt. `wp_voting_polls` verwendet als
   Primärschlüssel eine zufällige UUID (`CHAR(36)`), keine aufsteigende Zahl.
-  `wp_voting_voters` enthält neben Mitgliedsnummer, E-Mail, Token, PIN-Hash
+  `wp_voting_voters` enthält neben Mitgliedsnummer, E-Mail, Token, dem
+  Wahl-Code-Hash `pin_hash` (nur `password_hash()`, nie Klartext)
   und Beteiligungsstatus die optionalen Felder `first_name` und `last_name`
   (je VARCHAR(100), NULL) für die persönliche Ansprache sowie
   `invited_at` (DATETIME NULL) und `invite_attempts` (TINYINT UNSIGNED,
   Default 0) für den gedrosselten Einladungsversand; ferner `pin_set_at`
-  (DATETIME NULL) als Zeitpunkt der PIN-Registrierung (FU007#AK03).
+  (DATETIME NULL) als Zeitpunkt der Wahl-Code-Aktivierung (FU007#AK03).
   `wp_voting_polls` enthält `mail_text` (TEXT NULL) und `mail_url`
   (VARCHAR(500) NULL) für den Text und den optionalen Website-Link je
   Abstimmung sowie `urn_fingerprint` (CHAR(64) NULL) als Referenzwert der

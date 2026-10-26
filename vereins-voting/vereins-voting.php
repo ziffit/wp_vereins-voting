@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name:       vereins-voting
- * Description:       Vereins-Abstimmungen: Einladung per E-Mail-Link, PIN-Aktivierung durch das Mitglied, anonyme Stimmurne mit Receipt-Hash.
- * Version:           1.5.2
+ * Description:       Vereins-Abstimmungen: Einladung per E-Mail-Link, Aktivierung mit systemgeneriertem Wahl-Code, anonyme Stimmurne mit Receipt-Hash.
+ * Version:           1.5.3
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Felix Tensing
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Direktzugriff verweigern.
 }
 
-define( 'VEREINS_VOTING_VERSION', '1.5.2' );
+define( 'VEREINS_VOTING_VERSION', '1.5.3' );
 
 /*
  * [FU001#AK02] Bei Deaktivierung/Deinstallation werden KEINE Daten gelöscht —
@@ -54,7 +54,7 @@ function vv_create_schema() {
 		) $charset"
 	);
 
-	// [FU001] Berechtigte + PIN-Hashes. Kein Foreign Key zur Urne.
+	// [FU001] Berechtigte + Wahl-Code-Hashes. Kein Foreign Key zur Urne.
 	// first_name/last_name (optional) dienen nur der persönlichen Ansprache.
 	// [FU003#AK02] Eindeutig ist die Kombination Mitgliedsnummer + E-Mail:
 	// dieselbe E-Mail darf mehrfach vorkommen (z. B. Ehepaare).

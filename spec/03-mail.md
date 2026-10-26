@@ -15,7 +15,7 @@ arbeiten ausschließlich mit erfundenen Beispieldaten.
   Aktivierungslink. Der Standard begrüßt mit
   „Hallo {vorname} {nachname},“ und weist auf die Anonymität der Stimme hin.
   Nach dem Textblock der Abstimmung führt die Mail durch die Schritte:
-  (1) Wahl-PIN setzen per Aktivierungsbutton, (2) im Wahlzeitraum abstimmen
+  (1) Wahl-Code erzeugen per Aktivierungsbutton, (2) im Wahlzeitraum abstimmen
   (Pflicht-URL der Stimmformular-Seite), (3) nach Wahlende die Ergebnisse
   prüfen (Pflicht-URL der Ergebnisseite); dabei wird erklärt, dass die
   ersten fünf Zeichen des Prüfcodes zum Wiederfinden der eigenen Stimme
@@ -50,7 +50,7 @@ arbeiten ausschließlich mit erfundenen Beispieldaten.
   Sie werden je Empfänger ersetzt; leere Namen ergeben eine leere Stelle.
   Unbekannte Platzhalter werden beim Speichern mit einer Meldung abgewiesen.
   Der persönliche Aktivierungslink wird nicht als Platzhalter im Freitext
-  erwartet, sondern immer als Button „PIN setzen“ gesetzt.
+  erwartet, sondern immer als Button „Wahl-Code erzeugen“ gesetzt.
 
 - **[FU006#AK05]** Vorschau und Testversand sind auf der globalen
   Einstellungsseite und je Abstimmung verfügbar. Beide nutzen die

@@ -46,7 +46,7 @@ löschen.
   eine Bestätigungsmeldung. Die Detailansicht einer Abstimmung ist in vier
   Registerkarten gegliedert – **Wahl** (Titel, Frage, Zeitraum, Status,
   vorzeitiges Beenden, Löschen im Entwurf), **Teilnehmer** (CSV-Import,
-  Liste mit PIN-Reset, Räumung der Teilnehmerdaten), **E-Mail**
+  Liste mit Wahl-Code-Reset, Räumung der Teilnehmerdaten), **E-Mail**
   (Einladungsversand mit Textblock und Website-URL, Vorschau, Testmail,
   Versandstatus) und **Wahlergebnis** (Gesamtergebnis, Abgabefingerprint,
   Wahlniederschrift).
@@ -71,7 +71,7 @@ löschen.
 
 - **[FU002#AK08]** Bei beendeten Abstimmungen kann der Administrator die
   Teilnehmerdaten löschen: Wählerzeilen (Mitgliedsnummer, Name, E-Mail,
-  Token, PIN-Hash, alle Zeitstempel) werden entfernt, während Urne,
+  Token, Wahl-Code-Hash, alle Zeitstempel) werden entfernt, während Urne,
   Ergebnis und Prüfliste vollständig erhalten bleiben. Die Aktion ist nur
   im Status `closed` möglich und erfordert Nonce und Bestätigungsdialog mit
   dem Hinweis, die Wahlniederschrift (FU005#AK05) vorher zu erstellen und
@@ -149,7 +149,7 @@ Website-Link.
 - **[FU004#AK03]** Je Abstimmung lassen sich ein Textblock und optional eine
   Website-URL speichern. Der Textblock darf die dokumentierten Platzhalter
   verwenden; die URL muss `http` oder `https` sein. Die Mail führt durch die
-  Schritte des Ablaufs: Wahl-PIN setzen (Aktivierungsbutton, immer), im
+  Schritte des Ablaufs: Wahl-Code erzeugen (Aktivierungsbutton, immer), im
   Wahlzeitraum abstimmen (Button zur Stimmformular-Seite), nach Wahlende
   Ergebnisse prüfen (Link zur Ergebnisseite). Der
   Website-Link erscheint optional als Hinweis „Mehr zum Ablauf der Wahl und
@@ -169,7 +169,7 @@ Website-Link.
   Nach drei Fehlversuchen stoppt der automatische Versand; ein manueller
   Retry setzt den Zähler der fehlgeschlagenen Zeilen auf 0 und plant sie
   erneut ein. Bereits erfolgreich gesendete Zeilen bleiben unberührt. Ein
-  PIN-Reset löscht `invited_at` und `invite_attempts`, damit die Person über
+  Wahl-Code-Reset löscht `invited_at` und `invite_attempts`, damit die Person über
   einen erneuten Start wieder eingeladen wird.
 
 ## [FU005] Admin-Audit- & Mitglieder-Übersicht
@@ -186,7 +186,7 @@ Stimmgeheimnisses.
   (*Hat gewählt: Ja/Nein* und *Gewählt am: [Zeitstempel]*); fehlt der Name,
   steht dort „–“. Die Liste trägt die Überschrift „Stimmberechtigte
   Mitglieder“ und wird seitenweise angezeigt (100 Einträge pro Seite). Sie
-  zeigt je Person, ob eine PIN gesetzt ist (Ja/Nein) und ob die Einladung
+  zeigt je Person, ob ein Wahl-Code erzeugt ist (Ja/Nein) und ob die Einladung
   offen, gesendet oder fehlgeschlagen ist. Die Abstimmungsübersicht zeigt die
   UUID je Abstimmung, den Titel ohne Verlinkung sowie Teilnehmer- und
   Stimmenzahl und öffnet per „Details“ die Registerkarten-Ansicht
@@ -200,14 +200,15 @@ Stimmgeheimnisses.
   „Wahlergebnis“; vor dem Wahlende zeigt die Registerkarte einen Hinweis
   statt einer Tabelle.
 
-- **[FU005#AK04]** Der Admin kann eine gesetzte PIN vor der Stimmabgabe
-  zurücksetzen (z. B. bei vergessener PIN). Dabei werden nur der PIN-Hash
-  gelöscht und ein neuer `activation_token` erzeugt; außerdem werden
-  `invited_at` und `invite_attempts` zurückgesetzt, damit die Person über
-  einen erneuten Versandstart wieder eingeladen wird. Die Urne und das
-  Wahlgeheimnis bleiben unberührt. Nach der Stimmabgabe und bei geschlossenen
-  Abstimmungen ist der Reset nicht möglich; eine bestehende Fehlversuchssperre
-  wird aufgehoben.
+- **[FU005#AK04]** Der Admin kann einen erzeugten Wahl-Code vor der
+  Stimmabgabe zurücksetzen (z. B. wenn das Mitglied ihn verloren hat). Dabei
+  wird nur der Wahl-Code-Hash gelöscht und ein neuer `activation_token`
+  erzeugt; außerdem werden `invited_at` und `invite_attempts` zurückgesetzt,
+  damit die Person über eine neue Einladung selbst einen neuen Wahl-Code
+  erzeugen kann (der Admin kann den Code weder sehen noch selbst setzen).
+  Die Urne und das Wahlgeheimnis bleiben unberührt. Nach der Stimmabgabe und
+  bei geschlossenen Abstimmungen ist der Reset nicht möglich; eine
+  bestehende Fehlversuchssperre wird aufgehoben.
 
 - **[FU005#AK05]** Der Administrator kann zu jeder Abstimmung eine
   Wahlniederschrift als druckbare Seite erzeugen (Standalone-HTML ohne
@@ -218,7 +219,7 @@ Stimmgeheimnisses.
   Vergleich zur aktuellen Urne, die vollständige Prüfliste (Prüfcode,
   gewählte Option, geordnet nach Prüfcode) sowie eine Teilnahmetabelle je
   Person mit Mitgliedsnummer, Name, E-Mail und den Zeitpunkten Einladung
-  (`invited_at`), PIN-Registrierung (`pin_set_at`) und Stimmabgabe
+  (`invited_at`), Wahl-Code-Aktivierung (`pin_set_at`) und Stimmabgabe
   (`voted_at`). Vor dem Löschen der Teilnehmerdaten (FU002#AK08) dient sie
   als Archiv; danach zeigt sie Ergebnis und Prüfliste weiterhin und
   kennzeichnet fehlende Teilnehmerzeiten mit „Keine Teilnehmerzeiten

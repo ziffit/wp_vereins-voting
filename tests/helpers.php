@@ -55,7 +55,7 @@ function vv_fx_voter( $pid, $member = '101', $email = 'wahl@example.org', $token
 	return [ (int) $wpdb->insert_id, $token ];
 }
 
-/** PIN als Hash setzen. */
+/** Wahl-Code als Hash setzen. */
 function vv_fx_pin( $vid, $pin ) {
 	global $wpdb;
 	$wpdb->update( vv_tbl( 'voting_voters' ), [ 'pin_hash' => password_hash( (string) $pin, PASSWORD_DEFAULT ) ], [ 'id' => $vid ] );
