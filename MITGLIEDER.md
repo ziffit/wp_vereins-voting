@@ -8,13 +8,13 @@ und warum sie gleichzeitig **anonym**, **sicher** und **nachvollziehbar** ist.
 ### 1. Du bekommst eine Einladung per E-Mail
 
 Wenn eine Abstimmung gestartet wird, erhältst du eine E-Mail mit einem
-**persönlichen Link**. Der Link ist für dich allein bestimmt und kann nur
-einmal verwendet werden. Er öffnet eine Seite, auf der du deinen
+**persönlichen Link** (Token). Der Link ist für dich allein bestimmt und
+kann nur einmal verwendet werden. Er öffnet eine Seite, auf der du deinen
 Wahl-Code erzeugst. Die Mail führt dich der Reihe nach durch die drei
 Schritte: Wahl-Code erzeugen, abstimmen und nach Wahlende die Ergebnisse
 prüfen.
 
-> **Was ist ein „Token"?** Der persönliche Link enthält einen einmaligen
+> **Was ist ein „Token“?** Der persönliche Link enthält einen einmaligen
 > Code, der nach der Benutzung gelöscht wird. Wer den Link später mitliest,
 > kann nichts mehr damit anfangen.
 
@@ -38,7 +38,7 @@ Der Wahl-Code ist ab dann **dein persönliches Passwort für diese Wahl**.
 Niemand kennt ihn außer dir – nicht der Vorstand, nicht der
 Webseiten-Betreiber. Er wird dir **nur einmal angezeigt**: notiere oder
 kopiere ihn sofort. Auch der Server speichert ihn nicht: dort liegt nur ein
-unumkehrbarer „Fingerabdruck" deines Codes, mit dem er bei der Abstimmung
+unumkehrbarer „Fingerabdruck“ deines Codes, mit dem er bei der Abstimmung
 verglichen wird.
 Mehr dazu: [Passwort-Hashing (Wikipedia)](https://de.wikipedia.org/wiki/Passwort-Hashing).
 
@@ -54,7 +54,7 @@ Im Wahlzeitraum öffnest du die Wahlseite und wählst **Ja**, **Nein** oder
 * Eine Person kann nur **einmal** abstimmen.
 * Nach **5 falschen Eingaben** ist die Abstimmung für dich 15 Minuten
   gesperrt – dein Wahl-Code lässt sich also nicht durchprobieren.
-* Deine Stimme und die Markierung „hat gewählt" werden in **einem einzigen,
+* Deine Stimme und die Markierung „hat gewählt“ werden in **einem einzigen,
   ununterbrechbaren Schritt** gespeichert. Ein Absturz mitten im Vorgang
   führt nie zu einer doppelten oder verlorenen Stimme.
 
@@ -127,7 +127,7 @@ Prüftabelle macht das Ergebnis für alle prüfbar – jeder kann seinen Code
 wiederfinden und selbst nachzählen, statt einem Bericht glauben zu müssen.
 
 Zusätzlich hält das System am Wahlende einen **Abgabefingerprint** fest: eine
-eindeutige Prüfzahl, die sich aus allen Prüfcodes ergibt. Speichert jemand
+eindeutige Prüfzahl, die sich aus allen Quittungscodes ergibt. Speichert jemand
 eine frühere Ergebnisseite, kann er später nachweisen, dass an der Urne
 nichts mehr verändert wurde.
 
@@ -153,7 +153,7 @@ deine Sache.
 **Kann der Vorstand aus Zeitangaben erkennen, was ich gewählt habe?**
 Nein. Die Teilnehmerliste zeigt dem Vorstand nur, *ob* und *wann* abgestimmt
 wurde – nicht die Stimme. Die Urne selbst enthält keine Uhrzeit und keine
-laufende Nummer, und die Prüfliste zeigt keine Zeitangaben. Es gibt damit
+laufende Nummer, und die Prüftabelle zeigt keine Zeitangaben. Es gibt damit
 keinen Wert, den man mit deinem Abstimmungszeitpunkt abgleichen könnte.
 
 **Was, wenn ich die Einladung nie bekommen habe?**
