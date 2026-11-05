@@ -18,8 +18,8 @@ prüfen.
 > Code. Er bleibt gültig, bis du damit deinen Wahl-Code erzeugst – danach
 > wird er gelöscht und ist verbraucht.
 
-Nichts bekommen? Schau im Spam-Ordner nach und frage im Vorstand nach, ob
-deine Adresse im Mitgliederstand aktuell ist.
+Nichts bekommen? Schau im Spam-Ordner nach und frage bei der Verwaltung
+nach, ob deine Adresse im Mitgliederstand aktuell ist.
 
 ### 2. Du erzeugst deinen Wahl-Code
 
@@ -35,24 +35,25 @@ und bestätigst den angezeigten Code mit „Diesen Code übernehmen“. Mit
 „Neuen Code erzeugen“ kannst du dir jederzeit einen anderen Code erzeugen.
 
 Der Wahl-Code ist ab dann **dein persönliches Passwort für diese Wahl**.
-Niemand kennt ihn außer dir – nicht der Vorstand, nicht der
+Niemand kennt ihn außer dir – nicht die Verwaltung, nicht der
 Webseiten-Betreiber. Er wird dir **nur einmal angezeigt**: notiere oder
 kopiere ihn sofort. Auch der Server speichert ihn nicht: dort liegt nur ein
 unumkehrbarer „Fingerabdruck“ deines Codes, mit dem er bei der Abstimmung
 verglichen wird.
 Mehr dazu: [Passwort-Hashing (Wikipedia)](https://de.wikipedia.org/wiki/Passwort-Hashing).
 
-Falls du deinen Wahl-Code verlierst: Der Vorstand kann ihn weder einsehen
-noch wiederherstellen. Er setzt den Code zurück; dabei wird der bisherige
+Falls du deinen Wahl-Code verlierst: Die Verwaltung kann ihn weder einsehen
+noch wiederherstellen. Sie setzt den Code zurück; dabei wird der bisherige
 Code ungültig. Du bekommst eine neue Einladung mit einem neuen persönlichen
 Link und erzeugst damit einen neuen Code. Das geht nur, solange du noch
-nicht abgestimmt hast und die Wahl noch nicht beendet ist.
+nicht abgestimmt hast und die Wahl noch nicht beendet ist. Melde dich dazu
+über das Kontaktformular.
 
 Falls du nur die Einladung (den Link) verlierst und noch keinen Wahl-Code
-erzeugt hast: Melde dich bei der Verwaltung. Sie kann dir dieselbe Einladung
-erneut schicken. Der bereits verschickte Link bleibt dann gültig, bis du
-damit einen Wahl-Code erzeugst. Einen separaten Widerruf des alten Links
-gibt es in diesem Fall nicht.
+erzeugt hast: Melde dich über das Kontaktformular bei der Verwaltung. Sie
+kann dir dieselbe Einladung erneut schicken. Der bereits verschickte Link
+bleibt dann gültig, bis du damit einen Wahl-Code erzeugst. Einen separaten
+Widerruf des alten Links gibt es in diesem Fall nicht.
 
 ### 3. Du gibst deine Stimme ab
 
@@ -143,8 +144,8 @@ nichts mehr verändert wurde.
 
 ## Häufige Fragen
 
-**Kann der Vorstand sehen, wie ich gestimmt habe?**
-Nein. Er sieht in der Teilnehmerliste nur, *ob* und *wann* du abgestimmt
+**Kann die Verwaltung sehen, wie ich gestimmt habe?**
+Nein. Sie sieht in der Teilnehmerliste nur, *ob* und *wann* du abgestimmt
 hast – nicht deine Antwort. Aus den Zeitangaben lässt sich die Stimme
 ebenfalls nicht ableiten: Die Urne enthält keine Uhrzeit und keine laufende
 Nummer, und die Prüftabelle zeigt keine Zeitangaben. Es gibt daher keinen
@@ -163,7 +164,7 @@ Aber er verrät die Stimme dahinter. Behandle ihn wie einen Stimmzettel:
 deine Sache.
 
 **Was, wenn ich die Einladung nie bekommen habe?**
-Spam-Ordner prüfen, dann im Vorstand melden – die Adresse ist dann
+Spam-Ordner prüfen, dann bei der Verwaltung melden – die Adresse ist dann
 vermutlich veraltet.
 
 **Was ist, wenn ich die falsche Option gewählt habe?**

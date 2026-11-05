@@ -115,7 +115,7 @@ function vv_activate_html() {
 						. 'Er wird nur einmal angezeigt – notiere oder kopiere ihn jetzt. '
 						. 'Nutze während des Wahlzeitraums die Seite mit dem Stimmformular, um abzustimmen; '
 						. 'halte Mitgliedsnummer, E-Mail und Wahl-Code bereit. '
-						. 'Wenn du den Code verlierst, schickt der Vorstand eine neue Einladung – er kann deinen Code nicht einsehen.</div>';
+						. 'Solltest du deinen Wahl-Code verlieren, melde dich über das Kontaktformular. Die Verwaltung kann ihn zurücksetzen und dir eine neue Einladung senden.</div>';
 				}
 				$error = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
 			}
