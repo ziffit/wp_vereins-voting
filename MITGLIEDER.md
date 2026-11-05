@@ -15,8 +15,8 @@ Schritte: Wahl-Code erzeugen, abstimmen und nach Wahlende die Ergebnisse
 prüfen.
 
 > **Was ist ein „Token“?** Der persönliche Link enthält einen einmaligen
-> Code, der nach der Benutzung gelöscht wird. Wer den Link später mitliest,
-> kann nichts mehr damit anfangen.
+> Code. Er bleibt gültig, bis du damit deinen Wahl-Code erzeugst – danach
+> wird er gelöscht und ist verbraucht.
 
 Nichts bekommen? Schau im Spam-Ordner nach und frage im Vorstand nach, ob
 deine Adresse im Mitgliederstand aktuell ist.
@@ -42,9 +42,17 @@ unumkehrbarer „Fingerabdruck“ deines Codes, mit dem er bei der Abstimmung
 verglichen wird.
 Mehr dazu: [Passwort-Hashing (Wikipedia)](https://de.wikipedia.org/wiki/Passwort-Hashing).
 
-Falls du deinen Wahl-Code verlierst: Der Vorstand kann ihn nicht einsehen
-oder zurückgeben – er schickt dir eine **neue Einladung**, und du erzeugst
-dir damit einen neuen Code.
+Falls du deinen Wahl-Code verlierst: Der Vorstand kann ihn weder einsehen
+noch wiederherstellen. Er setzt den Code zurück; dabei wird der bisherige
+Code ungültig. Du bekommst eine neue Einladung mit einem neuen persönlichen
+Link und erzeugst damit einen neuen Code. Das geht nur, solange du noch
+nicht abgestimmt hast und die Wahl noch nicht beendet ist.
+
+Falls du nur die Einladung (den Link) verlierst und noch keinen Wahl-Code
+erzeugt hast: Melde dich bei der Verwaltung. Sie kann dir dieselbe Einladung
+erneut schicken. Der bereits verschickte Link bleibt dann gültig, bis du
+damit einen Wahl-Code erzeugst. Einen separaten Widerruf des alten Links
+gibt es in diesem Fall nicht.
 
 ### 3. Du gibst deine Stimme ab
 
@@ -136,7 +144,11 @@ nichts mehr verändert wurde.
 ## Häufige Fragen
 
 **Kann der Vorstand sehen, wie ich gestimmt habe?**
-Nein. Er sieht nur, dass (und wann) du abgestimmt hast – nicht die Antwort.
+Nein. Er sieht in der Teilnehmerliste nur, *ob* und *wann* du abgestimmt
+hast – nicht deine Antwort. Aus den Zeitangaben lässt sich die Stimme
+ebenfalls nicht ableiten: Die Urne enthält keine Uhrzeit und keine laufende
+Nummer, und die Prüftabelle zeigt keine Zeitangaben. Es gibt daher keinen
+Wert, der sich mit deinem Abstimmungszeitpunkt abgleichen ließe.
 
 **Kann ich zweimal abstimmen?**
 Nein. Nach deiner Stimme wird der Zugang für dich geschlossen.
@@ -149,12 +161,6 @@ E-Mail-Adresse – zwei Personen mit einer Adresse sind zwei Berechtigungen.
 Der Code allein verrät keine Person – er steht in der Tabelle ohne Namen.
 Aber er verrät die Stimme dahinter. Behandle ihn wie einen Stimmzettel:
 deine Sache.
-
-**Kann der Vorstand aus Zeitangaben erkennen, was ich gewählt habe?**
-Nein. Die Teilnehmerliste zeigt dem Vorstand nur, *ob* und *wann* abgestimmt
-wurde – nicht die Stimme. Die Urne selbst enthält keine Uhrzeit und keine
-laufende Nummer, und die Prüftabelle zeigt keine Zeitangaben. Es gibt damit
-keinen Wert, den man mit deinem Abstimmungszeitpunkt abgleichen könnte.
 
 **Was, wenn ich die Einladung nie bekommen habe?**
 Spam-Ordner prüfen, dann im Vorstand melden – die Adresse ist dann
