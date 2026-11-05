@@ -57,8 +57,10 @@ a.vv-btn {
 }
 
 .vv-receipt {
-	display: inline-block;
-	margin: 0.5em 0;
+	text-align: center;
+	display: block;
+	margin: 0;
+	font-size: 1.5em;
 	padding: 0.2em 0.5em;
 	border: 1px dashed #888;
 	user-select: all; /* Ein Klick markiert den Hash komplett. */
