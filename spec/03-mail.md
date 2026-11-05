@@ -21,7 +21,10 @@ arbeiten ausschließlich mit erfundenen Beispieldaten.
   (Pflicht-URL der Stimmformular-Seite), (3) nach Wahlende die Ergebnisse
   prüfen (Pflicht-URL der Ergebnisseite); dabei wird erklärt, dass die
   ersten fünf Zeichen des Prüfcodes zum Wiederfinden der eigenen Stimme
-  reichen. Die URLs der Stimmformular-Seite und der Ergebnisseite sind
+  reichen. Stimm- und Ergebnislink tragen zusätzlich die Poll-ID als
+  `?poll=<UUID>` (vorhandene Query-Parameter bleiben erhalten), damit die
+  Shortcodes die richtige Abstimmung anzeigen. Die URLs der
+  Stimmformular-Seite und der Ergebnisseite sind
   Pflichtfelder: ohne gültige http(s)-Adressen wird das Speichern der
   E-Mail-Einstellungen abgewiesen und es wird nicht versendet. Einen
   automatischen Website-Hinweis gibt es nicht; wer eine Adresse nennen

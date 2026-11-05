@@ -146,6 +146,16 @@ function vv_mail_parts( $poll, $voter, $overrides = [] ) {
 	$vote        = $overrides['vote_url'] ?? vv_mail_vote_url();
 	$results     = $overrides['results_url'] ?? vv_mail_results_url();
 
+	// [FU006#AK01] Stimm- und Ergebnislink brauchen die Poll-ID, sonst melden
+	// die Shortcodes „Keine Abstimmung ausgewählt“. Vorhandene Parameter bleiben.
+	$poll_id = (string) ( $poll->id ?? '' );
+	if ( '' !== $vote ) {
+		$vote = add_query_arg( 'poll', $poll_id, $vote );
+	}
+	if ( '' !== $results ) {
+		$results = add_query_arg( 'poll', $poll_id, $results );
+	}
+
 	$subject   = vv_mail_replace( $subject_tpl, $poll, $voter );
 	$intro     = vv_mail_replace( $intro_tpl, $poll, $voter );
 	$poll_text = vv_mail_replace( $poll_tpl, $poll, $voter );

@@ -452,9 +452,15 @@ return [
 			'[FU006#AK01] Schritt 2: Button zur Stimmformular-Seite' );
 		vv_check( str_contains( $parts['html'], 'Ergebnisse ansehen' ) && str_contains( $parts['html'], 'https://seite.example.org/ergebnis/' ),
 			'[FU006#AK01] Schritt 3: Link zur Ergebnisseite' );
+		vv_check( str_contains( $parts['html'], 'https://seite.example.org/waehlen/?poll=' . $pid )
+			&& str_contains( $parts['html'], 'https://seite.example.org/ergebnis/?poll=' . $pid ),
+			'[FU006#AK01] Stimm- und Ergebnislink tragen die Poll-ID (HTML)' );
 		vv_check( str_contains( $parts['plain'], '2. Im Wahlzeitraum abstimmen: https://seite.example.org/waehlen/' )
 			&& str_contains( $parts['plain'], '3. Nach Wahlende Ergebnisse prüfen: https://seite.example.org/ergebnis/' ),
 			'[FU006#AK01] Plain-Text nennt die drei Schritte' );
+		vv_check( str_contains( $parts['plain'], 'https://seite.example.org/waehlen/?poll=' . $pid )
+			&& str_contains( $parts['plain'], 'https://seite.example.org/ergebnis/?poll=' . $pid ),
+			'[FU006#AK01] Stimm- und Ergebnislink tragen die Poll-ID (Plain-Text)' );
 	},
 
 	'test_04_fu006_ak05_vorschau_und_testversand' => function () {

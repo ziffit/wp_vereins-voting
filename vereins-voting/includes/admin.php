@@ -100,11 +100,11 @@ function vv_render_admin_page() {
 			echo '<p>Abstimmung nicht gefunden.</p>';
 		} else {
 			vv_render_detail_tabs( $poll, 'teilnehmer' );
-			// [FU002#AK05/FU003#AK01] Nur mögliche Aktionen zeigen: Import nur im Entwurf.
+			// [FU002#AK05/FU003#AK01] Nur mögliche Aktionen zeigen: Import im Entwurf, Handanlage bei laufender Wahl.
 			if ( 'draft' === $poll->status ) {
 				vv_render_import_form( $poll );
 			} elseif ( 'active' === $poll->status ) {
-				echo '<p class="description">Die Wahl läuft bereits – es können keine Mitglieder mehr hinzugefügt werden.</p>';
+				vv_render_add_voter_form( $poll );
 			}
 			vv_render_members_table( $poll );
 			// [FU002#AK08] Beendete Wahl: keine Import-/Einladungsoptionen – Zurück am Seitenende.
@@ -226,6 +226,15 @@ function vv_handle_admin_actions() {
 		case 'delete_voter_data':
 			vv_delete_voter_data();
 			break;
+		case 'add_voter':
+			vv_add_voter();
+			break;
+		case 'update_voter_email':
+			vv_update_voter_email();
+			break;
+		case 'resend_invite':
+			vv_resend_invite();
+			break;
 	}
 }
 add_action( 'admin_init', 'vv_handle_admin_actions' );
@@ -235,6 +244,8 @@ add_action( 'admin_init', 'vv_handle_admin_actions' );
  * [FU002#AK08] Teilnehmerdaten einer beendeten Wahl löschen: Identität,
  * PIN-Hashes (jetzt Wahl-Code-Hashes) und Zeitstempel der Wählerliste; Urne und Ergebnis bleiben.
  * Vorher die Wahlniederschrift erstellen – danach fehlen die Zeitangaben.
+ * [FU002#AK09] Im Entwurf löscht dieselbe Aktion die komplette Liste, wenn
+ * der Import schiefgelaufen ist – vor dem Start gibt es keine Urne.
  */
 function vv_delete_voter_data() {
 	global $wpdb;
@@ -242,13 +253,185 @@ function vv_delete_voter_data() {
 	$poll_id = vv_poll_id( wp_unslash( $_POST['poll_id'] ?? '' ) );
 	$status  = $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$wpdb->prefix}voting_polls WHERE id = %s", $poll_id ) );
 
-	if ( 'closed' !== $status ) {
-		wp_die( 'Teilnehmerdaten löschen ist nur bei beendeten Abstimmungen möglich.' );
+	if ( ! in_array( $status, [ 'draft', 'closed' ], true ) ) {
+		wp_die( 'Teilnehmerdaten löschen ist nur vor dem Start oder nach dem Ende der Abstimmung möglich.' );
 	}
 
 	$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}voting_voters WHERE poll_id = %s", $poll_id ) );
+	delete_option( vv_queue_active_key( $poll_id ) );
+	delete_option( vv_queue_paused_key( $poll_id ) );
 
 	wp_safe_redirect( admin_url( 'admin.php?page=vereins-voting&view=members&poll=' . rawurlencode( $poll_id ) . '&voters_deleted=1' ) );
+	exit;
+}
+
+/**
+ * [FU002#AK10] Einzelnen Teilnehmer während der laufenden Wahl ergänzen –
+ * für Mitglieder ohne eigene E-Mail, die in der Geschäftsstelle abstimmen
+ * (dort kann eine gemeinsame Adresse eingetragen werden).
+ */
+function vv_add_voter() {
+	global $wpdb;
+
+	$poll_id = vv_poll_id( wp_unslash( $_POST['poll'] ?? '' ) );
+	$poll    = $wpdb->get_row( $wpdb->prepare(
+		"SELECT id, status FROM {$wpdb->prefix}voting_polls WHERE id = %s",
+		$poll_id
+	) );
+	if ( ! $poll || 'active' !== $poll->status ) {
+		wp_die( 'Teilnehmer können nur während einer laufenden Abstimmung manuell ergänzt werden.' );
+	}
+
+	$member_no = sanitize_text_field( wp_unslash( $_POST['member_no'] ?? '' ) );
+	$email     = sanitize_email( wp_unslash( $_POST['email'] ?? '' ) );
+	$first     = mb_substr( sanitize_text_field( wp_unslash( $_POST['first_name'] ?? '' ) ), 0, 100 );
+	$last      = mb_substr( sanitize_text_field( wp_unslash( $_POST['last_name'] ?? '' ) ), 0, 100 );
+	$page      = max( 1, absint( $_POST['vv_page'] ?? 1 ) );
+	$base      = 'admin.php?page=vereins-voting&view=members&poll=' . rawurlencode( $poll_id ) . '&vv_page=' . $page;
+
+	if ( '' === $member_no || ! is_email( $email ) ) {
+		wp_safe_redirect( admin_url( $base . '&voter_error=1' ) );
+		exit;
+	}
+
+	$exists = $wpdb->get_var( $wpdb->prepare(
+		"SELECT id FROM {$wpdb->prefix}voting_voters
+		 WHERE poll_id = %s AND member_no = %s AND LOWER(email) = %s",
+		$poll_id,
+		$member_no,
+		strtolower( $email )
+	) );
+	if ( $exists ) {
+		wp_safe_redirect( admin_url( $base . '&voter_duplicate=1' ) );
+		exit;
+	}
+
+	$inserted = $wpdb->insert( "{$wpdb->prefix}voting_voters", [
+		'poll_id'          => $poll_id,
+		'member_no'        => $member_no,
+		'email'            => $email,
+		'first_name'       => $first,
+		'last_name'        => $last,
+		'activation_token' => bin2hex( random_bytes( 16 ) ),
+	] );
+	if ( ! $inserted ) {
+		wp_safe_redirect( admin_url( $base . '&voter_error=1' ) );
+		exit;
+	}
+
+	wp_safe_redirect( admin_url( $base . '&added=1' ) );
+	exit;
+}
+
+/**
+ * [FU005#AK06] E-Mail-Adresse ändern, solange die Person noch nicht
+ * abgestimmt hat (z. B. Tippfehler beim Import). Die Einladung gilt danach
+ * wieder als offen, damit sie an die neue Adresse gesendet werden kann.
+ */
+function vv_update_voter_email() {
+	global $wpdb;
+
+	$poll_id  = vv_poll_id( wp_unslash( $_POST['poll'] ?? '' ) );
+	$voter_id = absint( $_POST['voter_id'] ?? 0 );
+	$page     = max( 1, absint( $_POST['vv_page'] ?? 1 ) );
+	$base     = 'admin.php?page=vereins-voting&view=members&poll=' . rawurlencode( $poll_id ) . '&vv_page=' . $page;
+
+	$poll = $wpdb->get_row( $wpdb->prepare(
+		"SELECT id, status FROM {$wpdb->prefix}voting_polls WHERE id = %s",
+		$poll_id
+	) );
+	if ( ! $poll || 'closed' === $poll->status ) {
+		wp_die( 'Die E-Mail-Adresse kann nach dem Ende der Abstimmung nicht mehr geändert werden.' );
+	}
+
+	$voter = $wpdb->get_row( $wpdb->prepare(
+		"SELECT id, member_no, has_voted FROM {$wpdb->prefix}voting_voters WHERE id = %d AND poll_id = %s",
+		$voter_id,
+		$poll_id
+	) );
+	if ( ! $voter || (int) $voter->has_voted ) {
+		wp_die( 'Nach der Stimmabgabe kann die E-Mail-Adresse nicht mehr geändert werden.' );
+	}
+
+	$email = sanitize_email( wp_unslash( $_POST['email'] ?? '' ) );
+	if ( ! is_email( $email ) ) {
+		wp_safe_redirect( admin_url( $base . '&email_error=1' ) );
+		exit;
+	}
+
+	// [FU003#AK02] Eindeutig bleibt Mitgliedsnummer + E-Mail; die eigene Zeile zählt nicht.
+	$exists = $wpdb->get_var( $wpdb->prepare(
+		"SELECT id FROM {$wpdb->prefix}voting_voters
+		 WHERE poll_id = %s AND member_no = %s AND LOWER(email) = %s AND id <> %d",
+		$poll_id,
+		$voter->member_no,
+		strtolower( $email ),
+		$voter_id
+	) );
+	if ( $exists ) {
+		wp_safe_redirect( admin_url( $base . '&email_error=1' ) );
+		exit;
+	}
+
+	$wpdb->update(
+		"{$wpdb->prefix}voting_voters",
+		[
+			'email'           => $email,
+			'invited_at'      => null,
+			'invite_attempts' => 0,
+		],
+		[ 'id' => $voter_id ]
+	);
+
+	wp_safe_redirect( admin_url( $base . '&email_updated=1' ) );
+	exit;
+}
+
+/**
+ * [FU005#AK06] Einladung aus der Teilnehmerliste erneut senden. Nur solange
+ * ein Aktivierungstoken existiert (Wahl-Code noch nicht erzeugt) und die
+ * Person noch nicht abgestimmt hat; eine einzelne Mail verbraucht das
+ * Batch-Fenster nicht.
+ */
+function vv_resend_invite() {
+	global $wpdb;
+
+	[ $poll_id, $poll ] = vv_queue_poll_from_post();
+	$voter_id = absint( $_POST['voter_id'] ?? 0 );
+	$page     = max( 1, absint( $_POST['vv_page'] ?? 1 ) );
+	$base     = 'admin.php?page=vereins-voting&view=members&poll=' . rawurlencode( $poll_id ) . '&vv_page=' . $page;
+
+	$voter = $wpdb->get_row( $wpdb->prepare(
+		"SELECT * FROM {$wpdb->prefix}voting_voters WHERE id = %d AND poll_id = %s",
+		$voter_id,
+		$poll_id
+	) );
+	if ( ! $voter || (int) $voter->has_voted || empty( $voter->activation_token ) ) {
+		wp_die( 'Für diese Person kann keine Einladung mehr gesendet werden.' );
+	}
+
+	if ( '' !== vv_mail_settings_error() ) {
+		wp_safe_redirect( admin_url( $base . '&resend_failed=1' ) );
+		exit;
+	}
+
+	$parts = vv_mail_parts( $poll, $voter );
+	if ( vv_mail_send_parts( $voter->email, $parts ) ) {
+		$wpdb->update(
+			"{$wpdb->prefix}voting_voters",
+			[ 'invited_at' => current_time( 'mysql' ), 'invite_attempts' => 0 ],
+			[ 'id' => $voter_id ]
+		);
+		wp_safe_redirect( admin_url( $base . '&resent=1' ) );
+		exit;
+	}
+
+	// Nur der Zähler; keine E-Mail-Adresse im Log oder in der Weiterleitung.
+	$wpdb->query( $wpdb->prepare(
+		"UPDATE {$wpdb->prefix}voting_voters SET invite_attempts = invite_attempts + 1 WHERE id = %d",
+		$voter_id
+	) );
+	wp_safe_redirect( admin_url( $base . '&resend_failed=1' ) );
 	exit;
 }
 
@@ -674,6 +857,30 @@ function vv_render_import_form( $poll ) {
 	echo '</form>';
 }
 
+function vv_render_add_voter_form( $poll ) {
+	echo '<h2>Teilnehmer manuell hinzufügen</h2>';
+	echo '<p>Für einzelne Mitglieder, z. B. ohne eigene E-Mail-Adresse: Hier kann eine gemeinsame '
+		. 'Adresse der Geschäftsstelle eingetragen werden. Die Einladung wird anschließend über den '
+		. 'Button in der Liste versendet.</p>';
+	echo '<form method="post">';
+	wp_nonce_field( 'vv_admin', 'vv_nonce' );
+	echo '<input type="hidden" name="vv_action" value="add_voter">';
+	echo '<input type="hidden" name="poll" value="' . esc_attr( $poll->id ) . '">';
+	echo '<table class="form-table">';
+	echo '<tr><th><label for="vv-voter-no">Mitgliedsnummer</label></th><td>'
+		. '<input name="member_no" id="vv-voter-no" type="text" class="regular-text" required></td></tr>';
+	echo '<tr><th><label for="vv-voter-email">E-Mail</label></th><td>'
+		. '<input name="email" id="vv-voter-email" type="email" class="regular-text" required></td></tr>';
+	echo '<tr><th><label for="vv-voter-first">Vorname</label></th><td>'
+		. '<input name="first_name" id="vv-voter-first" type="text" class="regular-text" maxlength="100"></td></tr>';
+	echo '<tr><th><label for="vv-voter-last">Name</label></th><td>'
+		. '<input name="last_name" id="vv-voter-last" type="text" class="regular-text" maxlength="100"></td></tr>';
+	echo '</table>';
+	echo '<p><button type="submit" class="button">Teilnehmer hinzufügen</button> '
+		. '<a class="button" href="' . esc_url( admin_url( 'admin.php?page=vereins-voting' ) ) . '">Abbrechen</a></p>';
+	echo '</form>';
+}
+
 function vv_render_invite_form( $poll ) {
 	$counts         = vv_poll_mail_counts( $poll->id );
 	$active         = vv_queue_is_active( $poll->id );
@@ -823,20 +1030,39 @@ function vv_render_members_table( $poll ) {
 	global $wpdb;
 
 	$per_page = 100;
-	$total    = (int) $wpdb->get_var( $wpdb->prepare(
+	$q        = isset( $_GET['vv_q'] ) ? sanitize_text_field( wp_unslash( $_GET['vv_q'] ) ) : '';
+
+	$where = 'poll_id = %s';
+	$args  = [ $poll->id ];
+	if ( '' !== $q ) {
+		$like   = '%' . $wpdb->esc_like( $q ) . '%';
+		$where .= " AND (member_no LIKE %s OR first_name LIKE %s OR last_name LIKE %s OR CONCAT_WS(' ', first_name, last_name) LIKE %s)";
+		array_push( $args, $like, $like, $like, $like );
+	}
+
+	$total = (int) $wpdb->get_var( $wpdb->prepare(
 		"SELECT COUNT(*) FROM {$wpdb->prefix}voting_voters WHERE poll_id = %s",
 		$poll->id
 	) );
-	$pages = max( 1, (int) ceil( $total / $per_page ) );
+	$summary = $wpdb->get_row( $wpdb->prepare(
+		"SELECT COUNT(*) AS members,
+			SUM(CASE WHEN pin_hash IS NOT NULL AND pin_hash <> '' THEN 1 ELSE 0 END) AS codes,
+			SUM(CASE WHEN has_voted = 1 THEN 1 ELSE 0 END) AS voted
+		 FROM {$wpdb->prefix}voting_voters WHERE poll_id = %s",
+		$poll->id
+	) );
+	$matches = (int) $wpdb->get_var( $wpdb->prepare(
+		"SELECT COUNT(*) FROM {$wpdb->prefix}voting_voters WHERE $where",
+		...$args
+	) );
+	$pages = max( 1, (int) ceil( $matches / $per_page ) );
 	$page  = min( $pages, max( 1, isset( $_GET['vv_page'] ) ? absint( $_GET['vv_page'] ) : 1 ) );
 
 	$voters = $wpdb->get_results( $wpdb->prepare(
 		"SELECT id, member_no, first_name, last_name, email, activation_token, pin_hash, has_voted, voted_at, invited_at, invite_attempts
 		 FROM {$wpdb->prefix}voting_voters
-		 WHERE poll_id = %s ORDER BY member_no LIMIT %d OFFSET %d",
-		$poll->id,
-		$per_page,
-		( $page - 1 ) * $per_page
+		 WHERE $where ORDER BY member_no LIMIT %d OFFSET %d",
+		...array_merge( $args, [ $per_page, ( $page - 1 ) * $per_page ] )
 	) );
 
 	echo '<h2>Stimmberechtigte Mitglieder</h2>';
@@ -854,9 +1080,26 @@ function vv_render_members_table( $poll ) {
 	if ( isset( $_GET['voters_deleted'] ) ) {
 		echo '<div class="notice notice-success is-dismissible"><p>Teilnehmerdaten gelöscht. Urne und Ergebnis bleiben unverändert erhalten.</p></div>';
 	}
+	if ( isset( $_GET['added'] ) ) {
+		echo '<div class="notice notice-success is-dismissible"><p>Teilnehmer hinzugefügt.</p></div>';
+	}
+	if ( isset( $_GET['voter_error'] ) ) {
+		echo '<div class="notice notice-error"><p>Mitgliedsnummer und eine gültige E-Mail-Adresse sind erforderlich.</p></div>';
+	} elseif ( isset( $_GET['voter_duplicate'] ) ) {
+		echo '<div class="notice notice-error"><p>Diese Kombination aus Mitgliedsnummer und E-Mail ist bereits vorhanden.</p></div>';
+	}
+	if ( isset( $_GET['email_updated'] ) ) {
+		echo '<div class="notice notice-success is-dismissible"><p>E-Mail-Adresse geändert. Die Einladung kann erneut gesendet werden.</p></div>';
+	} elseif ( isset( $_GET['email_error'] ) ) {
+		echo '<div class="notice notice-error"><p>E-Mail-Adresse nicht geändert: Bitte eine gültige, noch nicht verwendete Adresse angeben.</p></div>';
+	}
+	if ( isset( $_GET['resent'] ) ) {
+		echo '<div class="notice notice-success is-dismissible"><p>Einladung erneut versendet.</p></div>';
+	} elseif ( isset( $_GET['resend_failed'] ) ) {
+		echo '<div class="notice notice-error"><p>Die Einladung konnte nicht versendet werden.</p></div>';
+	}
 
-	// [FU002#AK08] Räumung der Teilnehmerdaten gehört zur Teilnehmer-Registerkarte
-	// (vor dem Früh-Ausstieg, damit die Meldung auch ohne Wählerzeilen erscheint).
+	// [FU002#AK08/#AK09] Räumung bei beendeter Wahl, Komplettlöschung im Entwurf.
 	if ( 'closed' === $poll->status ) {
 		if ( $total > 0 ) {
 			echo '<p><form method="post" style="display:inline" onsubmit="return confirm(\'Teilnehmerdaten löschen? Die Wahlniederschrift muss vorher erstellt/archiviert sein – danach sind Einladungs-, Wahl-Code- und Abgabezeiten weg. Die Urne bleibt.\')">'
@@ -867,27 +1110,55 @@ function vv_render_members_table( $poll ) {
 		} else {
 			echo '<p class="description">Keine Teilnehmerdaten mehr vorhanden (bereits gelöscht oder nicht importiert).</p>';
 		}
+	} elseif ( 'draft' === $poll->status && $total > 0 ) {
+		echo '<p><form method="post" style="display:inline" onsubmit="return confirm(\'Komplette Teilnehmerliste löschen? Der Import kann danach neu gestartet werden.\')">'
+			. wp_nonce_field( 'vv_admin', 'vv_nonce', true, false )
+			. '<input type="hidden" name="vv_action" value="delete_voter_data">'
+			. '<input type="hidden" name="poll_id" value="' . esc_attr( $poll->id ) . '">'
+			. '<button type="submit" class="button">Alle Teilnehmer löschen</button></form></p>';
 	}
+
+	$members_url = admin_url( 'admin.php?page=vereins-voting&view=members&poll=' . rawurlencode( $poll->id ) );
+	echo '<form method="get" action="' . esc_url( admin_url( 'admin.php' ) ) . '" style="margin:1em 0">'
+		. '<input type="hidden" name="page" value="vereins-voting">'
+		. '<input type="hidden" name="view" value="members">'
+		. '<input type="hidden" name="poll" value="' . esc_attr( $poll->id ) . '">'
+		. '<input type="search" name="vv_q" value="' . esc_attr( $q ) . '" placeholder="Name oder Mitgliedsnummer"> '
+		. '<button type="submit" class="button">Suchen</button>';
+	if ( '' !== $q ) {
+		echo ' <a class="button" href="' . esc_url( $members_url ) . '">Zurücksetzen</a>';
+	}
+	echo '</form>';
+	if ( '' !== $q ) {
+		echo '<p class="description">' . (int) $matches . ' Treffer für „' . esc_html( $q ) . '“.</p>';
+	}
+
+	$summary_html = '<p class="description" style="margin-top:1em">Mitglieder: <strong>' . (int) $summary->members
+		. '</strong> · Wahl-Code gesetzt: <strong>' . (int) $summary->codes
+		. '</strong> · Hat gewählt: <strong>' . (int) $summary->voted . '</strong></p>';
 
 	/** [FU005#AK02] Liste zeigt nur has_voted/voted_at – niemals eine Stimme. */
 	if ( ! $voters ) {
 		// [FU002#AK08] Beendet: der Abschluss-Block oben erklärt den Zustand selbst.
 		if ( 'closed' !== $poll->status ) {
-			echo '<p>Noch keine Teilnehmer importiert.</p>';
+			echo '<p>' . ( '' !== $q ? 'Keine Treffer für die Suche.' : 'Noch keine Teilnehmer importiert.' ) . '</p>';
 		}
+		echo $summary_html;
 		return;
 	}
 	echo '<table class="widefat striped"><thead><tr><th>Mitgliedsnummer</th><th>Name</th><th>E-Mail</th><th>Wahl-Code gesetzt</th><th>Einladung</th><th>Hat gewählt</th><th>Gewählt am</th><th>Aktionen</th></tr></thead><tbody>';
 	foreach ( $voters as $v ) {
 		$name    = trim( (string) $v->first_name . ' ' . (string) $v->last_name );
 		$pin_set = ! empty( $v->pin_hash );
+		$voted   = (int) $v->has_voted;
 		$invite  = $v->invited_at
 			? 'gesendet'
 			: ( empty( $v->activation_token ) ? '–' : ( (int) $v->invite_attempts >= 3 ? 'fehlgeschlagen' : 'offen' ) );
-		$action  = '–';
+		$actions = [];
+
 		// [FU005#AK04] Reset nur vor der Stimmabgabe und solange die Wahl offen ist.
-		if ( $pin_set && ! (int) $v->has_voted && 'closed' !== $poll->status ) {
-			$action = '<form method="post" style="margin:0" onsubmit="return confirm(\'Wahl-Code zurücksetzen? Die Person benötigt danach eine neue Einladung.\');">'
+		if ( $pin_set && ! $voted && 'closed' !== $poll->status ) {
+			$actions[] = '<form method="post" style="margin:0" onsubmit="return confirm(\'Wahl-Code zurücksetzen? Die Person benötigt danach eine neue Einladung.\');">'
 				. wp_nonce_field( 'vv_admin', 'vv_nonce', true, false )
 				. '<input type="hidden" name="vv_action" value="reset_pin">'
 				. '<input type="hidden" name="poll" value="' . esc_attr( $poll->id ) . '">'
@@ -895,22 +1166,52 @@ function vv_render_members_table( $poll ) {
 				. '<input type="hidden" name="vv_page" value="' . (int) $page . '">'
 				. '<button type="submit" class="button button-small">Wahl-Code zurücksetzen</button></form>';
 		}
+
+		// [FU005#AK06] Einladung erneut senden, solange ein Token existiert.
+		if ( ! $voted && ! empty( $v->activation_token ) && 'closed' !== $poll->status
+			&& vv_queue_poll_sendable( $poll ) && '' === vv_mail_settings_error() ) {
+			$actions[] = '<form method="post" style="margin:0">'
+				. wp_nonce_field( 'vv_admin', 'vv_nonce', true, false )
+				. '<input type="hidden" name="vv_action" value="resend_invite">'
+				. '<input type="hidden" name="poll" value="' . esc_attr( $poll->id ) . '">'
+				. '<input type="hidden" name="voter_id" value="' . (int) $v->id . '">'
+				. '<input type="hidden" name="vv_page" value="' . (int) $page . '">'
+				. '<button type="submit" class="button button-small">Einladung senden</button></form>';
+		}
+
+		// [FU005#AK06] E-Mail ändern, solange die Person noch nicht gewählt hat.
+		$email_cell = esc_html( $v->email );
+		if ( ! $voted && 'closed' !== $poll->status ) {
+			$email_cell = '<form method="post" style="margin:0">'
+				. wp_nonce_field( 'vv_admin', 'vv_nonce', true, false )
+				. '<input type="hidden" name="vv_action" value="update_voter_email">'
+				. '<input type="hidden" name="poll" value="' . esc_attr( $poll->id ) . '">'
+				. '<input type="hidden" name="voter_id" value="' . (int) $v->id . '">'
+				. '<input type="hidden" name="vv_page" value="' . (int) $page . '">'
+				. '<input name="email" type="email" value="' . esc_attr( $v->email ) . '" required style="max-width:16em"> '
+				. '<button type="submit" class="button button-small">Ändern</button></form>';
+		}
+
 		echo '<tr>'
 			. '<td>' . esc_html( $v->member_no ) . '</td>'
 			. '<td>' . esc_html( '' === $name ? '–' : $name ) . '</td>'
-			. '<td>' . esc_html( $v->email ) . '</td>'
+			. '<td>' . $email_cell . '</td>'
 			. '<td>' . ( $pin_set ? 'Ja' : 'Nein' ) . '</td>'
 			. '<td>' . esc_html( $invite ) . '</td>'
-			. '<td>' . ( (int) $v->has_voted ? 'Ja' : 'Nein' ) . '</td>'
+			. '<td>' . ( $voted ? 'Ja' : 'Nein' ) . '</td>'
 			. '<td>' . ( $v->voted_at ? esc_html( vv_fmt( $v->voted_at ) ) : '–' ) . '</td>'
-			. '<td>' . $action . '</td>'
+			. '<td>' . ( $actions ? implode( '<br>', $actions ) : '–' ) . '</td>'
 			. '</tr>';
 	}
 	echo '</tbody></table>';
+	echo $summary_html;
 
 	// [FU005#AK01] Seitenweise Anzeige, damit große Vereine nicht alles auf einmal laden.
 	if ( $pages > 1 ) {
-		$base = admin_url( 'admin.php?page=vereins-voting&view=members&poll=' . rawurlencode( $poll->id ) );
+		$base = $members_url;
+		if ( '' !== $q ) {
+			$base = add_query_arg( [ 'vv_q' => $q ], $base );
+		}
 		echo '<p class="vv-pagination">';
 		if ( $page > 1 ) {
 			echo '<a class="button" href="' . esc_url( add_query_arg( [ 'vv_page' => $page - 1 ], $base ) ) . '">« Zurück</a> ';

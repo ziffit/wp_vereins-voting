@@ -398,8 +398,8 @@ return [
 		vv_render_admin_page();
 		$html2 = (string) ob_get_clean();
 		vv_check( ! str_contains( $html2, 'Teilnehmer (CSV-Import)' )
-			&& str_contains( $html2, 'keine Mitglieder mehr hinzugefügt' ),
-			'[FU002#AK05] laufende Wahl: Import-Hinweis statt Maske' );
+			&& str_contains( $html2, 'Teilnehmer manuell hinzufügen' ),
+			'[FU002#AK05/AK10] laufende Wahl: Handanlage statt CSV-Import' );
 		vv_check( ! str_contains( $html2, 'Einladungen versenden' ),
 			'[FU002#AK05] laufende Wahl: Teilnehmer-Tab ohne Einladungsformular' );
 		vv_check( str_contains( $html2, 'Noch keine Teilnehmer importiert' ),

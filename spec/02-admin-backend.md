@@ -45,14 +45,14 @@ löschen.
   Abbrechen-Link ohne Datenänderung; nach dem Speichern bzw. Löschen erscheint
   eine Bestätigungsmeldung. Die Detailansicht einer Abstimmung ist in vier
   Registerkarten gegliedert – **Wahl** (Titel, Frage, Zeitraum, Status,
-  vorzeitiges Beenden, Löschen im Entwurf), **Teilnehmer** (CSV-Import,
-  Liste mit Wahl-Code-Reset, Räumung der Teilnehmerdaten), **E-Mail**
-  (Einladungsversand mit Textblock, Vorschau, Testmail,
+  vorzeitiges Beenden, Löschen im Entwurf), **Teilnehmer** (CSV-Import im
+  Entwurf, Handanlage bei laufender Wahl, Liste mit E-Mail-Änderung,
+  erneutem Einladungsversand, Wahl-Code-Reset, Räumung der Teilnehmerdaten),
+  **E-Mail** (Einladungsversand mit Textblock, Vorschau, Testmail,
   Versandstatus) und **Wahlergebnis** (Gesamtergebnis, Abgabefingerprint,
   Wahlniederschrift).
   Es werden nur mögliche Aktionen angeboten; nicht mögliche erscheinen als
-  Hinweistext (z. B. „Die Wahl läuft bereits – es können keine Mitglieder
-  mehr hinzugefügt werden.“). Die Übersicht verlinkt je Abstimmung nur noch
+  Hinweistext. Die Übersicht verlinkt je Abstimmung nur noch
   „Details“. Eingabefehler der Abstimmungsmaske (fehlende
   Pflichtfelder, Ende vor dem Start) werden als Meldung in der Maske
   angezeigt; die eingegebenen Werte bleiben erhalten und die Admin-Seite
@@ -81,6 +81,22 @@ löschen.
   Papierkorbeinträge zurück;
   die Gesamtlöschen-Regel (nur im Status `draft`) und FU001#AK02 bleiben
   unberührt.
+
+- **[FU002#AK09]** Solange eine Abstimmung noch nicht gestartet ist
+  (`draft`), kann der Administrator die **komplette Teilnehmerliste** auf
+  einmal löschen (z. B. wenn der CSV-Import fehlerhaft war), um anschließend
+  neu zu importieren. Dabei werden nur Wählerzeilen und offene
+  Versandmarkierungen entfernt; die Abstimmung selbst bleibt bestehen. Bei
+  `active` ist die Aktion nicht möglich, bei `closed` gilt FU002#AK08.
+
+- **[FU002#AK10]** Bei laufender Abstimmung (`active`) kann der Administrator
+  einzelne Teilnehmer manuell hinzufügen (Mitgliedsnummer, E-Mail, optional
+  Vorname/Name). Das ist für Mitglieder ohne eigene E-Mail-Adresse gedacht,
+  die in der Geschäftsstelle abstimmen; eine gemeinsame E-Mail-Adresse ist
+  zulässig. Es gilt derselbe Duplikatschutz wie beim Import
+  (Mitgliedsnummer + E-Mail, case-insensitiv); für die Person wird ein
+  sicherer `activation_token` erzeugt. Im Status `draft` erfolgt die
+  Teilnehmerpflege über den CSV-Import, bei `closed` ist keine Anlage möglich.
 
 ## [FU003] Mitglieder-CSV-Import & Token-Generierung
 
@@ -185,7 +201,11 @@ Stimmgeheimnisses.
   steht dort „–“. Die Liste trägt die Überschrift „Stimmberechtigte
   Mitglieder“ und wird seitenweise angezeigt (100 Einträge pro Seite). Sie
   zeigt je Person, ob ein Wahl-Code erzeugt ist (Ja/Nein) und ob die Einladung
-  offen, gesendet oder fehlgeschlagen ist. Die Abstimmungsübersicht zeigt die
+  offen, gesendet oder fehlgeschlagen ist. Über ein Suchfeld lässt sich die
+  Liste nach Name oder Mitgliedsnummer filtern; der Filter bleibt beim
+  Blättern erhalten. Unter der Tabelle stehen die Summen der gesamten
+  Abstimmung (Mitglieder, Wahl-Code gesetzt, Hat gewählt). Die
+  Abstimmungsübersicht zeigt die
   UUID je Abstimmung, den Titel ohne Verlinkung sowie Teilnehmer- und
   Stimmenzahl und öffnet per „Details“ die Registerkarten-Ansicht
   (FU002#AK05).
@@ -222,3 +242,17 @@ Stimmgeheimnisses.
   als Archiv; danach zeigt sie Ergebnis und Prüfliste weiterhin und
   kennzeichnet fehlende Teilnehmerzeiten mit „Keine Teilnehmerzeiten
   vorhanden“.
+
+- **[FU005#AK06]** In der Teilnehmerliste kann der Administrator die
+  E-Mail-Adresse einer Person ändern, solange diese noch nicht abgestimmt
+  hat (`has_voted = 0`) und die Abstimmung nicht `closed` ist. Geprüft wird
+  eine gültige Adresse und der Duplikatschutz aus FU003#AK02 (die eigene
+  Zeile zählt nicht mit). Nach der Änderung gilt die Einladung wieder als
+  offen (`invited_at` und `invite_attempts` zurückgesetzt). Zusätzlich kann
+  er die Einladung für eine Person direkt aus der Liste erneut senden,
+  solange ein `activation_token` existiert, die Person nicht abgestimmt hat,
+  der Wahlzeitraum nicht abgelaufen und die E-Mail-Konfiguration vollständig
+  ist. Der Einzelversand nutzt dieselbe Vorlage und denselben persönlichen
+  Link wie der Massenversand, verbraucht aber keinen Platz im globalen
+  5-Minuten-Fenster. Erfolg setzt `invited_at`, ein Fehlversuch erhöht
+  `invite_attempts`.

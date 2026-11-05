@@ -50,6 +50,11 @@ class VVWpDb {
 		return "'" . ( null === $v ? '' : $this->db->real_escape_string( (string) $v ) ) . "'";
 	}
 
+	/** Wie WPDB: LIKE-Platzhalter im Suchtext maskieren. */
+	public function esc_like( $text ) {
+		return addcslashes( (string) $text, '_%\\' );
+	}
+
 	/** WP-prepare: %s wird quoted, %d/%f numerisch. */
 	public function prepare( $sql, ...$args ) {
 		$i = 0;
@@ -209,7 +214,13 @@ function get_current_user_id() {
 	$user = wp_get_current_user();
 	return (int) ( $user->ID ?? 0 );
 }
-function add_query_arg( $args, $url = '' ) {
+function add_query_arg( $args, $value = '', $url = '' ) {
+	// WP erlaubt add_query_arg( array, url ) und add_query_arg( key, value, url ).
+	if ( is_array( $args ) ) {
+		$url = $value;
+	} else {
+		$args = [ $args => $value ];
+	}
 	$q = implode( '&', array_map( fn( $k, $v ) => urlencode( $k ) . '=' . urlencode( $v ), array_keys( $args ), $args ) );
 	$sep = str_contains( $url, '?' ) ? '&' : '?';
 	return $url . $sep . $q;

@@ -111,14 +111,14 @@ return [
 		vv_render_members_table( vv_fx_poll_row( $pid ) );
 		$p1 = (string) ob_get_clean();
 		vv_check( str_contains( $p1, 'Seite 1 von 2' ), '[FU005#AK01] Teilnehmerliste zeigt Seite 1 von 2' );
-		vv_check( str_contains( $p1, '001' ) && ! str_contains( $p1, '105' ),
+		vv_check( str_contains( $p1, '<td>001</td>' ) && ! str_contains( $p1, '<td>105</td>' ),
 			'[FU005#AK01] Seite 1 ist auf 100 Einträge begrenzt' );
 
 		vv_fx_http( [ 'vv_page' => 2 ] );
 		ob_start();
 		vv_render_members_table( vv_fx_poll_row( $pid ) );
 		$p2 = (string) ob_get_clean();
-		vv_check( str_contains( $p2, '105' ) && ! str_contains( $p2, '>001<' ),
+		vv_check( str_contains( $p2, '<td>105</td>' ) && ! str_contains( $p2, '<td>001</td>' ),
 			'[FU005#AK01] Seite 2 zeigt die restlichen Einträge' );
 	},
 
