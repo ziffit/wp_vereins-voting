@@ -112,7 +112,7 @@ function vv_activate_html() {
 					// nur hier angezeigt – danach nicht wiederherstellbar.
 					return '<div class="vv-box vv-success"><strong>Erfolgreich – dein Wahl-Code ist aktiv.</strong><br>'
 						. 'Dein Wahl-Code: <code class="vv-receipt">' . esc_html( $code ) . '</code><br>'
-						. 'Er wird nur einmal angezeigt – notiere oder kopiere ihn jetzt. '
+						. '<strong>Er wird nur einmal angezeigt – notiere oder kopiere ihn jetzt.</strong><br>'
 						. 'Nutze während des Wahlzeitraums die Seite mit dem Stimmformular, um abzustimmen; '
 						. 'halte Mitgliedsnummer, E-Mail und Wahl-Code bereit. '
 						. 'Solltest du deinen Wahl-Code verlieren, melde dich über das Kontaktformular. Die Verwaltung kann ihn zurücksetzen und dir eine neue Einladung senden.</div>';
