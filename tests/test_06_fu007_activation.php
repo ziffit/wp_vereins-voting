@@ -21,9 +21,12 @@ return [
 		[ $vid, $tok ] = vv_fx_voter( $pid, '101', 'a@b.org', 'tokform' );
 		vv_fx_http( [ 'poll' => $pid, 'token' => 'tokform' ] );
 		$html = vv_shortcode_activate();
-		foreach ( [ 'Mitgliedsnummer', 'E-Mail', 'Neuen Code erzeugen', 'Diesen Code übernehmen' ] as $needle ) {
+		foreach ( [ 'Mitgliedsnummer', 'E-Mail', 'Neuen Code erzeugen', 'Wahl-Code bestätigen' ] as $needle ) {
 			vv_check( str_contains( $html, $needle ), "[FU007#AK01] Formularbestandteil $needle vorhanden" );
 		}
+		$poll = vv_fx_poll_row( $pid );
+		vv_check( str_contains( $html, '<h2>' . esc_html( $poll->title ) . '</h2>' ),
+			'[FU007#AK01] Abstimmungstitel steht als h2 über dem Wahl-Code' );
 		// Der generierte Code erscheint schreibgeschützt und im erzwungenen Format:
 		vv_check( (bool) preg_match( '/<code class="vv-receipt">([A-HJ-NP-Z2-9]{6})<\/code>/', $html, $m ),
 			'[FU007#AK01] Wahl-Code sichtbar, formatkonform (6 Zeichen, mind. 1 Buchstabe + 1 Ziffer)' );

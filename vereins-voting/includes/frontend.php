@@ -137,6 +137,7 @@ function vv_activate_html() {
 	// Formular: Mitgliedsdaten vorbefüllen (E-Mail aus Einladung = Prefill).
 	ob_start();
 	?>
+	<h2><?php echo esc_html( vv_poll_title( $poll_id ) ); ?></h2>
 	<div class="vv-box vv-info">
 		<p><strong>Dein Wahl-Code:</strong> <code class="vv-receipt"><?php echo esc_html( $code ); ?></code></p>
 		<p>Der Code wird vom System erzeugt – so können schwache Codes (Geburtstage,
@@ -145,9 +146,9 @@ function vv_activate_html() {
 	</div>
 	<form method="post" class="vv-form">
 		<?php wp_nonce_field( 'vv_frontend', 'vv_frontend_nonce' ); ?>
-		<p><strong>Abstimmung:</strong> <?php echo esc_html( vv_poll_title( $poll_id ) ); ?></p>
-		<p>Kennst du deine Mitgliedsnummer und deine E-Mail? Dann bestätige unten,
-		dass dieser Wahl-Code für dich gilt.</p>
+		<p>Gib deine Mitgliedsnummer und deine E-Mail ein, um dich als berechtigtes
+		Mitglied auszuweisen. Bestätige dann den angezeigten Wahl-Code mit dem Button
+		„Wahl-Code bestätigen“.</p>
 		<input type="hidden" name="pin" value="<?php echo esc_attr( $code ); ?>">
 		<label for="vv-member-no">Mitgliedsnummer
 			<input type="text" id="vv-member-no" name="member_no" required value="<?php echo esc_attr( vv_re( 'member_no', '' ) ); ?>">
@@ -155,7 +156,7 @@ function vv_activate_html() {
 		<label for="vv-email">E-Mail
 			<input type="email" id="vv-email" name="email" required value="<?php echo esc_attr( vv_re( 'email', '' ) ); ?>">
 		</label>
-		<button type="submit" class="vv-btn">Diesen Code übernehmen</button>
+		<button type="submit" class="vv-btn">Wahl-Code bestätigen</button>
 	</form>
 	<?php
 	return ob_get_clean() . ( $error ? '<div class="vv-box vv-error">' . esc_html( $error ) . '</div>' : '' );
