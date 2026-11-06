@@ -51,10 +51,10 @@ return [
 		vv_render_members_table( vv_fx_poll_row( $pid ) );
 		$html = (string) ob_get_clean();
 
-		// [FU005#AK01] Status-Tabelle: Hat gewählt + Zeitstempel vorhanden.
+		// [FU005#AK01] Status-Tabelle: Hat abgestimmt + Zeitstempel vorhanden.
 		vv_check( str_contains( $html, 'Stimmberechtigte Mitglieder' ), '[FU005#AK01] Überschrift lautet „Stimmberechtigte Mitglieder“' );
-		vv_check( str_contains( $html, 'Hat gewählt' ), '[FU005#AK01] Spalte "Hat gewählt" vorhanden' );
-		vv_check( str_contains( $html, 'Gewählt am' ), '[FU005#AK01] Spalte "Gewählt am" vorhanden' );
+		vv_check( str_contains( $html, 'Hat abgestimmt' ), '[FU005#AK01] Spalte "Hat abgestimmt" vorhanden' );
+		vv_check( str_contains( $html, 'Abgestimmt am' ), '[FU005#AK01] Spalte "Abgestimmt am" vorhanden' );
 		vv_check( str_contains( $html, 'ein@beispiel.org' ), '[FU005#AK01] Mitglieder in Tabelle' );
 		vv_check( str_contains( $html, 'Erika Muster' ), '[FU005#AK01] Spalte Name zeigt Vorname/Nachname' );
 
@@ -68,7 +68,7 @@ return [
 		ob_start();
 		vv_render_results_view( vv_fx_poll_row( $pid ) );
 		$res = (string) ob_get_clean();
-		vv_check( str_contains( $res, 'Gesamtergebnis' ), '[FU005#AK03] aggregiertes Ergebnis in der Registerkarte Wahlergebnis' );
+		vv_check( str_contains( $res, 'Gesamtergebnis' ), '[FU005#AK03] aggregiertes Ergebnis in der Registerkarte Ergebnis' );
 		vv_check( str_contains( $res, 'Enthaltung' ), '[FU005#AK03] Aggregatzeile für Enthaltung angezeigt' );
 	},
 
@@ -77,8 +77,8 @@ return [
 		ob_start();
 		vv_render_results_view( vv_fx_poll_row( $pid ) );
 		$html = (string) ob_get_clean();
-		vv_check( str_contains( $html, 'erscheint hier, nachdem die Wahl beendet wurde' ) && ! str_contains( $html, 'Gesamtergebnis' ),
-			'[FU005#AK03] vor dem Wahlende: Hinweis statt Ergebnistabelle' );
+		vv_check( str_contains( $html, 'erscheint hier, nachdem die Abstimmung beendet wurde' ) && ! str_contains( $html, 'Gesamtergebnis' ),
+			'[FU005#AK03] vor dem Abstimmungsende: Hinweis statt Ergebnistabelle' );
 	},
 
 	'test_05_fu005_ak01_uebersicht_zaehler' => function () {
@@ -135,14 +135,14 @@ return [
 		vv_render_members_table( vv_fx_poll_row( $pid ) );
 		$html = (string) ob_get_clean();
 
-		vv_check( str_contains( $html, 'Wahl-Code gesetzt' ), '[FU005#AK01] Spalte „Wahl-Code gesetzt“ vorhanden' );
+		vv_check( str_contains( $html, 'Abstimmungscode gesetzt' ), '[FU005#AK01] Spalte „Abstimmungscode gesetzt“ vorhanden' );
 		vv_check( str_contains( $html, 'Einladung' ) && str_contains( $html, 'offen' ) && str_contains( $html, 'gesendet' ),
 			'[FU005#AK01] Einladungsstatus je Person sichtbar' );
 		vv_check( str_contains( $html, '<td>Ja</td>' ) && str_contains( $html, '<td>Nein</td>' ),
 			'[FU005#AK01] Code-Status je Person als Ja/Nein' );
-		vv_check( 1 === substr_count( $html, 'value="reset_pin"' ), '[FU005#AK01] Reset-Aktion nur bei erzeugtem Wahl-Code' );
+		vv_check( 1 === substr_count( $html, 'value="reset_pin"' ), '[FU005#AK01] Reset-Aktion nur bei erzeugtem Abstimmungscode' );
 		vv_check( ! str_contains( $html, (string) vv_fx_voter_row( 'pin@example.org' )->pin_hash ),
-			'[FU005#AK02] Wahl-Code-Hash ist im Backend nicht sichtbar' );
+			'[FU005#AK02] Abstimmungscode-Hash ist im Backend nicht sichtbar' );
 	},
 
 	'test_05_fu005_ak04_pin_reset' => function () {
@@ -165,7 +165,7 @@ return [
 		$row = vv_fx_voter_row( 'reset@example.org' );
 
 		vv_check( 'redirect' === $kind && str_contains( (string) $url, 'reset=1' ), '[FU005#AK04] Reset wird per Redirect bestätigt' );
-		vv_check( $row && empty( $row->pin_hash ), '[FU005#AK04] Wahl-Code-Hash wird gelöscht' );
+		vv_check( $row && empty( $row->pin_hash ), '[FU005#AK04] Abstimmungscode-Hash wird gelöscht' );
 		vv_check( $row && $row->activation_token && 32 === strlen( $row->activation_token ),
 			'[FU005#AK04] neuer Aktivierungstoken für eine neue Einladung' );
 		vv_check( null === $row->pin_set_at,
@@ -187,15 +187,15 @@ return [
 		vv_fx_http( [], [ 'poll' => $pid, 'voter_id' => $vid ] );
 		[ $kind ] = vv_fx_run( 'vv_reset_pin' );
 		vv_check( 'die' === $kind && ! empty( vv_fx_voter_row( 'done@example.org' )->pin_hash ),
-			'[FU005#AK04] nach Stimmabgabe kein Wahl-Code-Reset' );
+			'[FU005#AK04] nach Stimmabgabe kein Abstimmungscode-Reset' );
 
-		// Geschlossene Wahl: kein Reset.
+		// Geschlossene Abstimmung: kein Reset.
 		$pid2 = vv_fx_poll( [ 'status' => 'closed' ] );
 		[ $vid2 ] = vv_fx_voter( $pid2, '103', 'closed@example.org', null, 'A2B3C4' );
 		vv_fx_http( [], [ 'poll' => $pid2, 'voter_id' => $vid2 ] );
 		[ $kind2 ] = vv_fx_run( 'vv_reset_pin' );
 		vv_check( 'die' === $kind2 && ! empty( vv_fx_voter_row( 'closed@example.org' )->pin_hash ),
-			'[FU005#AK04] geschlossene Wahl: kein Wahl-Code-Reset' );
+			'[FU005#AK04] geschlossene Abstimmung: kein Abstimmungscode-Reset' );
 	},
 
 	'test_05_fu005_ak05_wahlniederschrift_komplett' => function () {
@@ -207,8 +207,8 @@ return [
 		vv_fx_http( [ 'poll' => $pid ] );
 		$html = vv_report_html();
 
-		vv_check( str_contains( $html, 'Wahlniederschrift' ) && str_contains( $html, (string) $poll->title ),
-			'[FU005#AK05] Niederschrift nennt Titel und Wahl' );
+		vv_check( str_contains( $html, 'Niederschrift' ) && str_contains( $html, (string) $poll->title ),
+			'[FU005#AK05] Niederschrift nennt Titel und Abstimmung' );
 		vv_check( str_contains( $html, '1</td>' ) && str_contains( $html, 'Ja' ),
 			'[FU005#AK05] Niederschrift enthält das Ergebnis' );
 		vv_check( str_contains( $html, str_repeat( '7', 64 ) ),
@@ -219,7 +219,7 @@ return [
 		$row = vv_fx_voter_row( 'mitglied@example.org' );
 		vv_check( str_contains( $html, vv_fmt( $row->invited_at ) ) && str_contains( $html, vv_fmt( $row->pin_set_at ) )
 			&& str_contains( $html, vv_fmt( $row->voted_at ) ),
-			'[FU005#AK05] Einladungs-, Wahl-Code- und Abgabezeit je Person' );
+			'[FU005#AK05] Einladungs-, Abstimmungscode- und Abgabezeit je Person' );
 		vv_check( str_contains( $html, 'Abgabefingerprint' )
 			&& str_contains( $html, (string) $poll->urn_fingerprint ),
 			'[FU005#AK05] Niederschrift hält den Abgabefingerprint fest' );

@@ -10,6 +10,8 @@ return [
 		vv_fx_http( [ 'poll' => $pid ] );
 		$html = vv_shortcode_results();
 		vv_check( str_contains( $html, 'läuft noch' ), '[FU009#AK01] Hinweis solange Abstimmung läuft' );
+		vv_check( str_contains( $html, '<h2>' . esc_html( vv_fx_poll_row( $pid )->title ) . '</h2>' ),
+			'[FU009#AK01] Titel steht auch im Wartezustand als h2' );
 		vv_check( ! str_contains( $html, 'Prüfliste' ), '[FU009#AK01] keine Prüfliste solange laufend' );
 	},
 
@@ -17,7 +19,9 @@ return [
 		$pid = vv_fx_poll( [ 'status' => 'draft', 'start_off' => '+1 day', 'end_off' => '+2 days' ] );
 		vv_fx_http( [ 'poll' => $pid ] );
 		$html = vv_shortcode_results();
-		vv_check( str_contains( $html, 'noch nicht begonnen' ), '[FU009#AK01] Hinweis für nicht gestartete Wahl' );
+		vv_check( str_contains( $html, 'noch nicht begonnen' ), '[FU009#AK01] Hinweis für nicht gestartete Abstimmung' );
+		vv_check( str_contains( $html, '<h2>' . esc_html( vv_fx_poll_row( $pid )->title ) . '</h2>' ),
+			'[FU009#AK01] Titel steht auch vor dem Start als h2' );
 	},
 
 	'test_08_fu009_ak02_ergebnis_nach_ende' => function () {
@@ -31,6 +35,9 @@ return [
 			'[FU009#AK02] Stimmenverteilung in Prozent korrekt (66.7% / 33.3%)' );
 		vv_check( str_contains( $html, '<td>2</td>' ) && str_contains( $html, '<td>1</td>' ),
 			'[FU009#AK02] absolute Zahlen korrekt' );
+		vv_check( str_contains( $html, '<h2>' . esc_html( vv_fx_poll_row( $pid )->title ) . '</h2>' )
+			&& str_contains( $html, '<h3>Ergebnis</h3>' ),
+			'[FU009#AK02] Titel als h2, Ergebnis als h3 ohne doppelten Titel' );
 	},
 
 	'test_08_fu009_ak02_ergebnis_abgelaufen_ohne_statusschluss' => function () {
@@ -41,7 +48,7 @@ return [
 		vv_fx_http( [ 'poll' => $pid ] );
 		$html = vv_shortcode_results();
 		vv_check( str_contains( $html, 'Prüfliste' ), '[FU009#AK02] Ergebnis erscheint nach Zeitraum-Ende auch ohne admin-status closed' );
-		vv_check( str_contains( $html, 'Wahlzeitraum abgelaufen' ), '[FU009#AK02] Label weist auf abgelaufenen Zeitraum hin' );
+		vv_check( str_contains( $html, 'Abstimmungszeitraum abgelaufen' ), '[FU009#AK02] Label weist auf abgelaufenen Zeitraum hin' );
 	},
 
 	'test_08_fu009_ak03_pruefliste_vollstandig_und_anonym' => function () {
@@ -61,7 +68,7 @@ return [
 		// Anonymitätstest: keine Namen, keine Mailadressen, keine Tokens in der Prüfliste.
 		vv_check( ! str_contains( $html, 'geheim@example.org' ), '[FU009#AK03] anonym (keine E-Mail-Adresse)' );
 		vv_check( ! str_contains( $html, 'tokq' ), '[FU009#AK03] anonym (keine Token-Werte)' );
-		// Keine Uhrzeit in der Prüfliste – sonst Korrelation mit „Gewählt am“ möglich.
+		// Keine Uhrzeit in der Prüfliste – sonst Korrelation mit „Abgestimmt am“ möglich.
 		vv_check( ! str_contains( $html, 'Zeitpunkt' ),
 			'[FU009#AK03] Prüfliste ohne Zeitstempel (keine Korrelation mit voted_at)' );
 		vv_check( 1 === substr_count( $html, '<strong>' . substr( $h1, 0, 5 ) . '</strong>' ),
@@ -72,12 +79,14 @@ return [
 	},
 
 	'test_08_fu008_ak01_formular_auswahl' => function () {
-		$pid = vv_fx_poll( [ 'title' => 'Wahlfrage', 'question' => 'Ja oder Nein?' ] );
+		$pid = vv_fx_poll( [ 'title' => 'Abstimmungfrage', 'question' => 'Ja oder Nein?' ] );
 		vv_fx_http( [ 'poll' => $pid ] );
 		$html = vv_shortcode_form();
-		foreach ( [ 'Mitgliedsnummer', 'E-Mail', 'Wahl-Code', 'value="ja"', 'value="nein"', 'value="enthaltung"' ] as $needle ) {
+		foreach ( [ 'Mitgliedsnummer', 'E-Mail', 'Abstimmungscode', 'value="ja"', 'value="nein"', 'value="enthaltung"' ] as $needle ) {
 			vv_check( str_contains( $html, $needle ), "[FU008#AK01] Formularfeld $needle vorhanden" );
 		}
+		vv_check( str_contains( $html, '<h2>' . esc_html( vv_fx_poll_row( $pid )->title ) . '</h2>' ),
+			'[FU008#AK01] Titel steht als h2 über dem Stimmformular' );
 	},
 
 	'test_08_fu008_ak06_formular_nur_im_zeitraum' => function () {
@@ -89,6 +98,8 @@ return [
 			'[FU008#AK06] vor dem Start kein Stimmformular' );
 		vv_check( str_contains( $html, 'noch nicht aktiv' ) && str_contains( $html, vv_fmt( vv_fx_poll_row( $pid )->start_dt ) ),
 			'[FU008#AK06] Hinweis nennt den Zeitraum vor dem Start' );
+		vv_check( str_contains( $html, '<h2>' . esc_html( vv_fx_poll_row( $pid )->title ) . '</h2>' ),
+			'[FU008#AK06] Titel steht vor dem Start als h2' );
 
 		// Nach dem Ende: kein Formular, Hinweis „beendet“.
 		$pid2 = vv_fx_poll( [ 'status' => 'active', 'start_off' => '-2 days', 'end_off' => '-1 day' ] );
@@ -96,6 +107,8 @@ return [
 		$html2 = vv_shortcode_form();
 		vv_check( ! str_contains( $html2, '<form' ), '[FU008#AK06] nach dem Ende kein Stimmformular' );
 		vv_check( str_contains( $html2, 'beendet' ), '[FU008#AK06] Hinweis nach dem Ende' );
+		vv_check( str_contains( $html2, '<h2>' . esc_html( vv_fx_poll_row( $pid2 )->title ) . '</h2>' ),
+			'[FU008#AK06] Titel steht nach dem Ende als h2' );
 	},
 
 	'test_08_fu008_ak02_formular_kein_poll' => function () {
@@ -108,7 +121,7 @@ return [
 		vv_check( vv_page_has_voting_shortcode( 'Intro [verein_voting_form poll="x"] Ende' )
 			&& vv_page_has_voting_shortcode( '[verein_voting_results]' )
 			&& vv_page_has_voting_shortcode( '[verein_voting_activate]' ),
-			'[FU008#AK05] Detector erkennt jede Wahl-Shortcode-Seite (Cache-Ausschluss)' );
+			'[FU008#AK05] Detector erkennt jede Abstimmung-Shortcode-Seite (Cache-Ausschluss)' );
 		vv_check( ! vv_page_has_voting_shortcode( '[anderer_shortcode] [verein_voting_galerie]' ),
 			'[FU008#AK05] Detector ignoriert fremde Shortcodes' );
 	},

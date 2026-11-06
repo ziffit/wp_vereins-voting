@@ -44,7 +44,7 @@ return [
 			vv_cast_vote( $pid, '101', 'a@b.org', 'A2B3C4', 'ja' );
 			vv_check( false, 'abstimmen nach Ende ?!' );
 		} catch ( RuntimeException $e ) {
-			vv_check( str_contains( $e->getMessage(), 'nicht aktiv' ), '[FU008#AK02] Wahl nach end_dt abgelehnt, auch bei Status active' );
+			vv_check( str_contains( $e->getMessage(), 'nicht aktiv' ), '[FU008#AK02] Abstimmung nach end_dt abgelehnt, auch bei Status active' );
 		}
 		vv_check( 0 === vv_fx_ballots_count( $pid ), '[FU008#AK02] keine Urne nach end_dt' );
 	},
@@ -62,15 +62,15 @@ return [
 		vv_fx_voter( $pid, '101', 'a@b.org', 't1', 'A2B3C4' );
 		try {
 			vv_cast_vote( $pid, '101', 'a@b.org', '999999', 'ja' );
-			vv_check( false, 'falscher Wahl-Code erfolgreich ?!' );
+			vv_check( false, 'falscher Abstimmungscode erfolgreich ?!' );
 		} catch ( RuntimeException $e ) {
-			vv_check( str_contains( $e->getMessage(), 'Wahl-Code ist falsch' ), '[FU008#AK02] falscher Wahl-Code abgelehnt (password_verify)' );
+			vv_check( str_contains( $e->getMessage(), 'Abstimmungscode ist falsch' ), '[FU008#AK02] falscher Abstimmungscode abgelehnt (password_verify)' );
 		}
-		vv_check( 0 === vv_fx_ballots_count( $pid ), '[FU008#AK02] keine Urne bei falscher Wahl-Code' );
+		vv_check( 0 === vv_fx_ballots_count( $pid ), '[FU008#AK02] keine Urne bei falscher Abstimmungscode' );
 
 		// Groß-/Kleinschreibung egal und Rand-Whitespace egal:
 		$receipt = vv_cast_vote( $pid, '101', 'a@b.org', 'a2b3c4', 'ja' );
-		vv_check( (bool) preg_match( '/^[0-9a-f]{64}$/', $receipt ), '[FU008#AK02] Wahl-Code groß-/klein-insensitiv akzeptiert' );
+		vv_check( (bool) preg_match( '/^[0-9a-f]{64}$/', $receipt ), '[FU008#AK02] Abstimmungscode groß-/klein-insensitiv akzeptiert' );
 	},
 
 	'test_07_fu008_ak02_email_mitgliedsnr_zusammen' => function () {
@@ -102,7 +102,7 @@ return [
 		// Anonymität: keine Mitgliedsnummer/E-Mail in der Urne.
 		vv_check( ! property_exists( $ballot, 'member_no' ) && ! property_exists( $ballot, 'email' ),
 			'[FU008#AK03] Urne enthält keine Mitgliederkategorien' );
-		// Kein Zeitstempel, keine laufende Nummer: voted_at/„Gewählt am“ und
+		// Kein Zeitstempel, keine laufende Nummer: voted_at/„Abgestimmt am“ und
 		// Urnenzeile sind weder über die Zeit noch über die Reihenfolge verknüpfbar.
 		vv_check( ! property_exists( $ballot, 'created_at' ) && ! property_exists( $ballot, 'id' ),
 			'[FU008#AK03] Urne ohne Zeitstempel und ohne laufende Nummer' );
@@ -146,7 +146,7 @@ return [
 		vv_fx_voter( $pid2, '202', 'c@d.org', 't2', 'B2C3D4' );
 		vv_fx_http( [ 'poll' => $pid2 ], [ 'vv_frontend_nonce' => vv_fx_nonce(), 'member_no' => '202', 'email' => 'c@d.org', 'pin' => '000000', 'option' => 'ja' ] );
 		$html2 = vv_shortcode_form();
-		vv_check( str_contains( $html2, '<form' ) && str_contains( $html2, 'Wahl-Code ist falsch' ),
+		vv_check( str_contains( $html2, '<form' ) && str_contains( $html2, 'Abstimmungscode ist falsch' ),
 			'[FU008#AK04] Fehler: Formular bleibt mit Fehlermeldung' );
 	},
 
@@ -185,7 +185,7 @@ return [
 			try {
 				vv_cast_vote( $pid, '101', 'a@b.org', '999999', 'ja' );
 			} catch ( RuntimeException $e ) {
-				// erwartet: Wahl-Code ist falsch
+				// erwartet: Abstimmungscode ist falsch
 			}
 		}
 

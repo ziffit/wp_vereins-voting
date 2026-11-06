@@ -1,7 +1,7 @@
 <?php
 /**
  * [FU002] Teilnehmerverwaltung: Liste im Entwurf löschen, Handanlage bei
- * laufender Wahl; [FU005] E-Mail ändern und Einladung erneut senden.
+ * laufender Abstimmung; [FU005] E-Mail ändern und Einladung erneut senden.
  */
 return [
 
@@ -26,7 +26,7 @@ return [
 		[ $kind, $msg ] = vv_fx_run( 'vv_delete_voter_data' );
 
 		vv_check( 'die' === $kind && str_contains( (string) $msg, 'vor dem Start' ),
-			'[FU002#AK09] laufende Wahl: Liste nicht löschbar' );
+			'[FU002#AK09] laufende Abstimmung: Liste nicht löschbar' );
 		vv_check( 1 === vv_fx_voter_count( $pid ), '[FU002#AK09] Teilnehmer bleibt erhalten' );
 	},
 
@@ -173,7 +173,7 @@ return [
 		vv_check( str_contains( $html, '<td>101</td>' ) && ! str_contains( $html, '<td>102</td>' ),
 			'[FU005#AK01] Suche nach Name filtert die Liste' );
 		vv_check( str_contains( $html, '1 Treffer für „Erika“' ), '[FU005#AK01] Trefferzahl wird angezeigt' );
-		vv_check( str_contains( $html, 'Mitglieder: <strong>2</strong> · Wahl-Code gesetzt: <strong>1</strong> · Hat gewählt: <strong>1</strong>' ),
+		vv_check( str_contains( $html, 'Mitglieder: <strong>2</strong> · Abstimmungscode gesetzt: <strong>1</strong> · Hat abgestimmt: <strong>1</strong>' ),
 			'[FU005#AK01] Summen gelten für die gesamte Abstimmung' );
 
 		vv_fx_http( [ 'page' => 'vereins-voting', 'view' => 'members', 'poll' => $pid, 'vv_q' => '102' ] );

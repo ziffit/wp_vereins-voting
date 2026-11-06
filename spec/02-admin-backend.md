@@ -23,7 +23,7 @@ löschen.
   `urn_fingerprint` festgehalten – SHA-256 über alle Prüfcodes in
   aufsteigender Sortierung und die Option-Zählungen (ja, nein, Enthaltung);
   das Rezept ist auf der Ergebnisseite dokumentiert. Die Registerkarte
-  „Wahlergebnis“ berechnet den Wert bei jeder Ansicht aus der Urne nach und meldet
+  „Ergebnis“ berechnet den Wert bei jeder Ansicht aus der Urne nach und meldet
   Abweichungen deutlich sichtbar („Abgabefingerprint abweichend“), da jede
   nachträgliche Urnen-Änderung den Wert verändert. Ohne formellen Abschluss
   (bspw. automatisches Auslaufen) gibt es keinen Vergleichswert. Hat die
@@ -38,19 +38,19 @@ löschen.
 
 - **[FU002#AK04]** Ist in WordPress keine Zeitzone gesetzt (UTC ohne
   `timezone_string`/`gmt_offset`), erscheint im Backend ein Warnhinweis,
-  damit Wahlzeiten nicht unbemerkt verschoben werden.
+  damit Abstimmungszeiten nicht unbemerkt verschoben werden.
 
 - **[FU002#AK05]** Alle Backend-Masken (Abstimmung, CSV-Import,
   Einladungsversand, E-Mail-Einstellungen) bieten neben der Hauptaktion einen
   Abbrechen-Link ohne Datenänderung; nach dem Speichern bzw. Löschen erscheint
   eine Bestätigungsmeldung. Die Detailansicht einer Abstimmung ist in vier
-  Registerkarten gegliedert – **Wahl** (Titel, Frage, Zeitraum, Status,
+  Registerkarten gegliedert – **Entscheid** (Titel, Frage, Zeitraum, Status,
   vorzeitiges Beenden, Löschen im Entwurf), **Teilnehmer** (CSV-Import im
-  Entwurf, Handanlage bei laufender Wahl, Liste mit E-Mail-Änderung,
-  erneutem Einladungsversand, Wahl-Code-Reset, Räumung der Teilnehmerdaten),
+  Entwurf, Handanlage bei laufender Abstimmung, Liste mit E-Mail-Änderung,
+  erneutem Einladungsversand, Abstimmungscode-Reset, Räumung der Teilnehmerdaten),
   **E-Mail** (Einladungsversand mit Textblock, Vorschau, Testmail,
-  Versandstatus) und **Wahlergebnis** (Gesamtergebnis, Abgabefingerprint,
-  Wahlniederschrift).
+  Versandstatus) und **Ergebnis** (Gesamtergebnis, Abgabefingerprint,
+  Niederschrift).
   Es werden nur mögliche Aktionen angeboten; nicht mögliche erscheinen als
   Hinweistext. Die Übersicht verlinkt je Abstimmung nur noch
   „Details“. Eingabefehler der Abstimmungsmaske (fehlende
@@ -71,10 +71,10 @@ löschen.
 
 - **[FU002#AK08]** Bei beendeten Abstimmungen kann der Administrator die
   Teilnehmerdaten löschen: Wählerzeilen (Mitgliedsnummer, Name, E-Mail,
-  Token, Wahl-Code-Hash, alle Zeitstempel) werden entfernt, während Urne,
+  Token, Abstimmungscode-Hash, alle Zeitstempel) werden entfernt, während Urne,
   Ergebnis und Prüfliste vollständig erhalten bleiben. Die Aktion ist nur
   im Status `closed` möglich und erfordert Nonce und Bestätigungsdialog mit
-  dem Hinweis, die Wahlniederschrift (FU005#AK05) vorher zu erstellen und
+  dem Hinweis, die Niederschrift (FU005#AK05) vorher zu erstellen und
   zu archivieren. Existieren keine Teilnehmerdaten mehr (bereits gelöscht
   oder nicht importiert), erscheint statt der Schaltfläche die Meldung
   „Keine Teilnehmerdaten mehr vorhanden“. Es bleiben keine Kopien oder
@@ -163,9 +163,9 @@ Abstimmungen; je Abstimmung gibt es nur einen Textblock.
 
 - **[FU004#AK03]** Je Abstimmung lässt sich ein Textblock speichern. Der
   Textblock darf die dokumentierten Platzhalter verwenden. Die Mail führt
-  durch die Schritte des Ablaufs: Wahl-Code erzeugen (Aktivierungsbutton,
-  immer), im Wahlzeitraum abstimmen (Button zur Stimmformular-Seite),
-  nach Wahlende Ergebnisse prüfen (Link zur Ergebnisseite). Einen
+  durch die Schritte des Ablaufs: Abstimmungscode abholen (Aktivierungsbutton,
+  immer), im Abstimmungszeitraum abstimmen (Button zur Stimmformular-Seite),
+  nach dem Abstimmungsende Ergebnisse prüfen (Link zur Ergebnisseite). Einen
   automatischen Website-Hinweis gibt es nicht; wer eine Adresse nennen
   will, schreibt sie in den Textblock. Der Textblock ersetzt
   nicht die globale Einleitung oder den Footer.
@@ -183,61 +183,61 @@ Abstimmungen; je Abstimmung gibt es nur einen Textblock.
   Nach drei Fehlversuchen stoppt der automatische Versand; ein manueller
   Retry setzt den Zähler der fehlgeschlagenen Zeilen auf 0 und plant sie
   erneut ein. Bereits erfolgreich gesendete Zeilen bleiben unberührt. Ein
-  Wahl-Code-Reset löscht `invited_at` und `invite_attempts`, damit die Person über
+  Abstimmungscode-Reset löscht `invited_at` und `invite_attempts`, damit die Person über
   einen erneuten Start wieder eingeladen wird.
 
 ## [FU005] Admin-Audit- & Mitglieder-Übersicht
 
 ### Beschreibung
 
-Transparenz im Backend über die Wahlbeteiligung ohne Verletzung des
+Transparenz im Backend über die Beteiligung ohne Verletzung des
 Stimmgeheimnisses.
 
 ### Akzeptanzkriterien
 
 - **[FU005#AK01]** Der Admin sieht eine Liste aller importierten Mitglieder
   (Mitgliedsnummer, Name aus Vor-/Nachname, E-Mail) mit Status
-  (*Hat gewählt: Ja/Nein* und *Gewählt am: [Zeitstempel]*); fehlt der Name,
+  (*Hat abgestimmt: Ja/Nein* und *Abgestimmt am: [Zeitstempel]*); fehlt der Name,
   steht dort „–“. Die Liste trägt die Überschrift „Stimmberechtigte
   Mitglieder“ und wird seitenweise angezeigt (100 Einträge pro Seite). Sie
-  zeigt je Person, ob ein Wahl-Code erzeugt ist (Ja/Nein) und ob die Einladung
+  zeigt je Person, ob ein Abstimmungscode gesetzt ist (Ja/Nein) und ob die Einladung
   offen, gesendet oder fehlgeschlagen ist. Über ein Suchfeld lässt sich die
   Liste nach Name oder Mitgliedsnummer filtern; der Filter bleibt beim
   Blättern erhalten. Unter der Tabelle stehen die Summen der gesamten
-  Abstimmung (Mitglieder, Wahl-Code gesetzt, Hat gewählt). Die
+  Abstimmung (Mitglieder, Abstimmungscode gesetzt, Hat abgestimmt). Die
   Abstimmungsübersicht zeigt die
   UUID je Abstimmung, den Titel ohne Verlinkung sowie Teilnehmer- und
   Stimmenzahl und öffnet per „Details“ die Registerkarten-Ansicht
   (FU002#AK05).
 
 - **[FU005#AK02]** Es ist technisch unmöglich, im Backend einzusehen, welche
-  Option (ja, nein, enthaltung) ein spezifisches Mitglied gewählt hat.
+  Option (ja, nein, enthaltung) ein spezifisches Mitglied abgestimmt hat.
 
-- **[FU005#AK03]** Der Admin sieht nach Ablauf der Wahl die aggregierten
+- **[FU005#AK03]** Der Admin sieht nach Ablauf der Abstimmung die aggregierten
   Gesamtergebnisse (Anzahl Ja, Nein, Enthaltung) in der Registerkarte
-  „Wahlergebnis“; vor dem Wahlende zeigt die Registerkarte einen Hinweis
+  „Ergebnis“; vor dem Abstimmungsende zeigt die Registerkarte einen Hinweis
   statt einer Tabelle.
 
-- **[FU005#AK04]** Der Admin kann einen erzeugten Wahl-Code vor der
+- **[FU005#AK04]** Der Admin kann einen gesetzten Abstimmungscode vor der
   Stimmabgabe zurücksetzen (z. B. wenn das Mitglied ihn verloren hat). Dabei
-  wird nur der Wahl-Code-Hash gelöscht und ein neuer `activation_token`
+  wird nur der Abstimmungscode-Hash gelöscht und ein neuer `activation_token`
   erzeugt; außerdem werden `invited_at` und `invite_attempts` zurückgesetzt,
-  damit die Person über eine neue Einladung selbst einen neuen Wahl-Code
-  erzeugen kann (der Admin kann den Code weder sehen noch selbst setzen).
-  Die Urne und das Wahlgeheimnis bleiben unberührt. Nach der Stimmabgabe und
+  damit die Person über eine neue Einladung selbst einen neuen Abstimmungscode
+  abholen kann (der Admin kann den Code weder sehen noch selbst setzen).
+  Die Urne und das Stimmgeheimnis bleiben unberührt. Nach der Stimmabgabe und
   bei geschlossenen Abstimmungen ist der Reset nicht möglich; eine
   bestehende Fehlversuchssperre wird aufgehoben.
 
 - **[FU005#AK05]** Der Administrator kann zu jeder Abstimmung eine
-  Wahlniederschrift als druckbare Seite erzeugen (Standalone-HTML ohne
+  Niederschrift als druckbare Seite erzeugen (Standalone-HTML ohne
   Backend-Design, im Browser über „Drucken“ als PDF speicherbar; erreichbar
   nur mit `manage_options` und Nonce). Sie enthält: Titel, Frage,
-  Wahlzeitraum, Status, Erstellungszeitpunkt, das Gesamtergebnis je Option
+  Abstimmungszeitraum, Status, Erstellungszeitpunkt, das Gesamtergebnis je Option
   (absolute Zahlen und Anteile), den Abgabefingerprint samt Rezept und
   Vergleich zur aktuellen Urne, die vollständige Prüfliste (Prüfcode,
   gewählte Option, geordnet nach Prüfcode) sowie eine Teilnahmetabelle je
   Person mit Mitgliedsnummer, Name, E-Mail und den Zeitpunkten Einladung
-  (`invited_at`), Wahl-Code-Aktivierung (`pin_set_at`) und Stimmabgabe
+  (`invited_at`), Abstimmungscode-Aktivierung (`pin_set_at`) und Stimmabgabe
   (`voted_at`). Vor dem Löschen der Teilnehmerdaten (FU002#AK08) dient sie
   als Archiv; danach zeigt sie Ergebnis und Prüfliste weiterhin und
   kennzeichnet fehlende Teilnehmerzeiten mit „Keine Teilnehmerzeiten
@@ -251,7 +251,7 @@ Stimmgeheimnisses.
   offen (`invited_at` und `invite_attempts` zurückgesetzt). Zusätzlich kann
   er die Einladung für eine Person direkt aus der Liste erneut senden,
   solange ein `activation_token` existiert, die Person nicht abgestimmt hat,
-  der Wahlzeitraum nicht abgelaufen und die E-Mail-Konfiguration vollständig
+  der Abstimmungszeitraum nicht abgelaufen und die E-Mail-Konfiguration vollständig
   ist. Der Einzelversand nutzt dieselbe Vorlage und denselben persönlichen
   Link wie der Massenversand, verbraucht aber keinen Platz im globalen
   5-Minuten-Fenster. Erfolg setzt `invited_at`, ein Fehlversuch erhöht

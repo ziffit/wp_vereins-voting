@@ -17,11 +17,11 @@ function vv_mail_defaults() {
 		'subject'      => 'Einladung zur Abstimmung: {poll_title}',
 		'intro'        => "Hallo {vorname} {nachname},\r\n\r\n"
 			. 'du bist eingeladen, an der folgenden Abstimmung teilzunehmen. '
-			. 'Deine Stimme ist anonym – niemand kann sehen, wie du wählst.',
+			. 'Deine Stimme ist anonym – niemand kann sehen, wie du abstimmst.',
 		'footer'       => '',
 		'activate_url' => '',
 		'rate'         => 10,
-		'poll_text'    => "{question}\r\n\r\nWahlzeitraum: {start} – {end}\r\nBitte halte deine Mitgliedsnummer und E-Mail-Adresse bereit.",
+		'poll_text'    => "{question}\r\n\r\nAbstimmungszeitraum: {start} – {end}\r\nBitte halte deine Mitgliedsnummer und E-Mail-Adresse bereit.",
 	];
 }
 
@@ -229,14 +229,14 @@ function vv_mail_steps( $link, $vote_url, $results_url ) {
 	$p    = 'style="font-size: 1em; margin: 8px 0"';
 	$step = 1;
 	$html = '<p style="font-size: 1em; margin: 24px 0 0"><strong>So geht’s weiter:</strong></p>';
-	$html .= '<p ' . $p . '>' . $step++ . '. Erzeuge deinen persönlichen Wahl-Code (6 Zeichen: Buchstaben und Ziffern).</p>';
-	$html .= vv_mail_button( $link, 'Wahl-Code erzeugen' );
+	$html .= '<p ' . $p . '>' . $step++ . '. Hole dir deinen persönlichen Abstimmungscode (6 Zeichen: Buchstaben und Ziffern).</p>';
+	$html .= vv_mail_button( $link, 'Abstimmungscode abholen' );
 	if ( '' !== $vote_url ) {
-		$html .= '<p ' . $p . '>' . $step++ . '. Stimme im Wahlzeitraum ab – Ja, Nein oder Enthaltung.</p>';
+		$html .= '<p ' . $p . '>' . $step++ . '. Stimme im Abstimmungszeitraum ab – Ja, Nein oder Enthaltung.</p>';
 		$html .= vv_mail_button( $vote_url, 'Jetzt abstimmen' );
 	}
 	if ( '' !== $results_url ) {
-		$html .= '<p ' . $p . '>' . $step++ . '. Prüfe nach Wahlende das Ergebnis. Die ersten fünf Zeichen '
+		$html .= '<p ' . $p . '>' . $step++ . '. Prüfe nach dem Abstimmungsende das Ergebnis. Die ersten fünf Zeichen '
 			. 'deines Prüfcodes reichen, um deine Stimme wiederzufinden: '
 			. '<a href="' . esc_url( $results_url ) . '" style="color: #1a82e2; text-decoration: underline">Ergebnisse ansehen</a></p>';
 	}
@@ -265,12 +265,12 @@ function vv_mail_html( $subject, $intro, $poll_text, $footer, $link, $vote_url =
 
 function vv_mail_plain( $intro, $poll_text, $footer, $link, $vote_url = '', $results_url = '' ) {
 	$text = rtrim( (string) $intro ) . "\n\n" . rtrim( (string) $poll_text );
-	$text .= "\n\nSo geht’s weiter:\n1. Wahl-Code erzeugen (6 Zeichen: Buchstaben und Ziffern): " . $link;
+	$text .= "\n\nSo geht’s weiter:\n1. Abstimmungscode abholen (6 Zeichen: Buchstaben und Ziffern): " . $link;
 	if ( '' !== $vote_url ) {
-		$text .= "\n2. Im Wahlzeitraum abstimmen: " . $vote_url;
+		$text .= "\n2. Im Abstimmungszeitraum abstimmen: " . $vote_url;
 	}
 	if ( '' !== $results_url ) {
-		$text .= "\n3. Nach Wahlende Ergebnisse prüfen: " . $results_url;
+		$text .= "\n3. Nach dem Abstimmungsende Ergebnisse prüfen: " . $results_url;
 	}
 	if ( '' !== trim( (string) $footer ) ) {
 		$text .= "\n\n" . trim( (string) $footer );

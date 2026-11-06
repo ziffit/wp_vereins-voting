@@ -209,7 +209,7 @@ function vv_cast_vote( $poll_id, $member_no, $email, $pin, $option ) {
 		}
 
 		if ( empty( $voter->pin_hash ) || ! password_verify( (string) $pin, $voter->pin_hash ) ) {
-			throw new VV_PinFail( 'Wahl-Code ist falsch.' );
+			throw new VV_PinFail( 'Abstimmungscode ist falsch.' );
 		}
 
 		// [FU008#AK03] Nur Urnen-Spalten befüllen – keine Personenbeziehung in der Urne.

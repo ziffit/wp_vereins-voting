@@ -53,7 +53,7 @@ return [
 		vv_fx_run( 'vv_save_poll' );
 		$poll = vv_fx_poll_row( $pid );
 		vv_check( 'active' === $poll->status && 'Testwahl' !== 'HACKED' && 'HACKED' !== $poll->title,
-			'[FU002#AK02] aktive Wahl: sicherheitsrelevante Felder gesperrt (kein Titel-Override)' );
+			'[FU002#AK02] aktive Abstimmung: sicherheitsrelevante Felder gesperrt (kein Titel-Override)' );
 	},
 
 	'test_02_fu002_ak02_closed_nur_outerrolled' => function () {
@@ -91,11 +91,11 @@ return [
 
 	'test_02_fu002_ak02_loeschen_draft_nur' => function () {
 		global $wpdb;
-		// Beendete Wahl darf nicht gelöscht werden:
+		// Beendete Abstimmung darf nicht gelöscht werden:
 		$pid_closed = vv_fx_poll( [ 'status' => 'closed' ] );
 		vv_fx_http( [], [ 'vv_action' => 'delete_poll', 'poll_id' => $pid_closed ] );
 		[ $kind, $msg ] = vv_fx_run( 'vv_delete_poll' );
-		vv_check( 'die' === $kind && str_contains( (string) $msg, 'Entwurf' ), '[FU002#AK02] Löschen beendeter Wahl verweigert' );
+		vv_check( 'die' === $kind && str_contains( (string) $msg, 'Entwurf' ), '[FU002#AK02] Löschen beendeter Abstimmung verweigert' );
 
 		// Entwurf: Abstimmung + Teilnehmer + Urne werden entfernt:
 		$pid   = vv_fx_poll();
@@ -158,7 +158,7 @@ return [
 		$form = (string) ob_get_clean();
 		vv_check( ! str_contains( $form, 'value="active"' ), '[FU002#AK03] Aktivieren-Radio außerhalb des Zeitraums ausgeblendet' );
 
-		// Gleiche Wahl, jetzt im Zeitraum: Wechsel erlaubt.
+		// Gleiche Abstimmung, jetzt im Zeitraum: Wechsel erlaubt.
 		vv_fx_http( [], [
 			'vv_action' => 'save_poll', 'poll_id' => $pid, 'title' => 'T', 'question' => 'Q',
 			'start_dt' => date( 'Y-m-d\TH:00', strtotime( '-1 hour' ) ),
@@ -334,11 +334,11 @@ return [
 
 		vv_fx_http( [], [ 'vv_action' => 'delete_voter_data', 'poll_id' => $pid2, 'vv_nonce' => wp_create_nonce( 'vv_admin' ) ] );
 		[ $kind, ] = vv_fx_run( 'vv_handle_admin_actions' );
-		vv_check( 'die' === $kind, '[FU002#AK08] Räumung nur bei beendeter Wahl' );
+		vv_check( 'die' === $kind, '[FU002#AK08] Räumung nur bei beendeter Abstimmung' );
 
 		vv_fx_http( []   , [ 'vv_action' => 'delete_voter_data', 'poll_id' => $pid, 'vv_nonce' => wp_create_nonce( 'vv_admin' ) ] );
 		[ $kind, $url ] = vv_fx_run( 'vv_handle_admin_actions' );
-		vv_check( 'redirect' === $kind && str_contains( (string) $url, 'voters_deleted=1' ), '[FU002#AK08] Räumung bei beendeter Wahl erlaubt' );
+		vv_check( 'redirect' === $kind && str_contains( (string) $url, 'voters_deleted=1' ), '[FU002#AK08] Räumung bei beendeter Abstimmung erlaubt' );
 		vv_check( 0 === (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . vv_tbl( 'voting_voters' ) . ' WHERE poll_id = ' . $wpdb->prepare( '%s', $pid ) ),
 			'[FU002#AK08] Wählerzeilen entfernt' );
 		vv_check( 1 === (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . vv_tbl( 'voting_ballots' ) . ' WHERE poll_id = ' . $wpdb->prepare( '%s', $pid ) ),
@@ -353,16 +353,16 @@ return [
 		vv_render_poll_form( $pid );
 		$html = (string) ob_get_clean();
 		vv_check( ! str_contains( $html, 'Speichern' ) && ! str_contains( $html, '"save_poll"' ) && ! str_contains( $html, '<form' ),
-			'[FU002#AK02] beendete Wahl: Bearbeiten-Maske ohne Speichern-Aktion (kein POST-Formular)' );
-		vv_check( str_contains( $html, '>Zurück</' ), '[FU002#AK02] beendete Wahl: Maske zeigt nur „Zurück“' );
+			'[FU002#AK02] beendete Abstimmung: Bearbeiten-Maske ohne Speichern-Aktion (kein POST-Formular)' );
+		vv_check( str_contains( $html, '>Zurück</' ), '[FU002#AK02] beendete Abstimmung: Maske zeigt nur „Zurück“' );
 
-		// Laufende Wahlen behalten Speichern/Abbrechen (z. B. vorzeitiges Beenden).
+		// Laufende Abstimmungen behalten Speichern/Abbrechen (z. B. vorzeitiges Beenden).
 		$pid2 = vv_fx_poll( [ 'status' => 'active' ] );
 		ob_start();
 		vv_render_poll_form( $pid2 );
 		$html2 = (string) ob_get_clean();
 		vv_check( str_contains( $html2, 'Speichern' ) && str_contains( $html2, '<form' ),
-			'[FU002#AK02] laufende Wahl: Maske behält die Aktionen' );
+			'[FU002#AK02] laufende Abstimmung: Maske behält die Aktionen' );
 	},
 
 	'test_02_fu002_ak08_beendete_teilnehmeransicht_ohne_optionen' => function () {
@@ -372,11 +372,11 @@ return [
 		vv_render_admin_page();
 		$html = (string) ob_get_clean();
 		vv_check( ! str_contains( $html, 'Teilnehmer (CSV-Import)' ) && ! str_contains( $html, 'Einladungen versenden' ),
-			'[FU002#AK08] beendete Wahl: Teilnehmeransicht ohne CSV-Import/Einladungsoptionen' );
-		vv_check( str_contains( $html, 'nav-tab-wrapper' ) && str_contains( $html, '>Wahlergebnis</a>' ) && str_contains( $html, '>Zurück</' ),
+			'[FU002#AK08] beendete Abstimmung: Teilnehmeransicht ohne CSV-Import/Einladungsoptionen' );
+		vv_check( str_contains( $html, 'nav-tab-wrapper' ) && str_contains( $html, '>Ergebnis</a>' ) && str_contains( $html, '>Zurück</' ),
 			'[FU002#AK05] Registerkarten sichtbar, Zurück am Seitenende' );
 		vv_check( ! str_contains( $html, 'Noch keine Teilnehmer importiert' ),
-			'[FU002#AK08] beendete Wahl: Hinweis "Noch keine Teilnehmer importiert" entfällt' );
+			'[FU002#AK08] beendete Abstimmung: Hinweis "Noch keine Teilnehmer importiert" entfällt' );
 		vv_check( ! str_contains( $html, 'delete_voter_data' )
 			&& str_contains( $html, 'Keine Teilnehmerdaten mehr vorhanden' ),
 			'[FU002#AK08] ohne Teilnehmer: Meldung statt Lösch-Button' );
@@ -391,7 +391,7 @@ return [
 		vv_check( str_contains( $html3, 'delete_voter_data' ) && str_contains( $html3, 'Teilnehmerdaten löschen' ),
 			'[FU002#AK08] mit Teilnehmern: Lösch-Button sichtbar' );
 
-		// Laufende Wahlen: Import wird zum Hinweis; der Einladungsversand lebt im E-Mail-Tab.
+		// Laufende Abstimmungen: Import wird zum Hinweis; der Einladungsversand lebt im E-Mail-Tab.
 		$pid2 = vv_fx_poll( [ 'status' => 'active' ] );
 		vv_fx_http( [ 'page' => 'vereins-voting', 'view' => 'members', 'poll' => $pid2 ] );
 		ob_start();
@@ -399,18 +399,18 @@ return [
 		$html2 = (string) ob_get_clean();
 		vv_check( ! str_contains( $html2, 'Teilnehmer (CSV-Import)' )
 			&& str_contains( $html2, 'Teilnehmer manuell hinzufügen' ),
-			'[FU002#AK05/AK10] laufende Wahl: Handanlage statt CSV-Import' );
+			'[FU002#AK05/AK10] laufende Abstimmung: Handanlage statt CSV-Import' );
 		vv_check( ! str_contains( $html2, 'Einladungen versenden' ),
-			'[FU002#AK05] laufende Wahl: Teilnehmer-Tab ohne Einladungsformular' );
+			'[FU002#AK05] laufende Abstimmung: Teilnehmer-Tab ohne Einladungsformular' );
 		vv_check( str_contains( $html2, 'Noch keine Teilnehmer importiert' ),
-			'[FU002#AK08] laufende Wahl: Hinweis bleibt' );
+			'[FU002#AK08] laufende Abstimmung: Hinweis bleibt' );
 
 		vv_fx_http( [ 'page' => 'vereins-voting', 'view' => 'mail', 'poll' => $pid2 ] );
 		ob_start();
 		vv_render_admin_page();
 		$mail = (string) ob_get_clean();
 		vv_check( str_contains( $mail, 'Einladungen versenden' ) && str_contains( $mail, '>E-Mail</a>' ),
-			'[FU002#AK05] laufende Wahl: Einladungsversand im E-Mail-Tab' );
+			'[FU002#AK05] laufende Abstimmung: Einladungsversand im E-Mail-Tab' );
 
 		// Entwurf: Import im Teilnehmer-Tab, Einladungsversand im E-Mail-Tab.
 		$pid4 = vv_fx_poll( [ 'status' => 'draft' ] );

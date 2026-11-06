@@ -49,7 +49,7 @@ return [
 		vv_check( 2 === (int) ( get_option( 'vv_send_window' )['count'] ?? 0 ),
 			'[FU004#AK04] globales Versandfenster zählt beide Versuche' );
 
-		// Nach dem Erzeugen des Wahl-Codes ist der Token weg, die Einladung bleibt als gesendet gezählt.
+		// Nach dem Erzeugen des Abstimmungscodes ist der Token weg, die Einladung bleibt als gesendet gezählt.
 		global $wpdb;
 		$wpdb->update( vv_tbl( 'voting_voters' ), [ 'activation_token' => null ], [ 'email' => 'eins@example.org' ] );
 		$counts = vv_poll_mail_counts( $pid );
@@ -70,12 +70,12 @@ return [
 		vv_check( str_contains( $mail['subject'], 'Satzungsänderung' ), '[FU006#AK01] Betreff enthält Abstimmungstitel' );
 		vv_check( str_contains( $mail['body'], 'Testverein e.V.' ), '[FU006#AK01] Mailtext enthält Vereinsnamen aus dem Footer' );
 		vv_check( str_contains( $mail['body'], 'Satzungsänderung' ), '[FU006#AK01] Mailtext enthält Abstimmungstitel' );
-		vv_check( str_contains( $mail['body'], 'Wahlzeitraum' ), '[FU006#AK01] Mailtext enthält Fristen' );
+		vv_check( str_contains( $mail['body'], 'Abstimmungszeitraum' ), '[FU006#AK01] Mailtext enthält Fristen' );
 		// [FU006#AK01] Die Mitgliedsnummer ist bewusst kein Mail-Bestandteil:
 		// Wer eine fremde E-Mail liest, kennt damit nicht die Mitgliedsnummer.
 		vv_check( ! str_contains( $mail['body'], '101' ), '[FU006#AK01] Mailtext enthält keine Mitgliedsnummer' );
 		vv_check( str_contains( $mail['body'], 'Hallo Erika Muster,' ), '[FU006#AK04] Standardtext begrüßt mit Vor- und Nachnamen' );
-		vv_check( str_contains( $mail['body'], 'Wahl-Code erzeugen' ), '[FU006#AK02] persönlicher Aktivierungslink ist ein Button' );
+		vv_check( str_contains( $mail['body'], 'Abstimmungscode abholen' ), '[FU006#AK02] persönlicher Aktivierungslink ist ein Button' );
 		foreach ( [ '{link}', '{poll_title}', '{vorname}', '{nachname}' ] as $ph ) {
 			vv_check( ! str_contains( $mail['body'], $ph ), "[FU006#AK04] Platzhalter $ph ist ersetzt" );
 		}
@@ -87,7 +87,7 @@ return [
 		vv_fx_voter( $pid, '1', 'alt@example.org', 'tok_old' );
 		vv_fx_voter( $pid, '2', 'neu@example.org', 'tok_new' );
 		global $wpdb;
-		// erster Wähler hat Wahl-Code gesetzt und Token verbraucht (wie nach FU007).
+		// erster Wähler hat Abstimmungscode gesetzt und Token verbraucht (wie nach FU007).
 		$wpdb->query( "UPDATE " . vv_tbl( 'voting_voters' ) . " SET activation_token = NULL, pin_hash = 'x', has_voted = 0 WHERE email = 'alt@example.org'" );
 
 		vv_fx_http( [], [ 'vv_action' => 'send_invites', 'poll' => $pid ] );
@@ -409,12 +409,12 @@ return [
 		];
 		$parts = vv_mail_parts( $poll, $voter );
 
-		vv_check( str_contains( $parts['html'], '<!DOCTYPE html>' ) && str_contains( $parts['html'], 'Wahl-Code erzeugen' ),
+		vv_check( str_contains( $parts['html'], '<!DOCTYPE html>' ) && str_contains( $parts['html'], 'Abstimmungscode abholen' ),
 			'[FU006#AK02] HTML-Teil enthält Layout und Aktivierungsbutton' );
 		vv_check( ! str_contains( $parts['html'], 'Mehr zum Ablauf' ) && ! str_contains( $parts['html'], 'https://verein.example.org/info/' ),
 			'[FU004#AK03] kein Website-Link-Hinweis im HTML-Teil' );
 		vv_check( str_contains( $parts['html'], 'Testverein e.V.' ), '[FU006#AK02] Footer steht im HTML-Teil' );
-		vv_check( str_contains( $parts['plain'], 'Wahl-Code erzeugen (6 Zeichen: Buchstaben und Ziffern): https://seite.example.org/aktivieren/' ),
+		vv_check( str_contains( $parts['plain'], 'Abstimmungscode abholen (6 Zeichen: Buchstaben und Ziffern): https://seite.example.org/aktivieren/' ),
 			'[FU006#AK02] Text-Teil enthält den persönlichen Link' );
 		vv_check( ! str_contains( $parts['plain'], 'Mehr zum Ablauf' )
 			&& str_contains( $parts['plain'], 'Testverein e.V.' ),
@@ -446,7 +446,7 @@ return [
 		];
 		$parts = vv_mail_parts( $poll, $voter );
 
-		vv_check( str_contains( $parts['html'], 'So geht’s weiter' ) && str_contains( $parts['html'], 'Wahl-Code erzeugen' ),
+		vv_check( str_contains( $parts['html'], 'So geht’s weiter' ) && str_contains( $parts['html'], 'Abstimmungscode abholen' ),
 			'[FU006#AK01] Schritt 1: Aktivierungsbutton' );
 		vv_check( str_contains( $parts['html'], 'Jetzt abstimmen' ) && str_contains( $parts['html'], 'https://seite.example.org/waehlen/' ),
 			'[FU006#AK01] Schritt 2: Button zur Stimmformular-Seite' );
@@ -455,8 +455,8 @@ return [
 		vv_check( str_contains( $parts['html'], 'https://seite.example.org/waehlen/?poll=' . $pid )
 			&& str_contains( $parts['html'], 'https://seite.example.org/ergebnis/?poll=' . $pid ),
 			'[FU006#AK01] Stimm- und Ergebnislink tragen die Poll-ID (HTML)' );
-		vv_check( str_contains( $parts['plain'], '2. Im Wahlzeitraum abstimmen: https://seite.example.org/waehlen/' )
-			&& str_contains( $parts['plain'], '3. Nach Wahlende Ergebnisse prüfen: https://seite.example.org/ergebnis/' ),
+		vv_check( str_contains( $parts['plain'], '2. Im Abstimmungszeitraum abstimmen: https://seite.example.org/waehlen/' )
+			&& str_contains( $parts['plain'], '3. Nach dem Abstimmungsende Ergebnisse prüfen: https://seite.example.org/ergebnis/' ),
 			'[FU006#AK01] Plain-Text nennt die drei Schritte' );
 		vv_check( str_contains( $parts['plain'], 'https://seite.example.org/waehlen/?poll=' . $pid )
 			&& str_contains( $parts['plain'], 'https://seite.example.org/ergebnis/?poll=' . $pid ),

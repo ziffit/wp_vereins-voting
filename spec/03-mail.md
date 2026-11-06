@@ -11,14 +11,14 @@ arbeiten ausschließlich mit erfundenen Beispieldaten.
 ### Akzeptanzkriterien
 
 - **[FU006#AK01]** Die Einladungs-E-Mail enthält den Vereinsnamen, den Titel
-  der Abstimmung, den Wahlzeitraum und den persönlichen
+  der Abstimmung, den Abstimmungszeitraum und den persönlichen
   Aktivierungslink — **nicht** die Mitgliedsnummer (wer die Mail eines
   anderen erhält, kennt damit nicht automatisch auch dessen
   Mitgliedsnummer). Der Standard begrüßt mit
   „Hallo {vorname} {nachname},“ und weist auf die Anonymität der Stimme hin.
   Nach dem Textblock der Abstimmung führt die Mail durch die Schritte:
-  (1) Wahl-Code erzeugen per Aktivierungsbutton, (2) im Wahlzeitraum abstimmen
-  (Pflicht-URL der Stimmformular-Seite), (3) nach Wahlende die Ergebnisse
+  (1) Abstimmungscode abholen per Aktivierungsbutton, (2) im Abstimmungszeitraum abstimmen
+  (Pflicht-URL der Stimmformular-Seite), (3) nach dem Abstimmungsende die Ergebnisse
   prüfen (Pflicht-URL der Ergebnisseite); dabei wird erklärt, dass die
   ersten fünf Zeichen des Prüfcodes zum Wiederfinden der eigenen Stimme
   reichen. Stimm- und Ergebnislink tragen zusätzlich die Poll-ID als
@@ -56,7 +56,7 @@ arbeiten ausschließlich mit erfundenen Beispieldaten.
   Sie werden je Empfänger ersetzt; leere Namen ergeben eine leere Stelle.
   Unbekannte Platzhalter werden beim Speichern mit einer Meldung abgewiesen.
   Der persönliche Aktivierungslink wird nicht als Platzhalter im Freitext
-  erwartet, sondern immer als Button „Wahl-Code erzeugen“ gesetzt.
+  erwartet, sondern immer als Button „Abstimmungscode abholen“ gesetzt.
 
 - **[FU006#AK05]** Vorschau und Testversand sind auf der globalen
   Einstellungsseite und je Abstimmung verfügbar. Beide nutzen die

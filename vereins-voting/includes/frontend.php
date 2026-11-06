@@ -93,9 +93,9 @@ function vv_activate_html() {
 				$error = 'Mitgliedsnummer oder E-Mail stimmen nicht mit der Einladung überein.';
 			} elseif ( ! vv_valid_code( $code ) ) {
 				vv_rate_fail( 'activate', $rate_id );
-				$error = 'Der Wahl-Code ist nicht gültig (6 Zeichen, Buchstaben und Ziffern). Bitte erzeuge einen neuen Code.';
+				$error = 'Der Abstimmungscode ist nicht gültig (6 Zeichen, Buchstaben und Ziffern). Bitte hole dir einen neuen Code.';
 			} elseif ( ! empty( $voter->pin_hash ) ) {
-				$error = 'Für diese Einladung wurde bereits ein Wahl-Code erzeugt. Nutze direkt das Stimmformular.';
+				$error = 'Für diese Einladung wurde bereits ein Abstimmungscode erzeugt. Nutze direkt das Stimmformular.';
 			} else {
 				$ok = $wpdb->update(
 					"{$wpdb->prefix}voting_voters",
@@ -110,12 +110,13 @@ function vv_activate_html() {
 					vv_rate_clear( 'activate', $rate_id );
 					// [FU007#AK03] Erfolg + Token einmalig verbraucht. Der Code wird
 					// nur hier angezeigt – danach nicht wiederherstellbar.
-					return '<div class="vv-box vv-success"><strong>Erfolgreich – dein Wahl-Code ist aktiv.</strong><br>'
-						. 'Dein Wahl-Code: <code class="vv-receipt">' . esc_html( $code ) . '</code><br>'
+					return vv_poll_heading( vv_poll_title( $poll_id ) )
+						. '<div class="vv-box vv-success"><strong>Erfolgreich – dein Abstimmungscode ist aktiv.</strong><br>'
+						. 'Dein Abstimmungscode: <code class="vv-receipt">' . esc_html( $code ) . '</code><br>'
 						. '<strong>Er wird nur einmal angezeigt – notiere oder kopiere ihn jetzt.</strong><br>'
-						. 'Nutze während des Wahlzeitraums die Seite mit dem Stimmformular, um abzustimmen; '
-						. 'halte Mitgliedsnummer, E-Mail und Wahl-Code bereit. '
-						. 'Solltest du deinen Wahl-Code verlieren, melde dich über das Kontaktformular. Die Verwaltung kann ihn zurücksetzen und dir eine neue Einladung senden.</div>';
+						. 'Nutze während des Abstimmungszeitraums die Seite mit dem Stimmformular, um abzustimmen; '
+						. 'halte Mitgliedsnummer, E-Mail und Abstimmungscode bereit. '
+						. 'Solltest du deinen Abstimmungscode verlieren, melde dich über das Kontaktformular. Die Verwaltung kann ihn zurücksetzen und dir eine neue Einladung senden.</div>';
 				}
 				$error = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
 			}
@@ -123,8 +124,16 @@ function vv_activate_html() {
 	}
 
 	if ( ! $poll_id || ! $token || ! $voter ) {
-		return '<div class="vv-box vv-error"><strong>Ungültiger oder bereits benutzter Aktivierungslink.</strong><br>'
-			. 'Bitte nutze den Link aus deiner Einladungs-E-Mail.</div>';
+		// [FU007#AK03] Zweitverwendung: Ist die Stimmformular-Seite bekannt, direkt
+		// dorthin verlinken – die poll-ID steckt bereits in der URL.
+		$vote_url  = vv_mail_vote_url();
+		$vote_link = ( $poll_id && '' !== $vote_url )
+			? '<br>Wolltest du abstimmen? <a href="' . esc_url( add_query_arg( 'poll', $poll_id, $vote_url ) ) . '">Zur Stimmabgabe</a>'
+			: '';
+		return vv_poll_heading( vv_poll_title( $poll_id ) )
+			. '<div class="vv-box vv-error"><strong>Ungültiger oder bereits benutzter Aktivierungslink.</strong><br>'
+			. 'Das passiert zum Beispiel, wenn du deinen Abstimmungscode schon abgeholt hast und den Link aus der E-Mail noch einmal öffnest.'
+			. $vote_link . '</div>';
 	}
 
 	// [FU007#AK01] Angezeigter Code: nach fehlgeschlagenem POST der gesendete,
@@ -137,9 +146,9 @@ function vv_activate_html() {
 	// Formular: Mitgliedsdaten vorbefüllen (E-Mail aus Einladung = Prefill).
 	ob_start();
 	?>
-	<h2><?php echo esc_html( vv_poll_title( $poll_id ) ); ?></h2>
+	<?php echo vv_poll_heading( vv_poll_title( $poll_id ) ); ?>
 	<div class="vv-box vv-info">
-		<p><strong>Dein Wahl-Code:</strong> <code class="vv-receipt"><?php echo esc_html( $code ); ?></code></p>
+		<p><strong>Dein Abstimmungscode:</strong> <code class="vv-receipt"><?php echo esc_html( $code ); ?></code></p>
 		<p>Der Code wird vom System erzeugt – so können schwache Codes (Geburtstage,
 		Namen, einfache Muster) nicht entstehen. Groß- und Kleinschreibung ist egal.</p>
 		<p><a class="vv-btn" href="<?php echo esc_url( home_url( wp_unslash( $_SERVER['REQUEST_URI'] ?? '/' ) ) ); ?>">Neuen Code erzeugen</a></p>
@@ -147,8 +156,8 @@ function vv_activate_html() {
 	<form method="post" class="vv-form">
 		<?php wp_nonce_field( 'vv_frontend', 'vv_frontend_nonce' ); ?>
 		<p>Gib deine Mitgliedsnummer und deine E-Mail ein, um dich als berechtigtes
-		Mitglied auszuweisen. Bestätige dann den angezeigten Wahl-Code mit dem Button
-		„Wahl-Code bestätigen“.</p>
+		Mitglied auszuweisen. Bestätige dann den angezeigten Abstimmungscode mit dem Button
+		„Abstimmungscode bestätigen“.</p>
 		<input type="hidden" name="pin" value="<?php echo esc_attr( $code ); ?>">
 		<label for="vv-member-no">Mitgliedsnummer
 			<input type="text" id="vv-member-no" name="member_no" required value="<?php echo esc_attr( vv_re( 'member_no', '' ) ); ?>">
@@ -156,7 +165,7 @@ function vv_activate_html() {
 		<label for="vv-email">E-Mail
 			<input type="email" id="vv-email" name="email" required value="<?php echo esc_attr( vv_re( 'email', '' ) ); ?>">
 		</label>
-		<button type="submit" class="vv-btn">Wahl-Code bestätigen</button>
+		<button type="submit" class="vv-btn">Abstimmungscode bestätigen</button>
 	</form>
 	<?php
 	return ob_get_clean() . ( $error ? '<div class="vv-box vv-error">' . esc_html( $error ) . '</div>' : '' );
@@ -199,12 +208,13 @@ function vv_form_html() {
 				// [FU008#AK04] Formular ausblenden, ReceiptHash anzeigen. Die
 				// ersten 5 Stellen erscheinen erneut als eigener Code-Ausschnitt
 				// (vv-receipt: user-select all) — ein Klick markiert genau sie.
-				return '<div class="vv-box vv-success"><strong>Deine Stimme wurde gezählt. Danke!</strong><br>'
+				return vv_poll_heading( vv_poll_title( $poll_id ) )
+					. '<div class="vv-box vv-success"><strong>Deine Stimme wurde gezählt. Danke!</strong><br>'
 					. 'Dein persönlicher Prüfcode (Receipt-Hash):<br><small><code class="vv-receipt">' . esc_html( $receipt ) . '</code></small><br>'
 					. 'Notiere dir die ersten 5 Stellen des Codes: '
 					. '<code class="vv-receipt">' . esc_html( substr( $receipt, 0, 5 ) ) . '</code><br>'
 					. 'Deine Stimme ist damit normalerweise eindeutig auffindbar. '
-					. 'Damit kannst du nach Wahlende prüfen, dass deine Stimme in der Urne liegt.</div>';
+					. 'Damit kannst du nach dem Abstimmungsende prüfen, dass deine Stimme in der Urne liegt.</div>';
 			} catch ( \Throwable $e ) {
 				$error = $e->getMessage();
 			}
@@ -225,20 +235,20 @@ function vv_form_html() {
 		$msg = ( '' !== $from && $now < $from )
 			? 'Die Abstimmung ist noch nicht aktiv. Sie ist vom ' . vv_fmt( $from ) . ' bis ' . vv_fmt( $to ) . ' geöffnet.'
 			: 'Die Abstimmung ist beendet (Zeitraum: ' . vv_fmt( $from ) . ' – ' . vv_fmt( $to ) . ').';
-		return '<div class="vv-box vv-info"><strong>Abstimmung „' . esc_html( $poll->title ) . '“</strong><br>'
-			. esc_html( $msg ) . '</div>'
+		return vv_poll_heading( $poll->title )
+			. '<div class="vv-box vv-info">' . esc_html( $msg ) . '</div>'
 			. ( $error ? '<div class="vv-box vv-error">' . esc_html( $error ) . '</div>' : '' );
 	}
 
 	ob_start();
 	?>
+	<?php echo vv_poll_heading( $poll->title ); ?>
 	<form method="post" class="vv-form">
 		<?php wp_nonce_field( 'vv_frontend', 'vv_frontend_nonce' ); ?>
-		<p><strong>Abstimmung:</strong> <?php echo esc_html( $poll->title ); ?></p>
 		<?php if ( ! empty( $poll->question ) ) { ?>
 			<p><?php echo esc_html( $poll->question ); ?></p>
 		<?php } ?>
-		<p class="vv-window">Wahlzeitraum: <?php echo esc_html( vv_fmt( $poll->start_dt ) ); ?> – <?php echo esc_html( vv_fmt( $poll->end_dt ) ); ?></p>
+		<p class="vv-window">Abstimmungszeitraum: <?php echo esc_html( vv_fmt( $poll->start_dt ) ); ?> – <?php echo esc_html( vv_fmt( $poll->end_dt ) ); ?></p>
 
 		<label for="vv-member-no">Mitgliedsnummer
 			<input type="text" id="vv-member-no" name="member_no" required value="<?php echo esc_attr( vv_re( 'member_no', '' ) ); ?>">
@@ -246,7 +256,7 @@ function vv_form_html() {
 		<label for="vv-email">E-Mail
 			<input type="email" id="vv-email" name="email" required value="<?php echo esc_attr( vv_re( 'email', '' ) ); ?>">
 		</label>
-		<label for="vv-pin">Wahl-Code (Groß-/Kleinschreibung egal)
+		<label for="vv-pin">Abstimmungscode (Groß-/Kleinschreibung egal)
 			<input type="text" id="vv-pin" name="pin" maxlength="6" autocomplete="off" required>
 		</label>
 
@@ -294,8 +304,8 @@ function vv_results_html() {
 	if ( $show_results ) {
 		// [FU009#AK02] Endgültiges Ergebnis.
 		$results = vv_get_results( $poll_id );
-		$label   = 'closed' === $poll->status ? 'Ergebnis' : 'Ergebnis (Wahlzeitraum abgelaufen)';
-		$html = '<h3>' . esc_html( $label ) . ': ' . esc_html( $poll->title ) . '</h3>';
+		$label   = 'closed' === $poll->status ? 'Ergebnis' : 'Ergebnis (Abstimmungszeitraum abgelaufen)';
+		$html = vv_poll_heading( $poll->title ) . '<h3>' . esc_html( $label ) . '</h3>';
 		if ( ! empty( $poll->question ) ) {
 			$html .= '<p>' . esc_html( $poll->question ) . '</p>';
 		}
@@ -330,12 +340,14 @@ function vv_results_html() {
 	}
 
 	if ( 'active' === $poll->status ) {
-		// [FU009#AK01] Hinweis, solange die Wahl läuft.
-		return '<div class="vv-box vv-info"><strong>Die Abstimmung „' . esc_html( $poll->title ) . '“ läuft noch.</strong><br>'
-			. 'Das Ergebnis wird erst nach Wahlende (' . esc_html( vv_fmt( $poll->end_dt ) ) . ') veröffentlicht.</div>';
+		// [FU009#AK01] Hinweis, solange die Abstimmung läuft.
+		return vv_poll_heading( $poll->title )
+			. '<div class="vv-box vv-info"><strong>Die Abstimmung läuft noch.</strong><br>'
+			. 'Das Ergebnis wird erst nach dem Abstimmungsende (' . esc_html( vv_fmt( $poll->end_dt ) ) . ') veröffentlicht.</div>';
 	}
 
-	return '<div class="vv-box vv-info">Diese Abstimmung hat noch nicht begonnen.</div>';
+	return vv_poll_heading( $poll->title )
+		. '<div class="vv-box vv-info">Diese Abstimmung hat noch nicht begonnen.</div>';
 }
 
 // ---------------------------------------------------------------------------
@@ -353,6 +365,11 @@ function vv_fmt( $dt ) {
 		return '–';
 	}
 	return date_i18n( 'd.m.Y, H:i', $ts );
+}
+
+/** [FU007/FU008/FU009] Einheitliche Seitenüberschrift; leer, wenn die Abstimmung unbekannt ist. */
+function vv_poll_heading( $title ) {
+	return '' !== (string) $title ? '<h2>' . esc_html( $title ) . '</h2>' : '';
 }
 
 /** Titel einer Abstimmung. */

@@ -17,11 +17,11 @@ add_action( 'admin_menu', function () {
 		'vv_render_admin_page',
 		'dashicons-editor-ol'
 	);
-	// [FU002#AK05] Erster Unterpunkt heißt „Wahlen“ statt wie das Hauptmenü.
+	// [FU002#AK05] Erster Unterpunkt heißt „Mitgliederentscheide“ statt wie das Hauptmenü.
 	add_submenu_page(
 		'vereins-voting',
-		'Wahlen',
-		'Wahlen',
+		'Mitgliederentscheide',
+		'Mitgliederentscheide',
 		'manage_options',
 		'vereins-voting',
 		'vv_render_admin_page'
@@ -54,15 +54,15 @@ add_action( 'admin_notices', 'vv_timezone_notice' );
 // Rendering
 // ---------------------------------------------------------------------------
 
-/** [FU002#AK05] Detail-Registerkarten einer Abstimmung: Wahl / Teilnehmer / E-Mail / Wahlergebnis. */
+/** [FU002#AK05] Detail-Registerkarten einer Abstimmung: Entscheid / Teilnehmer / E-Mail / Ergebnis. */
 function vv_render_detail_tabs( $poll, $active ) {
 	echo '<h2>' . esc_html( $poll->title ) . '</h2>';
 	$base = 'admin.php?page=vereins-voting&poll=' . rawurlencode( $poll->id ) . '&view=';
 	echo '<h2 class="nav-tab-wrapper">'
-		. '<a class="nav-tab' . ( 'wahl' === $active ? ' nav-tab-active' : '' ) . '" href="' . esc_url( admin_url( $base . 'edit' ) ) . '">Wahl</a>'
+		. '<a class="nav-tab' . ( 'wahl' === $active ? ' nav-tab-active' : '' ) . '" href="' . esc_url( admin_url( $base . 'edit' ) ) . '">Entscheid</a>'
 		. '<a class="nav-tab' . ( 'teilnehmer' === $active ? ' nav-tab-active' : '' ) . '" href="' . esc_url( admin_url( $base . 'members' ) ) . '">Teilnehmer</a>'
 		. '<a class="nav-tab' . ( 'mail' === $active ? ' nav-tab-active' : '' ) . '" href="' . esc_url( admin_url( $base . 'mail' ) ) . '">E-Mail</a>'
-		. '<a class="nav-tab' . ( 'ergebnis' === $active ? ' nav-tab-active' : '' ) . '" href="' . esc_url( admin_url( $base . 'results' ) ) . '">Wahlergebnis</a>'
+		. '<a class="nav-tab' . ( 'ergebnis' === $active ? ' nav-tab-active' : '' ) . '" href="' . esc_url( admin_url( $base . 'results' ) ) . '">Ergebnis</a>'
 		. '</h2>';
 }
 
@@ -479,7 +479,7 @@ function vv_reset_pin() {
 
 	$poll = $wpdb->get_row( $wpdb->prepare( "SELECT id, status FROM {$wpdb->prefix}voting_polls WHERE id = %s", $poll_id ) );
 	if ( ! $poll || ! in_array( $poll->status, [ 'draft', 'active' ], true ) ) {
-		wp_die( 'Wahl-Code-Reset ist nur vor dem Schließen der Abstimmung möglich.' );
+		wp_die( 'Abstimmungscode-Reset ist nur vor dem Schließen der Abstimmung möglich.' );
 	}
 
 	$voter = $wpdb->get_row( $wpdb->prepare(
@@ -488,7 +488,7 @@ function vv_reset_pin() {
 		$poll_id
 	) );
 	if ( ! $voter || empty( $voter->pin_hash ) || (int) $voter->has_voted ) {
-		wp_die( 'Für diese Person kann kein Wahl-Code zurückgesetzt werden.' );
+		wp_die( 'Für diese Person kann kein Abstimmungscode zurückgesetzt werden.' );
 	}
 
 	$wpdb->update(
@@ -811,7 +811,7 @@ function vv_render_poll_form( $poll_id = '' ) {
 			$in_window = vv_normalize_dt( $poll->start_dt ) <= $now && $now < vv_normalize_dt( $poll->end_dt );
 			if ( $in_window ) {
 				echo '<label><input type="radio" name="status" value="draft" checked> Entwurf</label> ';
-				echo '<label><input type="radio" name="status" value="active"> Läuft (startet die Wahl jetzt)</label>';
+				echo '<label><input type="radio" name="status" value="active"> Läuft (startet die Abstimmung jetzt)</label>';
 			} else {
 				echo '<p>Die Abstimmung startet automatisch beim ersten gültigen Votum innerhalb des Zeitraums.</p>';
 			}
@@ -1074,8 +1074,8 @@ function vv_render_members_table( $poll ) {
 			. (int) $_GET['imported'] . ' importiert, ' . (int) ( $_GET['skipped'] ?? 0 ) . ' übersprungen.</p></div>';
 	}
 	if ( isset( $_GET['reset'] ) ) {
-		echo '<div class="notice notice-success is-dismissible"><p>Wahl-Code zurückgesetzt. Die Person ist wieder für den Einladungsversand vorgemerkt '
-			. 'und kann nach der neuen Einladung einen neuen Wahl-Code erzeugen.</p></div>';
+		echo '<div class="notice notice-success is-dismissible"><p>Abstimmungscode zurückgesetzt. Die Person ist wieder für den Einladungsversand vorgemerkt '
+			. 'und kann nach der neuen Einladung einen neuen Abstimmungscode erzeugen.</p></div>';
 	}
 	if ( isset( $_GET['voters_deleted'] ) ) {
 		echo '<div class="notice notice-success is-dismissible"><p>Teilnehmerdaten gelöscht. Urne und Ergebnis bleiben unverändert erhalten.</p></div>';
@@ -1102,7 +1102,7 @@ function vv_render_members_table( $poll ) {
 	// [FU002#AK08/#AK09] Räumung bei beendeter Wahl, Komplettlöschung im Entwurf.
 	if ( 'closed' === $poll->status ) {
 		if ( $total > 0 ) {
-			echo '<p><form method="post" style="display:inline" onsubmit="return confirm(\'Teilnehmerdaten löschen? Die Wahlniederschrift muss vorher erstellt/archiviert sein – danach sind Einladungs-, Wahl-Code- und Abgabezeiten weg. Die Urne bleibt.\')">'
+			echo '<p><form method="post" style="display:inline" onsubmit="return confirm(\'Teilnehmerdaten löschen? Die Niederschrift muss vorher erstellt/archiviert sein – danach sind Einladungs-, Abstimmungscode- und Abgabezeiten weg. Die Urne bleibt.\')">'
 				. wp_nonce_field( 'vv_admin', 'vv_nonce', true, false )
 				. '<input type="hidden" name="vv_action" value="delete_voter_data">'
 				. '<input type="hidden" name="poll_id" value="' . esc_attr( $poll->id ) . '">'
@@ -1134,8 +1134,8 @@ function vv_render_members_table( $poll ) {
 	}
 
 	$summary_html = '<p class="description" style="margin-top:1em">Mitglieder: <strong>' . (int) $summary->members
-		. '</strong> · Wahl-Code gesetzt: <strong>' . (int) $summary->codes
-		. '</strong> · Hat gewählt: <strong>' . (int) $summary->voted . '</strong></p>';
+		. '</strong> · Abstimmungscode gesetzt: <strong>' . (int) $summary->codes
+		. '</strong> · Hat abgestimmt: <strong>' . (int) $summary->voted . '</strong></p>';
 
 	/** [FU005#AK02] Liste zeigt nur has_voted/voted_at – niemals eine Stimme. */
 	if ( ! $voters ) {
@@ -1146,7 +1146,7 @@ function vv_render_members_table( $poll ) {
 		echo $summary_html;
 		return;
 	}
-	echo '<table class="widefat striped"><thead><tr><th>Mitgliedsnummer</th><th>Name</th><th>E-Mail</th><th>Wahl-Code gesetzt</th><th>Einladung</th><th>Hat gewählt</th><th>Gewählt am</th><th>Aktionen</th></tr></thead><tbody>';
+	echo '<table class="widefat striped"><thead><tr><th>Mitgliedsnummer</th><th>Name</th><th>E-Mail</th><th>Abstimmungscode gesetzt</th><th>Einladung</th><th>Hat abgestimmt</th><th>Abgestimmt am</th><th>Aktionen</th></tr></thead><tbody>';
 	foreach ( $voters as $v ) {
 		$name    = trim( (string) $v->first_name . ' ' . (string) $v->last_name );
 		$pin_set = ! empty( $v->pin_hash );
@@ -1158,13 +1158,13 @@ function vv_render_members_table( $poll ) {
 
 		// [FU005#AK04] Reset nur vor der Stimmabgabe und solange die Wahl offen ist.
 		if ( $pin_set && ! $voted && 'closed' !== $poll->status ) {
-			$actions[] = '<form method="post" style="margin:0" onsubmit="return confirm(\'Wahl-Code zurücksetzen? Die Person benötigt danach eine neue Einladung.\');">'
+			$actions[] = '<form method="post" style="margin:0" onsubmit="return confirm(\'Abstimmungscode zurücksetzen? Die Person benötigt danach eine neue Einladung.\');">'
 				. wp_nonce_field( 'vv_admin', 'vv_nonce', true, false )
 				. '<input type="hidden" name="vv_action" value="reset_pin">'
 				. '<input type="hidden" name="poll" value="' . esc_attr( $poll->id ) . '">'
 				. '<input type="hidden" name="voter_id" value="' . (int) $v->id . '">'
 				. '<input type="hidden" name="vv_page" value="' . (int) $page . '">'
-				. '<button type="submit" class="button button-small">Wahl-Code zurücksetzen</button></form>';
+				. '<button type="submit" class="button button-small">Abstimmungscode zurücksetzen</button></form>';
 		}
 
 		// [FU005#AK06] Einladung erneut senden, solange ein Token existiert.
@@ -1223,11 +1223,11 @@ function vv_render_members_table( $poll ) {
 		echo '</p>';
 	}
 }
-/** [FU005#AK03] Registerkarte Wahlergebnis: Ergebnis, Fingerprint-Verdict, Niederschrift. */
+/** [FU005#AK03] Registerkarte Ergebnis: Ergebnis, Fingerprint-Verdict, Niederschrift. */
 function vv_render_results_view( $poll ) {
 	if ( 'closed' !== $poll->status ) {
-		// [FU005#AK03] Vor dem Wahlende gibt es kein Ergebnis – Hinweis statt Tabelle.
-		echo '<p>Das Wahlergebnis erscheint hier, nachdem die Wahl beendet wurde.</p>';
+		// [FU005#AK03] Vor dem Abstimmungsende gibt es kein Ergebnis – Hinweis statt Tabelle.
+		echo '<p>Das Ergebnis erscheint hier, nachdem die Abstimmung beendet wurde.</p>';
 		return;
 	}
 
@@ -1248,19 +1248,19 @@ function vv_render_results_view( $poll ) {
 	} else {
 		echo '<div class="notice notice-error"><p><strong>Abgabefingerprint abweichend!</strong> Die Urne wurde nach dem Abschluss verändert '
 			. '(gespeichert <code>' . esc_html( substr( $stored, 0, 16 ) ) . '…</code>, jetzt <code>' . esc_html( substr( $live, 0, 16 ) ) . '…</code>). '
-			. 'Wahlergebnis nicht als gültig behandeln.</p></div>';
+			. 'Ergebnis nicht als gültig behandeln.</p></div>';
 	}
 
-	// [FU005#AK05] Wahlniederschrift als druckbare Seite.
+	// [FU005#AK05] Niederschrift als druckbare Seite.
 	$report_url = wp_nonce_url(
 		admin_url( 'admin-post.php?action=vereinsvoting_report&poll=' . rawurlencode( $poll->id ) ),
 		'vv_report'
 	);
-	echo '<p><a class="button button-primary" href="' . esc_url( $report_url ) . '" target="_blank">Wahlniederschrift drucken (PDF)</a></p>';
+	echo '<p><a class="button button-primary" href="' . esc_url( $report_url ) . '" target="_blank">Niederschrift drucken (PDF)</a></p>';
 }
 
 // ---------------------------------------------------------------------------
-// [FU005#AK05] Wahlniederschrift: druckbare Seite (Browser-Druck → PDF)
+// [FU005#AK05] Niederschrift: druckbare Seite (Browser-Print → PDF)
 // ---------------------------------------------------------------------------
 
 add_action( 'admin_post_vereinsvoting_report', 'vv_report_endpoint' );
@@ -1311,7 +1311,7 @@ function vv_report_html() {
 <html lang="de">
 <head>
 <meta charset="<?php echo esc_html( get_option( 'blog_charset' ) ?: 'UTF-8' ); ?>">
-<title>Wahlniederschrift – <?php echo esc_html( $poll->title ); ?></title>
+<title>Niederschrift – <?php echo esc_html( $poll->title ); ?></title>
 <style>
 	body { font-family: -apple-system, 'Segoe UI', sans-serif; font-size: 12pt; line-height: 1.4; margin: 15mm; color: #111; }
 	h1 { font-size: 1.4em; margin: 0 0 .2em; } h2 { font-size: 1.1em; margin: 1.4em 0 .4em; }
@@ -1325,9 +1325,9 @@ function vv_report_html() {
 </head>
 <body>
 	<p class="vv-noprint"><button onclick="window.print()">Drucken / als PDF speichern</button></p>
-	<h1>Wahlniederschrift: <?php echo esc_html( $poll->title ); ?></h1>
+	<h1>Niederschrift: <?php echo esc_html( $poll->title ); ?></h1>
 	<p>Frage: <?php echo esc_html( (string) $poll->question !== '' ? (string) $poll->question : '–' ); ?><br>
-	Wahlzeitraum: <?php echo esc_html( vv_fmt( $poll->start_dt ) ); ?> – <?php echo esc_html( vv_fmt( $poll->end_dt ) ); ?><br>
+	Abstimmungszeitraum: <?php echo esc_html( vv_fmt( $poll->start_dt ) ); ?> – <?php echo esc_html( vv_fmt( $poll->end_dt ) ); ?><br>
 	Status: <?php echo esc_html( $statuses[ $poll->status ] ?? $poll->status ); ?> ·
 	Niederschrift erstellt am: <?php echo esc_html( vv_fmt( current_time( 'mysql' ) ) ); ?></p>
 
@@ -1362,7 +1362,7 @@ function vv_report_html() {
 	<p>Keine Teilnehmerzeiten vorhanden (bereits gelöscht oder keine Personen importiert). Ergebnis und Prüfliste oben bleiben unverändert gültig.</p>
 	<?php else : ?>
 	<table>
-		<thead><tr><th>Mitgliedsnr.</th><th>Name</th><th>E-Mail</th><th>Einladung</th><th>Wahl-Code gesetzt</th><th>Stimmabgabe</th></tr></thead>
+		<thead><tr><th>Mitgliedsnr.</th><th>Name</th><th>E-Mail</th><th>Einladung</th><th>Abstimmungscode gesetzt</th><th>Stimmabgabe</th></tr></thead>
 		<tbody>
 		<?php foreach ( $voters as $v ) : ?>
 			<?php $name = trim( (string) $v->first_name . ' ' . (string) $v->last_name ); ?>

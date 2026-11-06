@@ -1,36 +1,41 @@
 # Modul 4: Frontend-Workflows & Shortcodes (FE)
 
-## [FU007] Shortcode 1: `[verein_voting_activate]` (Wahl-Code-Aktivierung)
+## [FU007] Shortcode 1: `[verein_voting_activate]` (Abstimmungscode-Aktivierung)
 
 ### Beschreibung
 
 Seite, über die das Mitglied nach Klick auf den E-Mail-Link seinen
-persönlichen Wahl-Code aktiviert. Der Wahl-Code (6 Zeichen, Buchstaben und
+persönlichen Abstimmungscode aktiviert. Der Abstimmungscode (6 Zeichen, Buchstaben und
 Ziffern) wird **vom System erzeugt** – das Mitglied wählt ihn nicht selbst,
 damit schwache Codes (Geburtstage, Namen, einfache Muster) nicht entstehen.
 
 ### Akzeptanzkriterien
 
 - **[FU007#AK01]** Beim Aufrufen mit gültigem `token` und passender `poll_id`
-  erzeugt das System serverseitig einen Wahl-Code (6 Zeichen aus A–Z ohne
+  erzeugt das System serverseitig einen Abstimmungscode (6 Zeichen aus A–Z ohne
   I/O und 2–9, mindestens 1 Buchstabe und 1 Ziffer) und zeigt ihn
   schreibgeschützt an. Das Formular fragt Mitgliedsnummer und E-Mail ab;
   mit „Neuen Code erzeugen“ (Link) lädt die Seite sich selbst neu — inklusive
   aller URL-Parameter (auch `page_id`) — und erzeugt so einen neuen Code,
   ohne als Fehlversuch zu zählen oder den Token zu verbrauchen.
   Der Code wird nur als verdecktes Formularfeld übermittelt und ist auf der
-  Seite jederzeit sichtbar (nicht als Passwortfeld verdeckt).
+  Seite jederzeit sichtbar (nicht als Passwortfeld verdeckt). Der Titel der
+  Abstimmung steht als `<h2>` über der Code-Anzeige; das Formular bestätigt
+  den Code mit dem Button „Abstimmungscode bestätigen“.
 
 - **[FU007#AK02]** Das System prüft, ob die eingegebenen Daten mit dem
   `wp_voting_voters`-Datensatz übereinstimmen.
 
-- **[FU007#AK03]** Nach erfolgreicher Validierung wird der Wahl-Code als
+- **[FU007#AK03]** Nach erfolgreicher Validierung wird der Abstimmungscode als
   `pin_hash` (`password_hash()` mit bcrypt, Kostenfaktor 12) gespeichert,
   der `activation_token` gelöscht (Einmalverwendung), `pin_set_at` auf den
   aktuellen Zeitpunkt gesetzt und eine Erfolgsmeldung mit erneut sichtbarem
   Code ausgegeben. Der Code wird **nur hier einmal angezeigt**; danach ist er
   weder für das Mitglied noch für den Admin wiederherstellbar. Ein späterer
-  Wahl-Code-Reset löscht auch diesen Zeitpunkt (FU005#AK04).
+  Abstimmungscode-Reset löscht auch diesen Zeitpunkt (FU005#AK04). Ein
+  ungültiger oder bereits verbrauchter Aktivierungslink erklärt den Grund;
+  ist die Stimmformular-URL konfiguriert, führt ein Link „Zur Stimmabgabe“
+  mit der `poll`-ID direkt dorthin.
 
 - **[FU007#AK04]** Das Formular ist durch ein Nonce gegen CSRF geschützt;
   nach 5 Fehlversuchen (falsche Mitgliedsdaten oder ungültiger Code) ist
@@ -41,16 +46,21 @@ damit schwache Codes (Geburtstage, Namen, einfache Muster) nicht entstehen.
   Versionszeile `vereins-voting X.Y.Z` (CSS-Klasse `vv-version`), damit auf
   jeder Seite sichtbar ist, welche Plugin-Version ausliefert.
 
+- **[FU007#AK06]** Aktivierungs-, Stimm- und Ergebnisseite zeigen den Titel
+  der Abstimmung in derselben `<h2>`-Struktur. Die Überschrift erscheint auch
+  in Warte-, Fehler- und Erfolgszuständen, sofern sich die Abstimmung aus der
+  `poll`-ID ermitteln lässt.
+
 ## [FU008] Shortcode 2: `[verein_voting_form]` (Die Stimmabgabe)
 
 ### Beschreibung
 
-Das eigentliche Wahlformular während des aktiven Wahlzeitraums.
+Das eigentliche Stimmformular während des aktiven Abstimmungszeitraums.
 
 ### Akzeptanzkriterien
 
 - **[FU008#AK01]** Das Formular fragt Mitgliedsnummer, E-Mail, den
-  persönlichen Wahl-Code (Groß-/Kleinschreibung egal) und die Stimmoption
+  persönlichen Abstimmungscode (Groß-/Kleinschreibung egal) und die Stimmoption
   (Radio-Buttons: Ja / Nein / Enthaltung) ab.
 
 - **[FU008#AK02]** Das System validiert bei der Absendung:
@@ -58,7 +68,7 @@ Das eigentliche Wahlformular während des aktiven Wahlzeitraums.
   1. Liegt das aktuelle Datum im Zeitraum `start_date` bis `end_date`?
   2. Existiert die Kombination aus Mitgliedsnummer und E-Mail?
   3. Hat das Mitglied `has_voted == 0`?
-  4. Ist der eingegebene Wahl-Code korrekt (`password_verify()`)?
+  4. Ist der eingegebene Abstimmungscode korrekt (`password_verify()`)?
 
 - **[FU008#AK03]** Bei erfolgreicher Validierung läuft eine Transaktion
   (`START TRANSACTION`):
@@ -80,25 +90,28 @@ Das eigentliche Wahlformular während des aktiven Wahlzeitraums.
   wird ausgeblendet.
 
 - **[FU008#AK05]** Das Stimmformular ist durch ein Nonce gegen CSRF
-  geschützt; nach 5 falschen Wahl-Code-Eingaben ist die Stimmabgabe für
+  geschützt; nach 5 falschen Abstimmungscode-Eingaben ist die Stimmabgabe für
   diese Person 15 Minuten gesperrt (Brute-Force-Schutz).
 
 - **[FU008#AK06]** Das Stimmformular erscheint nur innerhalb des offenen
   Zeitraums einer nicht geschlossenen Abstimmung. Vor dem Start und nach dem
   Ende werden keine Eingabefelder ausgegeben; stattdessen erscheint eine
-  Meldung mit dem Wahlzeitraum („noch nicht aktiv“ bzw. „beendet“).
+  Meldung mit dem Abstimmungszeitraum („noch nicht aktiv“ bzw. „beendet“).
+  Die `<h2>`-Überschrift bleibt auch in diesen Zuständen sichtbar
+  (FU007#AK06).
 
 ## [FU009] Shortcode 3: `[verein_voting_results]` (Ergebnisse & Prüfliste)
 
 ### Beschreibung
 
-Nach Ablauf der Wahl zeigt diese Komponente das offizielle Ergebnis und die
+Nach Ablauf der Abstimmung zeigt diese Komponente das offizielle Ergebnis und die
 Prüftabelle.
 
 ### Akzeptanzkriterien
 
 - **[FU009#AK01]** Wenn die Abstimmung noch läuft (`status = active`), wird
-  ein Hinweis angezeigt, dass die Wahl noch im Gange ist.
+  ein Hinweis angezeigt, dass die Abstimmung noch im Gange ist. Die
+  `<h2>`-Überschrift steht auch hier über dem Hinweis (FU007#AK06).
 
 - **[FU009#AK02]** Ist die Abstimmung beendet (`status = closed`), zeigt das
   Frontend das offizielle Gesamtergebnis (Stimmenverteilung in Prozent und
@@ -119,7 +132,7 @@ Prüftabelle.
 - **[FU009#AK04]** Unter dem Ergebnis zeigt die Ergebnisseite den
   Abgabefingerprint: eine SHA-256 über alle Prüfcodes in aufsteigender
   Sortierung und die Option-Zählungen (Rezept mit eigener Zeile
-  mitdokumentiert). Wird die Wahl erst mit dem formellen Abschluss beendet,
+  mitdokumentiert). Wird die Abstimmung erst mit dem formellen Abschluss beendet,
   vergleicht das Backend diesen Wert bei jeder Ansicht mit dem beim
   Abschluss festgehaltenen Referenzwert; die Ergebnisseite selbst zeigt den
   live berechneten Wert, sodass jemand, der eine frühere Ergebnisseite

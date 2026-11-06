@@ -1,4 +1,4 @@
-# So wählst du mit – Erklärung für Mitglieder
+# So stimmst du mit – Erklärung für Mitglieder
 
 Diese Seite erklärt, wie eine Abstimmung mit dem Vereinsvoting funktioniert –
 und warum sie gleichzeitig **anonym**, **sicher** und **nachvollziehbar** ist.
@@ -10,64 +10,66 @@ und warum sie gleichzeitig **anonym**, **sicher** und **nachvollziehbar** ist.
 Wenn eine Abstimmung gestartet wird, erhältst du eine E-Mail mit einem
 **persönlichen Link** (Token). Der Link ist für dich allein bestimmt und
 kann nur einmal verwendet werden. Er öffnet eine Seite, auf der du deinen
-Wahl-Code erzeugst. Die Mail führt dich der Reihe nach durch die drei
-Schritte: Wahl-Code erzeugen, abstimmen und nach Wahlende die Ergebnisse
-prüfen.
+Abstimmungscode abholst. Die Mail führt dich der Reihe nach durch die drei
+Schritte: Abstimmungscode abholen, abstimmen und nach dem Abstimmungsende die
+Ergebnisse prüfen.
 
 > **Was ist ein „Token“?** Der persönliche Link enthält einen einmaligen
-> Code. Er bleibt gültig, bis du damit deinen Wahl-Code erzeugst – danach
+> Code. Er bleibt gültig, bis du damit deinen Abstimmungscode abholst – danach
 > wird er gelöscht und ist verbraucht.
 
 Nichts bekommen? Schau im Spam-Ordner nach und frage bei der Verwaltung
 nach, ob deine Adresse im Mitgliederstand aktuell ist.
 
-### 2. Du erzeugst deinen Wahl-Code
+### 2. Du holst dir deinen Abstimmungscode
 
-Auf der Link-Seite zeigt dir das System einen **Wahl-Code**: 6 Zeichen aus
-Buchstaben und Ziffern, vom System zufällig erzeugt – du wählst ihn nicht
+Auf der Link-Seite zeigt dir das System einen **Abstimmungscode**: 6 Zeichen
+aus Buchstaben und Ziffern, vom System zufällig erzeugt – du wählst ihn nicht
 selbst. Damit können keine schwachen, erratbaren Codes entstehen
 (Geburtstage, Namen, einfache Muster). Auf der Seite gibst du ein:
 
 1. deine Mitgliedsnummer,
 2. deine E-Mail-Adresse,
 
-und bestätigst den angezeigten Code mit „Diesen Code übernehmen“. Mit
+und bestätigst den angezeigten Code mit „Abstimmungscode bestätigen“. Mit
 „Neuen Code erzeugen“ kannst du dir jederzeit einen anderen Code erzeugen.
 
-Der Wahl-Code ist ab dann **dein persönliches Passwort für diese Wahl**.
-Niemand kennt ihn außer dir – nicht die Verwaltung, nicht der
+Der Abstimmungscode ist ab dann **dein persönliches Passwort für diese
+Abstimmung**. Niemand kennt ihn außer dir – nicht die Verwaltung, nicht der
 Webseiten-Betreiber. Er wird dir **nur einmal angezeigt**: notiere oder
 kopiere ihn sofort. Auch der Server speichert ihn nicht: dort liegt nur ein
 unumkehrbarer „Fingerabdruck“ deines Codes, mit dem er bei der Abstimmung
 verglichen wird.
 Mehr dazu: [Passwort-Hashing (Wikipedia)](https://de.wikipedia.org/wiki/Passwort-Hashing).
 
-Falls du deinen Wahl-Code verlierst: Die Verwaltung kann ihn weder einsehen
-noch wiederherstellen. Sie setzt den Code zurück; dabei wird der bisherige
-Code ungültig. Du bekommst eine neue Einladung mit einem neuen persönlichen
-Link und erzeugst damit einen neuen Code. Das geht nur, solange du noch
-nicht abgestimmt hast und die Wahl noch nicht beendet ist. Melde dich dazu
-über das Kontaktformular.
+Falls du deinen Abstimmungscode verlierst: Die Verwaltung kann ihn weder
+einsehen noch wiederherstellen. Sie setzt den Code zurück; dabei wird der
+bisherige Code ungültig. Du bekommst eine neue Einladung mit einem neuen
+persönlichen Link und holst dir damit einen neuen Code. Das geht nur, solange
+du noch nicht abgestimmt hast und die Abstimmung noch nicht beendet ist.
+Melde dich dazu über das Kontaktformular.
 
-Falls du nur die Einladung (den Link) verlierst und noch keinen Wahl-Code
-erzeugt hast: Melde dich über das Kontaktformular bei der Verwaltung. Sie
-kann dir dieselbe Einladung erneut schicken. Der bereits verschickte Link
-bleibt dann gültig, bis du damit einen Wahl-Code erzeugst. Einen separaten
-Widerruf des alten Links gibt es in diesem Fall nicht.
+Falls du nur die Einladung (den Link) verlierst und noch keinen
+Abstimmungscode abgeholt hast: Melde dich über das Kontaktformular bei der
+Verwaltung. Sie kann dir dieselbe Einladung erneut schicken. Der bereits
+verschickte Link bleibt dann gültig, bis du damit einen Abstimmungscode
+abholst. Einen separaten Widerruf des alten Links gibt es in diesem Fall
+nicht.
 
 ### 3. Du gibst deine Stimme ab
 
-Im Wahlzeitraum öffnest du die Wahlseite und wählst **Ja**, **Nein** oder
-**Enthaltung** – zusammen mit Mitgliedsnummer, E-Mail und deinem Wahl-Code.
+Im Abstimmungszeitraum öffnest du die Abstimmungsseite und gibst **Ja**,
+**Nein** oder **Enthaltung** an – zusammen mit Mitgliedsnummer, E-Mail und
+deinem Abstimmungscode.
 
 * Eine Person kann nur **einmal** abstimmen.
 * Nach **5 falschen Eingaben** ist die Abstimmung für dich 15 Minuten
-  gesperrt – dein Wahl-Code lässt sich also nicht durchprobieren.
-* Deine Stimme und die Markierung „hat gewählt“ werden in **einem einzigen,
-  ununterbrechbaren Schritt** gespeichert. Ein Absturz mitten im Vorgang
-  führt nie zu einer doppelten oder verlorenen Stimme.
+  gesperrt – dein Abstimmungscode lässt sich also nicht durchprobieren.
+* Deine Stimme und die Markierung „hat abgestimmt“ werden in **einem
+  einzigen, ununterbrechbaren Schritt** gespeichert. Ein Absturz mitten im
+  Vorgang führt nie zu einer doppelten oder verlorenen Stimme.
 
-### 4. Du sichert deine Quittung
+### 4. Du sicherst deine Quittung
 
 Direkt danach zeigt das Plugin einen **anonymen Quittungscode** – dein
 Beleg, dass die Stimme angekommen ist. Notiere dir die **ersten 5 Stellen**
@@ -79,9 +81,9 @@ Mitgliedsnummer.
 > Fingerabdruck aus deinem Finger – aus dem Code lässt sich aber nichts
 > zurückrechnen. Mehr: [Kryptografische Hashfunktion (Wikipedia)](https://de.wikipedia.org/wiki/Kryptografische_Hashfunktion).
 
-### Nach der Wahl: selbst nachrechnen
+### Nach dem Mitgliederentscheid: selbst nachrechnen
 
-Wenn die Wahl geschlossen ist, zeigt die Website das **Ergebnis**
+Wenn die Abstimmung beendet ist, zeigt die Website das **Ergebnis**
 (Ja, Nein, Enthaltung) und darunter eine **Prüftabelle** aller
 Quittungscodes mit der jeweiligen Stimme. Die ersten fünf Zeichen jedes
 Codes sind fett hervorgehoben – suche darin deine: Dann siehst du, dass
@@ -90,7 +92,7 @@ Zeilen der Tabelle ergeben zusammen das angezeigte Ergebnis.
 
 ---
 
-## Warum ist die Wahl anonym?
+## Warum ist der Mitgliederentscheid anonym?
 
 Weil **Zuordnung** und **Stimme** getrennt gespeichert sind:
 
@@ -102,22 +104,22 @@ Weil **Zuordnung** und **Stimme** getrennt gespeichert sind:
 
 Zwischen beiden gibt es **keine Verbindung**. Deshalb kann auch der
 Administrator im Backend nur sehen, *dass* und *wann* du abgestimmt hast –
-aber **nie, was** du gewählt hast. Das ist kein Versehen, sondern
+aber **nie, wie** du abgestimmt hast. Das ist kein Versehen, sondern
 Absicht.
 
 Dazu kommt: In keiner Log-Datei, Fehlermeldung oder Statistik tauchen
-Mitgliedsnummern, E-Mail-Adressen, Wahl-Codes oder Stimmen auf. Die
+Mitgliedsnummern, E-Mail-Adressen, Abstimmungscodes oder Stimmen auf. Die
 Einladungs-E-Mails enthalten kein Öffnungs- oder Klick-Tracking.
 
-## Warum ist die Wahl sicher?
+## Warum ist der Mitgliederentscheid sicher?
 
 * **Einmal-Link:** Der Einladungslink ist personenbezogen und wird nach
   der Benutzung gelöscht.
-* **6-stelliger Wahl-Code:** Vom System erzeugt, bekannt nur bei dir,
+* **6-stelliger Abstimmungscode:** Vom System erzeugt, bekannt nur bei dir,
   gespeichert nur als Fingerabdruck, nach 5 Fehlversuchen 15 Minuten
   gesperrt ([Brute Force (Wikipedia)](https://de.wikipedia.org/wiki/Brute-Force-Methode)).
-* **EINE Stimme pro Person:** Nach erfolgreicher Abstimmen ist Schluss.
-* **Wahlzeitraum:** Vor Start und nach Ende gibt es gar kein
+* **EINE Stimme pro Person:** Nach der Stimmabgabe ist Schluss.
+* **Abstimmungszeitraum:** Vor Start und nach Ende gibt es gar kein
   Eingabefeld.
 * **Ununterbrechbarer Schritt:** Stimme und Markierung werden in einer
   [Transaktion](https://de.wikipedia.org/wiki/Transaktion_(Datenbank))
@@ -125,26 +127,26 @@ Einladungs-E-Mails enthalten kein Öffnungs- oder Klick-Tracking.
 * **Offener Code statt Geheimniskrämerei:** Der Quelltext des Plugins liegt
   öffentlich auf GitHub: <https://github.com/ziffit/wp_vereins-voting>.
   Jeder kann ihn lesen, prüfen und selbst betreiben. Die Sicherheit dieser
-  Wahl stammt nicht aus geheimen Verfahren, sondern aus nachvollziehbaren
-  Regeln – wer misstraut, kann sie im Code nachlesen.
+  Abstimmung stammt nicht aus geheimen Verfahren, sondern aus
+  nachvollziehbaren Regeln – wer misstraut, kann sie im Code nachlesen.
 
-## Warum ist die Wahl nachvollziehbar?
+## Warum ist der Mitgliederentscheid nachvollziehbar?
 
 Dein Quittungscode ist der digitale Stimmzettel-Beleg: Er beweist, dass
 deine Stimme gewertet wurde, verrät aber nicht, wer du bist. Die öffentliche
 Prüftabelle macht das Ergebnis für alle prüfbar – jeder kann seinen Code
 wiederfinden und selbst nachzählen, statt einem Bericht glauben zu müssen.
 
-Zusätzlich hält das System am Wahlende einen **Abgabefingerprint** fest: eine
-eindeutige Prüfzahl, die sich aus allen Quittungscodes ergibt. Speichert jemand
-eine frühere Ergebnisseite, kann er später nachweisen, dass an der Urne
-nichts mehr verändert wurde.
+Zusätzlich hält das System am Abstimmungsende einen **Abgabefingerprint**
+fest: eine eindeutige Prüfzahl, die sich aus allen Quittungscodes ergibt.
+Speichert jemand eine frühere Ergebnisseite, kann er später nachweisen, dass
+an der Urne nichts mehr verändert wurde.
 
 ---
 
 ## Häufige Fragen
 
-**Kann die Verwaltung sehen, wie ich gestimmt habe?**
+**Kann die Verwaltung sehen, wie ich abgestimmt habe?**
 Nein. Sie sieht in der Teilnehmerliste nur, *ob* und *wann* du abgestimmt
 hast – nicht deine Antwort. Aus den Zeitangaben lässt sich die Stimme
 ebenfalls nicht ableiten: Die Urne enthält keine Uhrzeit und keine laufende
@@ -169,7 +171,7 @@ vermutlich veraltet.
 
 **Was ist, wenn ich die falsche Option gewählt habe?**
 Einmal abgegebene Stimmen können nicht geändert werden – das ist der Preis
-der Einmaligkeit. Klick dich bei der nächsten Wahl in Ruhe durch.
+der Einmaligkeit. Klick dich bei der nächsten Abstimmung in Ruhe durch.
 
 ---
 

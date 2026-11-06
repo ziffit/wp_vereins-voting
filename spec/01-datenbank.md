@@ -5,7 +5,7 @@
 ### Beschreibung
 
 Bei der Plugin-Aktivierung legt das System drei isolierte Tabellen an:
-`wp_voting_polls` (Abstimmungen), `wp_voting_voters` (Berechtigte & Wahl-Code-Hashes) und `wp_voting_ballots` (anonyme Stimmen).
+`wp_voting_polls` (Abstimmungen), `wp_voting_voters` (Berechtigte & Abstimmungscode-Hashes) und `wp_voting_ballots` (anonyme Stimmen).
 
 ### Akzeptanzkriterien
 
@@ -14,12 +14,12 @@ Bei der Plugin-Aktivierung legt das System drei isolierte Tabellen an:
   korrekten Feldtypen und Indizes angelegt. `wp_voting_polls` verwendet als
   Primärschlüssel eine zufällige UUID (`CHAR(36)`), keine aufsteigende Zahl.
   `wp_voting_voters` enthält neben Mitgliedsnummer, E-Mail, Token, dem
-  Wahl-Code-Hash `pin_hash` (nur `password_hash()`, nie Klartext)
+  Abstimmungscode-Hash `pin_hash` (nur `password_hash()`, nie Klartext)
   und Beteiligungsstatus die optionalen Felder `first_name` und `last_name`
   (je VARCHAR(100), NULL) für die persönliche Ansprache sowie
   `invited_at` (DATETIME NULL) und `invite_attempts` (TINYINT UNSIGNED,
   Default 0) für den gedrosselten Einladungsversand; ferner `pin_set_at`
-  (DATETIME NULL) als Zeitpunkt der Wahl-Code-Aktivierung (FU007#AK03).
+  (DATETIME NULL) als Zeitpunkt der Abstimmungscode-Aktivierung (FU007#AK03).
   `wp_voting_polls` enthält `mail_text` (TEXT NULL) für den Text je
   Abstimmung. Die Spalte `mail_url` (VARCHAR(500) NULL) bleibt als
   ungenutztes Altfeld bestehen (kein Schemaumbau, keine Migration) sowie
@@ -34,11 +34,11 @@ Bei der Plugin-Aktivierung legt das System drei isolierte Tabellen an:
 
 - **[FU001#AK02]** Bei der Deaktivierung oder Deinstallation bleiben die
   Daten erhalten (oder werden gemäß Einstellungen behandelt; Standard:
-  Daten behalten zum Schutz der Wahlergebnisse).
+  Daten behalten zum Schutz der Abstimmungsergebnisse).
 
 - **[FU001#AK03]** Plugin-Updates ziehen fehlende Tabellen und Spalten
   additiv nach (`dbDelta`, Option `vv_db_version`); bestehende Zeilen und
-  Wahlergebnisse bleiben dabei unverändert erhalten. Numerische Poll-IDs aus
+  Abstimmungsergebnisse bleiben dabei unverändert erhalten. Numerische Poll-IDs aus
   Versionen vor 1.3 werden auf UUIDs umgestellt und in Wählern und Urne
   mitgeführt. Bestandszeilen aus 1.4 erhalten `invited_at = NULL` und
   `invite_attempts = 0`; sie werden beim Upgrade **nicht automatisch**

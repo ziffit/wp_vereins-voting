@@ -1,6 +1,6 @@
 <?php
 /**
- * [FU007] Aktivierung (Wahl-Code erzeugen) über Shortcode.
+ * [FU007] Aktivierung (Abstimmungscode abholen) über Shortcode.
  */
 return [
 
@@ -16,20 +16,39 @@ return [
 			'[FU007#AK01] fehlender poll/token abgelehnt' );
 	},
 
+	'test_06_fu007_ak03_verbrauchter_link_verweist_auf_stimmabgabe' => function () {
+		vv_fx_mail_settings();
+		$pid = vv_fx_poll();
+		vv_fx_http( [ 'poll' => $pid, 'token' => 'verbraucht' ] );
+		$html = vv_shortcode_activate();
+		$poll = vv_fx_poll_row( $pid );
+		vv_check( str_contains( $html, '<h2>' . esc_html( $poll->title ) . '</h2>' ),
+			'[FU007#AK06] Abstimmungstitel steht auch im Fehlerzustand als h2' );
+		vv_check( str_contains( $html, 'https://seite.example.org/waehlen/?poll=' . $pid )
+			&& str_contains( $html, 'Zur Stimmabgabe' ),
+			'[FU007#AK03] Fehlertext verlinkt zur Stimmabgabe der richtigen Abstimmung' );
+
+		// Ohne konfigurierte Stimmformular-URL kein toter Link.
+		vv_fx_mail_settings( [ 'vote' => '' ] );
+		$html = vv_shortcode_activate();
+		vv_check( ! str_contains( $html, 'Zur Stimmabgabe' ),
+			'[FU007#AK03] ohne Stimmformular-URL kein Link' );
+	},
+
 	'test_06_fu007_ak01_formular_felder' => function () {
 		$pid = vv_fx_poll();
 		[ $vid, $tok ] = vv_fx_voter( $pid, '101', 'a@b.org', 'tokform' );
 		vv_fx_http( [ 'poll' => $pid, 'token' => 'tokform' ] );
 		$html = vv_shortcode_activate();
-		foreach ( [ 'Mitgliedsnummer', 'E-Mail', 'Neuen Code erzeugen', 'Wahl-Code bestätigen' ] as $needle ) {
+		foreach ( [ 'Mitgliedsnummer', 'E-Mail', 'Neuen Code erzeugen', 'Abstimmungscode bestätigen' ] as $needle ) {
 			vv_check( str_contains( $html, $needle ), "[FU007#AK01] Formularbestandteil $needle vorhanden" );
 		}
 		$poll = vv_fx_poll_row( $pid );
 		vv_check( str_contains( $html, '<h2>' . esc_html( $poll->title ) . '</h2>' ),
-			'[FU007#AK01] Abstimmungstitel steht als h2 über dem Wahl-Code' );
+			'[FU007#AK01] Abstimmungstitel steht als h2 über dem Abstimmungscode' );
 		// Der generierte Code erscheint schreibgeschützt und im erzwungenen Format:
 		vv_check( (bool) preg_match( '/<code class="vv-receipt">([A-HJ-NP-Z2-9]{6})<\/code>/', $html, $m ),
-			'[FU007#AK01] Wahl-Code sichtbar, formatkonform (6 Zeichen, mind. 1 Buchstabe + 1 Ziffer)' );
+			'[FU007#AK01] Abstimmungscode sichtbar, formatkonform (6 Zeichen, mind. 1 Buchstabe + 1 Ziffer)' );
 		vv_check( str_contains( $html, (string) $m[1] ?? '' ), '[FU007#AK01] angezeigter Code auch im Formular übernommen' );
 		vv_check( str_contains( $html, 'vv-version' ) && str_contains( $html, 'vereins-voting ' ),
 			'[FU007#AK05] Versionszeile am Ende jeder Shortcode-Ausgabe' );
@@ -87,7 +106,7 @@ return [
 		vv_check( str_contains( $html, 'A2B3C4' ), '[FU007#AK03] Code wird auf der Erfolgsseite noch einmal angezeigt' );
 
 		$row = $wpdb->get_row( 'SELECT * FROM ' . vv_tbl( 'voting_voters' ) . ' WHERE poll_id = ' . $wpdb->prepare( '%s', $pid ) );
-		vv_check( $row->pin_hash && password_verify( 'A2B3C4', $row->pin_hash ), '[FU007#AK03] Wahl-Code als password_hash gespeichert, verify ok' );
+		vv_check( $row->pin_hash && password_verify( 'A2B3C4', $row->pin_hash ), '[FU007#AK03] Abstimmungscode als password_hash gespeichert, verify ok' );
 		vv_check( ! preg_match( '/A2B3C4$/', (string) $row->pin_hash ), '[FU007#AK03] kein Klartext-Code in pin_hash' );
 		vv_check( null === $row->activation_token, '[FU007#AK03] activation_token gelöscht (Einmalverwendung)' );
 		vv_check( null !== $row->pin_set_at, '[FU007#AK03] pin_set_at hält den Zeitpunkt der Aktivierung fest' );
@@ -114,7 +133,7 @@ return [
 		vv_check( str_contains( $html, 'Sicherheitsprüfung' ), '[FU007#AK04] POST ohne Nonce abgelehnt' );
 
 		$t = $wpdb->get_var( 'SELECT activation_token FROM ' . vv_tbl( 'voting_voters' ) . ' WHERE poll_id = ' . $wpdb->prepare( '%s', $pid ) );
-		vv_check( 'tokcsrf' === $t, '[FU007#AK04] ohne Nonce wird kein Wahl-Code gesetzt/Token verbraucht' );
+		vv_check( 'tokcsrf' === $t, '[FU007#AK04] ohne Nonce wird kein Abstimmungscode gesetzt/Token verbraucht' );
 	},
 
 	'test_06_fu007_ak04_neuer_code_zaehlt_nicht' => function () {

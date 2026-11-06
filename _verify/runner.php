@@ -195,11 +195,11 @@ switch ( $step ) {
 		$_POST = [
 			'vv_action' => 'save_poll_mail',
 			'poll'      => $poll->id,
-			'mail_text' => "{question}\r\nWahlzeitraum: {start} – {end}\r\nBitte halte Mitgliedsnummer und E-Mail bereit.",
+			'mail_text' => "{question}\r\nAbstimmungszeitraum: {start} – {end}\r\nBitte halte Mitgliedsnummer und E-Mail bereit.",
 		];
 		try { vv_save_poll_mail(); } catch ( VVRedirectFound $r ) {}
 		$poll = vv_poll_by_title( 'Kassenprüfung 2026 (korrigiert)' );
-		vv_assert( "{question}\r\nWahlzeitraum: {start} – {end}\r\nBitte halte Mitgliedsnummer und E-Mail bereit." === $poll->mail_text,
+		vv_assert( "{question}\r\nAbstimmungszeitraum: {start} – {end}\r\nBitte halte Mitgliedsnummer und E-Mail bereit." === $poll->mail_text,
 			'[FU004#AK03] Textblock je Abstimmung gespeichert' );
 
 		// [FU006#AK05] Vorschau und Testmail nutzen nur erfundene Daten.
@@ -238,11 +238,11 @@ switch ( $step ) {
 			&& str_contains( $mailtab, '<h2>Kassenprüfung 2026 (korrigiert)</h2>' ),
 			'[FU002#AK05] E-Mail-Registerkarte zeigt Titel und Versand (GUI)' );
 		$mail = $GLOBALS['vv_mails'][0];
-		vv_assert( str_contains( $mail['body'], '<!DOCTYPE html>' ) && str_contains( $mail['body'], 'Wahl-Code erzeugen' ),
+		vv_assert( str_contains( $mail['body'], '<!DOCTYPE html>' ) && str_contains( $mail['body'], 'Abstimmungscode abholen' ),
 			'[FU006#AK02] Einladung ist HTML mit Aktivierungsbutton' );
 		vv_assert( str_contains( $mail['body'], 'Kassenprüfung 2026' ), '[FU006#AK01] Mail enthält Abstimmungstitel' );
 		vv_assert( str_contains( $mail['body'], 'Testverein e.V.' ), '[FU006#AK01] Mail enthält Vereinsnamen aus dem Footer' );
-		vv_assert( str_contains( $mail['body'], 'Wahlzeitraum' ), '[FU006#AK01] Mail enthält Frist' );
+		vv_assert( str_contains( $mail['body'], 'Abstimmungszeitraum' ), '[FU006#AK01] Mail enthält Frist' );
 		vv_assert( ! str_contains( $mail['body'], 'Mehr zum Ablauf' ),
 			'[FU004#AK03] kein Website-Link-Hinweis in der Mail' );
 		vv_assert( str_contains( $mail['body'], 'https://example.org/waehlen/' ) && str_contains( $mail['body'], 'Jetzt abstimmen' ),
@@ -291,9 +291,9 @@ switch ( $step ) {
 		// [FU007#AK03] Erfolgreiche Aktivierung: Code gehasht, Token verbraucht.
 		$_POST = [ 'vv_frontend_nonce' => wp_create_nonce( 'vv_frontend' ), 'member_no' => (string) $alice->member_no, 'email' => 'alice@example.com', 'pin' => 'A2B3C4' ];
 		$html  = vv_shortcode_activate();
-		vv_assert( str_contains( $html, 'Erfolgreich' ), '[FU007#AK03] Wahl-Code erfolgreich erzeugt' );
+		vv_assert( str_contains( $html, 'Erfolgreich' ), '[FU007#AK03] Abstimmungscode erfolgreich erzeugt' );
 		$alice = vv_row( 'voting_voters', "WHERE id = {$alice->id}" );
-		vv_assert( $alice->pin_hash && password_verify( 'A2B3C4', $alice->pin_hash ), '[FU007#AK03] Wahl-Code gespeichert als Hash (nicht Klartext)' );
+		vv_assert( $alice->pin_hash && password_verify( 'A2B3C4', $alice->pin_hash ), '[FU007#AK03] Abstimmungscode gespeichert als Hash (nicht Klartext)' );
 		vv_assert( null === $alice->activation_token || '' === $alice->activation_token, '[FU007#AK03] Token einmalig verbraucht/gelöscht' );
 
 		// Wiederholter Versuch mit altem Link → abgelehnt.
@@ -303,26 +303,26 @@ switch ( $step ) {
 		$html    = vv_shortcode_activate();
 		vv_assert( str_contains( $html, 'Ungültiger oder bereits benutzter Aktivierungslink' ), '[FU007#AK03] zweitverwendung abgelehnt' );
 
-		// [FU005#AK04] Admin setzt den Wahl-Code zurück: Hash weg, neuer Token, Urne unberührt.
+		// [FU005#AK04] Admin setzt den Abstimmungscode zurück: Hash weg, neuer Token, Urne unberührt.
 		$_SERVER['REQUEST_METHOD'] = 'POST';
 		$_POST = [ 'poll' => $alice->poll_id, 'voter_id' => $alice->id, 'vv_page' => 1 ];
 		$redir = null;
 		try { vv_reset_pin(); } catch ( VVRedirectFound $e ) { $redir = $e->url; }
 		$alice = vv_row( 'voting_voters', "WHERE id = {$alice->id}" );
 		vv_assert( $redir && str_contains( $redir, 'reset=1' ) && empty( $alice->pin_hash ),
-			'[FU005#AK04] Wahl-Code-Reset löscht den Hash' );
+			'[FU005#AK04] Abstimmungscode-Reset löscht den Hash' );
 		vv_assert( $alice->activation_token && 32 === strlen( $alice->activation_token ),
-			'[FU005#AK04] Wahl-Code-Reset erzeugt neuen Aktivierungstoken' );
+			'[FU005#AK04] Abstimmungscode-Reset erzeugt neuen Aktivierungstoken' );
 		vv_assert( empty( $alice->invited_at ) && 0 === (int) $alice->invite_attempts,
-			'[FU005#AK04] Wahl-Code-Reset stellt die Person wieder in die Einladungswarteschlange' );
+			'[FU005#AK04] Abstimmungscode-Reset stellt die Person wieder in die Einladungswarteschlange' );
 
-		// Über den neuen Link wieder einen Wahl-Code erzeugen, damit die
+		// Über den neuen Link wieder einen Abstimmungscode abholen, damit die
 		// Folgeschritte laufen.
 		$_SERVER['REQUEST_METHOD'] = 'POST';
 		$_GET  = [ 'poll' => $alice->poll_id, 'token' => $alice->activation_token ];
 		$_POST = [ 'vv_frontend_nonce' => wp_create_nonce( 'vv_frontend' ), 'member_no' => (string) $alice->member_no, 'email' => 'alice@example.com', 'pin' => 'A2B3C4' ];
 		$html  = vv_shortcode_activate();
-		vv_assert( str_contains( $html, 'Erfolgreich' ), '[FU005#AK04] neuer Wahl-Code nach Reset erzeugbar' );
+		vv_assert( str_contains( $html, 'Erfolgreich' ), '[FU005#AK04] neuer Abstimmungscode nach Reset erzeugbar' );
 		break;
 	}
 
@@ -331,7 +331,7 @@ switch ( $step ) {
 		$alice = vv_row( 'voting_voters', "WHERE email = 'alice@example.com'" );
 		$poll  = vv_row( 'voting_polls', "WHERE id = '{$alice->poll_id}'" );
 
-		// [FU008#AK02] Die Wahl ist noch nicht gestartet.
+		// [FU008#AK02] Die Abstimmung ist noch nicht gestartet.
 		$_SERVER['REQUEST_METHOD'] = 'POST';
 		$_POST = [
 			'member_no' => (string) $alice->member_no,
@@ -354,19 +354,19 @@ switch ( $step ) {
 		$alice = vv_row( 'voting_voters', "WHERE email = 'alice@example.com'" );
 		$poll  = vv_row( 'voting_polls', "WHERE id = '{$alice->poll_id}'" );
 
-		// Admin ändert Datum: draft Wahl wird zum jetzt laufenden Auswahlprozess.
+		// Admin ändert Datum: draft Abstimmung wird zum jetzt laufenden Auswahlprozess.
 		$_SERVER['REQUEST_METHOD'] = 'POST';
 		$_POST = [ 'vv_action' => 'save_poll', 'poll_id' => $poll->id, 'title' => $poll->title,
 			'question' => $poll->question, 'start_dt' => date( 'Y-m-d\TH:00', strtotime( '-1 hour' ) ),
 			'end_dt' => date( 'Y-m-d\TH:00', strtotime( '+1 day' ) ), 'status' => 'draft' ];
 		try { vv_save_poll(); } catch ( VVRedirectFound $r ) {}
 
-		// [FU008#AK02] falscher Wahl-Code.
+		// [FU008#AK02] falscher Abstimmungscode.
 		try {
 			vv_cast_vote( $poll->id, (string) $alice->member_no, 'alice@example.com', '999999', 'ja' );
-			vv_assert( false, 'falscher Wahl-Code springt durch' );
+			vv_assert( false, 'falscher Abstimmungscode springt durch' );
 		} catch ( RuntimeException $e ) {
-			vv_assert( str_contains( $e->getMessage(), 'Wahl-Code ist falsch' ), '[FU008#AK02] falscher Wahl-Code abgelehnt' );
+			vv_assert( str_contains( $e->getMessage(), 'Abstimmungscode ist falsch' ), '[FU008#AK02] falscher Abstimmungscode abgelehnt' );
 		}
 
 		// [FU008#AK02/03] korrekte Stimme: dicke und positive Zufriedenheit.
@@ -421,14 +421,14 @@ switch ( $step ) {
 		$poll = vv_poll_by_title( 'Kassenprüfung 2026 (korrigiert)' );
 		$old  = $poll->title;
 
-		// [FU002#AK02] Fälschung: laufende Wahl soll Titel/Fristen ändern ("forged").
+		// [FU002#AK02] Fälschung: laufende Abstimmung soll Titel/Fristen ändern ("forged").
 		$_SERVER['REQUEST_METHOD'] = 'POST';
 		$_POST = [ 'vv_action' => 'save_poll', 'poll_id' => $poll->id, 'title' => 'HACKED',
 			'question' => 'F', 'start_dt' => date( 'Y-m-d\TH:00', strtotime( '-1 hour' ) ),
 			'end_dt' => date( 'Y-m-d\TH:00', strtotime( '+1 day' ) ), 'status' => 'active' ];
 		try { vv_save_poll(); } catch ( VVRedirectFound $r ) {}
 		$poll = vv_row( 'voting_polls', "WHERE id = '{$poll->id}'" );
-		vv_assert( $old === $poll->title, '[FU002#AK02] aktive Wahl: sicherheitsrelevante Felder geschützt' );
+		vv_assert( $old === $poll->title, '[FU002#AK02] aktive Abstimmung: sicherheitsrelevante Felder geschützt' );
 		break;
 	}
 
@@ -446,12 +446,12 @@ switch ( $step ) {
 		$r2 = vv_cast_vote( $poll->id, (string) $bob->member_no, 'bob@example.org', 'B2C3D4', 'nein' );
 		vv_assert( (bool) preg_match( '/^[0-9a-f]{64}$/', $r2 ), 'bob-Stimme als Receipt' );
 
-		// Admin beendet die Wahl (active -> closed).
+		// Admin beendet die Abstimmung (active -> closed).
 		$_POST = [ 'vv_action' => 'save_poll', 'poll_id' => $poll->id, 'title' => $poll->title,
 			'question' => $poll->question, 'start_dt' => $poll->start_dt, 'end_dt' => $poll->end_dt, 'status' => 'closed' ];
 		try { vv_save_poll(); } catch ( VVRedirectFound $r ) {}
 		$poll = vv_row( 'voting_polls', "WHERE id = '{$poll->id}'" );
-		vv_assert( 'closed' === $poll->status, '[FU002#AK02] admin schließt Wahl' );
+		vv_assert( 'closed' === $poll->status, '[FU002#AK02] admin schließt Abstimmung' );
 
 		// [FU009#AK02/03] Ergebnis + Prüfliste. (shortcode_output)
 		$_GET = [ 'poll' => $poll->id ];
@@ -464,7 +464,7 @@ switch ( $step ) {
 			'[FU009#AK03] Receipts in Prüftabelle gelistet (erste 5 Zeichen hervorgehoben)' );
 		// Kein Personenname in Urnenausgabe?
 		vv_assert( ! preg_match( '/(alice|bob@example)/i', $html ), '[FU009#AK03] Prüfliste anonym (kein Mail/Namen)' );
-		// [FU009#AK03] Keine Zeitangaben in der Prüfliste – sonst Korrelation mit „Gewählt am“.
+		// [FU009#AK03] Keine Zeitangaben in der Prüfliste – sonst Korrelation mit „Abgestimmt am“.
 		vv_assert( ! str_contains( $html, 'Zeitpunkt' ) && ! str_contains( $html, 'Stimmabgabe am' ),
 			'[FU009#AK03] Prüfliste ohne Uhrzeit (keine Korrelation mit voted_at)' );
 
@@ -486,7 +486,7 @@ switch ( $step ) {
 		$stored = (string) $poll->urn_fingerprint;
 		vv_assert( 64 === strlen( $stored ) && ctype_xdigit( $stored ), '[FU002#AK02] urn_fingerprint beim Abschluss gespeichert (64 hex)' );
 		vv_assert( hash_equals( $stored, vv_urn_fingerprint( $poll->id ) ), '[FU002#AK02] gespeicherter Fingerprint = Nachberechnung aus der Urne' );
-		vv_assert( str_contains( $res, 'unverändert' ) && str_contains( $res, 'Wahlniederschrift drucken (PDF)' ),
+		vv_assert( str_contains( $res, 'unverändert' ) && str_contains( $res, 'Niederschrift drucken (PDF)' ),
 			'[FU002#AK02/FU005#AK05] Verdict + Niederschrift in der Ergebnis-Registerkarte (GUI)' );
 
 		// [FU009#AK04] Ergebnisseite zeigt den Fingerprint.
@@ -496,9 +496,9 @@ switch ( $step ) {
 			'[FU009#AK04] Ergebnisseite nennt den Abgabefingerprint' );
 		vv_assert( str_contains( $html, $stored ), '[FU009#AK04] angezeigter Fingerprint stimmt mit der gespeicherten Referenz' );
 
-		// [FU005#AK05] Wahlniederschrift VOR dem Löschen: alles drin.
+		// [FU005#AK05] Niederschrift VOR dem Löschen: alles drin.
 		$html = vv_report_html();
-		vv_assert( str_contains( $html, 'Wahlniederschrift' ) && str_contains( $html, 'Kassenprüfung 2026 (korrigiert)' ),
+		vv_assert( str_contains( $html, 'Niederschrift' ) && str_contains( $html, 'Kassenprüfung 2026 (korrigiert)' ),
 			'[FU005#AK05] Niederschrift erzeugt (Titel/Frage)' );
 		vv_assert( str_contains( $html, 'alice@example.com' ) && str_contains( $html, (string) vv_row( 'voting_voters', "WHERE email = 'alice@example.com'" )->member_no ),
 			'[FU005#AK05] Teilnahmetabelle mit Personen' );
@@ -528,7 +528,7 @@ switch ( $step ) {
 		ob_start();
 		vv_render_results_view( vv_row( 'voting_polls', "WHERE id = '{$poll_id}'" ) );
 		$res = ob_get_clean();
-		vv_assert( str_contains( $res, 'Gesamtergebnis' ) && str_contains( $res, 'Wahlniederschrift drucken (PDF)' ),
+		vv_assert( str_contains( $res, 'Gesamtergebnis' ) && str_contains( $res, 'Niederschrift drucken (PDF)' ),
 			'[FU005#AK05] nach der Räumung: Ergebnis-Registerkarte vollständig (GUI)' );
 
 		// Niederschrift nach dem Löschen: Ergebnis + Prüfliste bleiben, Zeiten Hinweis.
@@ -537,14 +537,14 @@ switch ( $step ) {
 		vv_assert( str_contains( $html, 'Keine Teilnehmerzeiten' ) && str_contains( $html, 'Prüfliste' ),
 			'[FU005#AK05] Niederschrift nach der Räumung: Prüfliste bleibt, Zeiten gekennzeichnet' );
 
-		// [FU002#AK02/05/08] Beendete Wahl: Registerkarten ohne unnötige Aktionen.
+		// [FU002#AK02/05/08] Beendete Abstimmung: Registerkarten ohne unnötige Aktionen.
 		$_GET = [ 'page' => 'vereins-voting', 'view' => 'edit', 'poll' => $poll_id ];
 		ob_start();
 		vv_render_admin_page();
 		$pg = ob_get_clean();
 		vv_assert( ! str_contains( $pg, '>Speichern<' ) && str_contains( $pg, '>Zurück</' )
-			&& str_contains( $pg, '>Wahlergebnis</a>' ),
-			'[FU002#AK02/05] beendete Wahl: Wahl-Tab ohne Speichern, mit Registerkarten (GUI)' );
+			&& str_contains( $pg, '>Ergebnis</a>' ),
+			'[FU002#AK02/05] beendete Abstimmung: Abstimmung-Tab ohne Speichern, mit Registerkarten (GUI)' );
 
 		$_GET = [ 'page' => 'vereins-voting', 'view' => 'members', 'poll' => $poll_id ];
 		ob_start();
@@ -552,7 +552,7 @@ switch ( $step ) {
 		$pg = ob_get_clean();
 		vv_assert( ! str_contains( $pg, 'Teilnehmer (CSV-Import)' ) && ! str_contains( $pg, 'Einladungen versenden' )
 			&& str_contains( $pg, '>Zurück</' ),
-			'[FU002#AK08] beendete Wahl: Teilnehmeransicht ohne Import-/Einladungsoptionen (GUI)' );
+			'[FU002#AK08] beendete Abstimmung: Teilnehmeransicht ohne Import-/Einladungsoptionen (GUI)' );
 
 		$_GET = [ 'page' => 'vereins-voting', 'view' => 'results', 'poll' => $poll_id ];
 		ob_start();
@@ -565,14 +565,14 @@ switch ( $step ) {
 
 	// ---------------------------------------------------------------
 	case 'results_running': {
-		// [FU009#AK01] laufende Wahl -> Hinweismeldung.
+		// [FU009#AK01] laufende Abstimmung -> Hinweismeldung.
 		$_POST = [ 'vv_action' => 'save_poll', 'poll_id' => '', 'title' => 'Laufende Testwahl',
 			'question' => 'Q', 'start_dt' => date( 'Y-m-d\TH:00', strtotime( '-1 hour' ) ),
 			'end_dt' => date( 'Y-m-d\TH:00', strtotime( '+1 day' ) ), 'status' => 'draft' ];
 		try { vv_save_poll(); } catch ( VVRedirectFound $r ) {}
 		$poll = vv_poll_by_title( 'Laufende Testwahl' );
 
-		// Durch die Statuswahl von draft auf active setzen (Admin startet die Wahl).
+		// Durch die Statuswahl von draft auf active setzen (Admin startet die Abstimmung).
 		$_POST = [ 'vv_action' => 'save_poll', 'poll_id' => $poll->id, 'title' => $poll->title,
 			'question' => 'Q', 'start_dt' => $poll->start_dt, 'end_dt' => $poll->end_dt, 'status' => 'active' ];
 		try { vv_save_poll(); } catch ( VVRedirectFound $r ) {}
@@ -598,7 +598,7 @@ switch ( $step ) {
 	// ---------------------------------------------------------------
 	// ---------------------------------------------------------------
 	case 'smoke': {
-		// [FU008#AK04] Erfolgsweg komplett über Shortcode: Voter mit bereits erzeugtem Wahl-Code
+		// [FU008#AK04] Erfolgsweg komplett über Shortcode: Voter mit bereits erzeugtem Abstimmungscode
 		// über Stub (in echtem WP über Aktivierungsseite), dann Formular-POST.
 		$now = current_time( 'mysql' );
 		$pid = vv_uuid();
@@ -608,14 +608,14 @@ switch ( $step ) {
 			$pid, $now, $now, $now
 		) );
 
-		// Wahl innerhalb Zeitfenster setzen (Start -1h, Ende +1h).
+		// Abstimmung innerhalb Zeitfenster setzen (Start -1h, Ende +1h).
 		$_SERVER['REQUEST_METHOD'] = 'POST';
 		$_POST = [ 'vv_action' => 'save_poll', 'poll_id' => $pid, 'title' => 'Ablaufwahl',
 			'question' => 'Zustimmung?', 'start_dt' => date( 'Y-m-d\TH:00', strtotime( '-1 hour' ) ),
 			'end_dt' => date( 'Y-m-d\TH:00', strtotime( '+1 hour' ) ), 'status' => 'draft' ];
 		try { vv_save_poll(); } catch ( VVRedirectFound $r ) {}
 
-		// Voter vorbereiten (in echtem WP kommt der Wahl-Code via Aktivierungslink):
+		// Voter vorbereiten (in echtem WP kommt der Abstimmungscode via Aktivierungslink):
 		$wpdb->query( $wpdb->prepare(
 			"INSERT INTO wpx_voting_voters (poll_id, member_no, email, activation_token, created_at)
 			 VALUES (%s, '777', 'e2e@example.org', 'e2etoken', %s)",
@@ -626,7 +626,7 @@ switch ( $step ) {
 			password_hash( 'C2D3E4', PASSWORD_DEFAULT ), $pid
 		) );
 
-		// Aktiv lungo wenig inaktivldata: Wahl Veteran: aktiviert timeliness direkt aus:
+		// Aktiv lungo wenig inaktivldata: Abstimmung Veteran: aktiviert timeliness direkt aus:
 		$wpdb->query( $wpdb->prepare( "UPDATE wpx_voting_polls SET status = 'active' WHERE id = %s", $pid ) );
 
 		// [FU008#AK01] [FU008#AK04] POST-Ablauf über den Shortcode:
@@ -661,9 +661,9 @@ switch ( $step ) {
 		$_POST = [ 'vv_action' => 'delete_poll', 'poll_id' => $closed->id ];
 		try {
 			vv_delete_poll();
-			vv_assert( false, ' closed Wahl gelöscht' );
+			vv_assert( false, ' closed Abstimmung gelöscht' );
 		} catch ( VVWpDie $e ) {
-			vv_assert( str_contains( $e->getMessage(), 'nur bei Abstimmungen im Status Entwurf' ), '[FU002#AK02] Löschen beendeter Wahl verweigert' );
+			vv_assert( str_contains( $e->getMessage(), 'nur bei Abstimmungen im Status Entwurf' ), '[FU002#AK02] Löschen beendeter Abstimmung verweigert' );
 		}
 
 		// Frischer Entwurf für den Löschtest.
