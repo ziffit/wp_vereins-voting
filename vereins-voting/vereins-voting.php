@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       vereins-voting
  * Description:       Vereins-Abstimmungen: Einladung per E-Mail-Link, Aktivierung mit systemgeneriertem Abstimmungscode, anonyme Stimmurne mit Receipt-Hash.
- * Version:           1.6.7
+ * Version:           1.7.0
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Felix Tensing
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Direktzugriff verweigern.
 }
 
-define( 'VEREINS_VOTING_VERSION', '1.6.7' );
+define( 'VEREINS_VOTING_VERSION', '1.7.0' );
 
 /*
  * [FU001#AK02] Bei Deaktivierung/Deinstallation werden KEINE Daten gelöscht —
@@ -115,7 +115,7 @@ function vv_maybe_upgrade() {
 add_action( 'plugins_loaded', 'vv_maybe_upgrade' );
 
 /**
- * [FU003#AK02] Ab 1.6.7 ist nur noch die Mitgliedsnummer je Abstimmung
+ * [FU003#AK02] Ab 1.7.0 ist nur noch die Mitgliedsnummer je Abstimmung
  * eindeutig. Altdubletten werden bereinigt (bevorzugt eine bereits
  * abgestimmte Zeile, sonst die älteste) und der alte Unique-Key ersetzt.
  */

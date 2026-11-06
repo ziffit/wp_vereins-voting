@@ -43,7 +43,7 @@ Bei der Plugin-Aktivierung legt das System drei isolierte Tabellen an:
   mitgeführt. Bestandszeilen aus 1.4 erhalten `invited_at = NULL` und
   `invite_attempts = 0`; sie werden beim Upgrade **nicht automatisch**
   versendet, sondern erst nach ausdrücklichem Start durch den Admin.
-  Beim Upgrade auf 1.6.7 wird der alte Unique-Key
+  Beim Upgrade auf 1.7.0 wird der alte Unique-Key
   `(poll_id, member_no, email)` durch `(poll_id, member_no)` ersetzt;
   Altdubletten je Mitgliedsnummer werden dabei bereinigt (eine bereits
   abgestimmte Zeile hat Vorrang, sonst bleibt die älteste).
