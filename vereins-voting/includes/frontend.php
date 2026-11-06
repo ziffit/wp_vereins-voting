@@ -44,7 +44,7 @@ function vv_version_note() {
 	return '<p class="vv-version">vereins-voting ' . esc_html( VEREINS_VOTING_VERSION ) . '</p>';
 }
 
-/** Eingegebene Mitglieds-Nr/E-Mail nach Submit wieder anzeigen. */
+/** Eingegebene Mitgliedsnummer nach Submit wieder anzeigen. */
 function vv_re( $existing, $fallback ) {
 	return isset( $_POST[ $existing ] ) ? sanitize_text_field( wp_unslash( $_POST[ $existing ] ) ) : $fallback;
 }
@@ -75,7 +75,7 @@ function vv_activate_html() {
 		) );
 	}
 
-	// [FU007#AK02] Formular-Proposal: Mitgliedsnummer + E-Mail müssen zum Token passen.
+	// [FU007#AK02] Formular-Proposal: Mitgliedsnummer muss zum Token passen.
 	if ( ( $_SERVER['REQUEST_METHOD'] ?? 'GET' ) === 'POST' && $voter ) {
 		$rate_id = 'activate|' . $token;
 		if ( vv_rate_blocked( 'activate', $rate_id ) ) {
@@ -85,12 +85,11 @@ function vv_activate_html() {
 			$error = 'Sicherheitsprüfung fehlgeschlagen. Bitte Seite neu laden und erneut versuchen.';
 		} else {
 			$member_no = sanitize_text_field( wp_unslash( $_POST['member_no'] ?? '' ) );
-			$email     = sanitize_email( wp_unslash( $_POST['email'] ?? '' ) );
 			$code      = strtoupper( trim( (string) wp_unslash( $_POST['pin'] ?? '' ) ) );
 
-			if ( ! hash_equals( (string) $voter->member_no, $member_no ) || ! hash_equals( strtolower( $voter->email ), strtolower( $email ) ) ) {
+			if ( ! hash_equals( (string) $voter->member_no, $member_no ) ) {
 				vv_rate_fail( 'activate', $rate_id );
-				$error = 'Mitgliedsnummer oder E-Mail stimmen nicht mit der Einladung überein.';
+				$error = 'Mitgliedsnummer stimmt nicht mit der Einladung überein.';
 			} elseif ( ! vv_valid_code( $code ) ) {
 				vv_rate_fail( 'activate', $rate_id );
 				$error = 'Der Abstimmungscode ist nicht gültig (6 Zeichen, Buchstaben und Ziffern). Bitte hole dir einen neuen Code.';
@@ -115,7 +114,7 @@ function vv_activate_html() {
 						. 'Dein Abstimmungscode: <code class="vv-receipt">' . esc_html( $code ) . '</code><br>'
 						. '<strong>Er wird nur einmal angezeigt – notiere oder kopiere ihn jetzt.</strong><br>'
 						. 'Nutze während des Abstimmungszeitraums die Seite mit dem Stimmformular, um abzustimmen; '
-						. 'halte Mitgliedsnummer, E-Mail und Abstimmungscode bereit. '
+						. 'halte Mitgliedsnummer und Abstimmungscode bereit. '
 						. 'Solltest du deinen Abstimmungscode verlieren, melde dich über das Kontaktformular. Die Verwaltung kann ihn zurücksetzen und dir eine neue Einladung senden.</div>';
 				}
 				$error = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
@@ -143,7 +142,7 @@ function vv_activate_html() {
 		$code = vv_generate_code();
 	}
 
-	// Formular: Mitgliedsdaten vorbefüllen (E-Mail aus Einladung = Prefill).
+	// Formular: Mitgliedsnummer nach fehlgeschlagenem POST vorbefüllen.
 	ob_start();
 	?>
 	<?php echo vv_poll_heading( vv_poll_title( $poll_id ) ); ?>
@@ -155,15 +154,12 @@ function vv_activate_html() {
 	</div>
 	<form method="post" class="vv-form">
 		<?php wp_nonce_field( 'vv_frontend', 'vv_frontend_nonce' ); ?>
-		<p>Gib deine Mitgliedsnummer und deine E-Mail ein, um dich als berechtigtes
-		Mitglied auszuweisen. Bestätige dann den angezeigten Abstimmungscode mit dem Button
+		<p>Gib deine Mitgliedsnummer ein, um dich als berechtigtes Mitglied
+		auszuweisen. Bestätige dann den angezeigten Abstimmungscode mit dem Button
 		„Abstimmungscode bestätigen“.</p>
 		<input type="hidden" name="pin" value="<?php echo esc_attr( $code ); ?>">
 		<label for="vv-member-no">Mitgliedsnummer
 			<input type="text" id="vv-member-no" name="member_no" required value="<?php echo esc_attr( vv_re( 'member_no', '' ) ); ?>">
-		</label>
-		<label for="vv-email">E-Mail
-			<input type="email" id="vv-email" name="email" required value="<?php echo esc_attr( vv_re( 'email', '' ) ); ?>">
 		</label>
 		<button type="submit" class="vv-btn">Abstimmungscode bestätigen</button>
 	</form>
@@ -200,7 +196,6 @@ function vv_form_html() {
 				$receipt = vv_cast_vote(
 					$poll_id,
 					sanitize_text_field( wp_unslash( $_POST['member_no'] ?? '' ) ),
-					sanitize_email( wp_unslash( $_POST['email'] ?? '' ) ),
 					wp_unslash( $_POST['pin'] ?? '' ),
 					sanitize_key( wp_unslash( $_POST['option'] ?? '' ) )
 				);
@@ -252,9 +247,6 @@ function vv_form_html() {
 
 		<label for="vv-member-no">Mitgliedsnummer
 			<input type="text" id="vv-member-no" name="member_no" required value="<?php echo esc_attr( vv_re( 'member_no', '' ) ); ?>">
-		</label>
-		<label for="vv-email">E-Mail
-			<input type="email" id="vv-email" name="email" required value="<?php echo esc_attr( vv_re( 'email', '' ) ); ?>">
 		</label>
 		<label for="vv-pin">Abstimmungscode (Groß-/Kleinschreibung egal)
 			<input type="text" id="vv-pin" name="pin" maxlength="6" autocomplete="off" required>

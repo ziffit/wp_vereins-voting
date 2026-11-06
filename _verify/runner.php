@@ -91,12 +91,12 @@ switch ( $step ) {
 		vv_assert( $pidcol && 0 === stripos( (string) $pidcol->Type, 'char(36)' ) && 'auto_increment' !== $pidcol->Extra,
 			'[FU002#AK07] polls.id ist CHAR(36) ohne AUTO_INCREMENT' );
 
-		// [FU003#AK02] Eindeutig ist Mitgliedsnummer + E-Mail (E-Mail allein nicht).
+		// [FU003#AK02] Eindeutig ist nur die Mitgliedsnummer; E-Mail ist Kontaktweg.
 		$uniq = (int) $wpdb->get_var( "
 			SELECT COUNT(DISTINCT INDEX_NAME) FROM information_schema.STATISTICS
 			WHERE TABLE_SCHEMA='vvtest' AND TABLE_NAME='wpx_voting_voters'
-			  AND INDEX_NAME = 'poll_member_email' AND NON_UNIQUE = 0" );
-		vv_assert( 1 === $uniq, '[FU003#AK02] voters: UNIQUE(poll_id, member_no, email)' );
+			  AND INDEX_NAME = 'poll_member' AND NON_UNIQUE = 0" );
+		vv_assert( 1 === $uniq, '[FU003#AK02] voters: UNIQUE(poll_id, member_no)' );
 
 		// [FU001#AK02] Keine Foreign Keys zwischen urne/voters.
 		$fks = (int) $wpdb->get_var( "
@@ -153,7 +153,7 @@ switch ( $step ) {
 	// ---------------------------------------------------------------
 	case 'import_csv': {
 		$poll = vv_poll_by_title( 'Kassenprüfung 2026 (korrigiert)' );
-		$csv  = "Mitgliedsnummer;E-Mail;Vorname;Name\n101;alice@example.com;Alice;Anders\n102;bob@example.org;Bob;Beispiel\n103;keine-mail;Karla;Kaputt\n101;ALICE@example.COM;Alice;Anders\n";
+		$csv  = "Mitgliedsnummer;E-Mail;Vorname;Name\n101;alice@example.com;Alice;Anders\n102;bob@example.org;Bob;Beispiel\n103;keine-mail;Karla;Kaputt\n101;alice2@example.com;Alice;Anders\n";
 		file_put_contents( sys_get_temp_dir() . '/vv.csv', $csv );
 
 		$_SERVER['REQUEST_METHOD'] = 'POST';
@@ -167,7 +167,7 @@ switch ( $step ) {
 		foreach ( $toks as $t ) {
 			vv_assert( (bool) preg_match( '/^[0-9a-f]{32}$/', $t->activation_token ), "[FU003#AK02] sicherer token für {$t->member_no}" );
 		}
-		vv_assert( 'alice@example.com' === strtolower( $toks[0]->email ), '[FU003#AK02] Duplikat-Zeile übersprungen (Groß/Klein-Schreibung der E-Mail)' );
+		vv_assert( 'alice@example.com' === strtolower( $toks[0]->email ), '[FU003#AK02] Duplikat-Zeile über Mitgliedsnummer übersprungen' );
 		vv_assert( 'Alice' === $toks[0]->first_name && 'Anders' === $toks[0]->last_name, '[FU003#AK01] Vorname/Name importiert' );
 		break;
 	}
@@ -195,11 +195,11 @@ switch ( $step ) {
 		$_POST = [
 			'vv_action' => 'save_poll_mail',
 			'poll'      => $poll->id,
-			'mail_text' => "{question}\r\nAbstimmungszeitraum: {start} – {end}\r\nBitte halte Mitgliedsnummer und E-Mail bereit.",
+			'mail_text' => "{question}\r\nAbstimmungszeitraum: {start} – {end}\r\nBitte halte Mitgliedsnummer bereit.",
 		];
 		try { vv_save_poll_mail(); } catch ( VVRedirectFound $r ) {}
 		$poll = vv_poll_by_title( 'Kassenprüfung 2026 (korrigiert)' );
-		vv_assert( "{question}\r\nAbstimmungszeitraum: {start} – {end}\r\nBitte halte Mitgliedsnummer und E-Mail bereit." === $poll->mail_text,
+		vv_assert( "{question}\r\nAbstimmungszeitraum: {start} – {end}\r\nBitte halte Mitgliedsnummer bereit." === $poll->mail_text,
 			'[FU004#AK03] Textblock je Abstimmung gespeichert' );
 
 		// [FU006#AK05] Vorschau und Testmail nutzen nur erfundene Daten.
@@ -279,17 +279,17 @@ switch ( $step ) {
 		// [FU007#AK02] Richtiger Token, Mitglied-Nr + E-Mail falsch.
 		$_SERVER['REQUEST_METHOD'] = 'POST';
 		$_GET    = [ 'poll' => $alice->poll_id, 'token' => $alice->activation_token ];
-		$_POST   = [ 'vv_frontend_nonce' => wp_create_nonce( 'vv_frontend' ), 'member_no' => '999', 'email' => 'alice@example.com', 'pin' => 'A2B3C4' ];
+		$_POST   = [ 'vv_frontend_nonce' => wp_create_nonce( 'vv_frontend' ), 'member_no' => '999', 'pin' => 'A2B3C4' ];
 		$html    = vv_shortcode_activate();
 		vv_assert( str_contains( $html, 'nicht mit der Einladung überein' ), '[FU007#AK02] Datencheck schlägt fehl' );
 
 		// [FU007#AK02] Manipulierter Code (nur Ziffern) wird abgewiesen.
-		$_POST = [ 'vv_frontend_nonce' => wp_create_nonce( 'vv_frontend' ), 'member_no' => (string) $alice->member_no, 'email' => 'alice@example.com', 'pin' => '123456' ];
+		$_POST = [ 'vv_frontend_nonce' => wp_create_nonce( 'vv_frontend' ), 'member_no' => (string) $alice->member_no, 'pin' => '123456' ];
 		$html  = vv_shortcode_activate();
 		vv_assert( str_contains( $html, 'nicht gültig' ), '[FU007#AK02] Code-Format wird serverseitig geprüft' );
 
 		// [FU007#AK03] Erfolgreiche Aktivierung: Code gehasht, Token verbraucht.
-		$_POST = [ 'vv_frontend_nonce' => wp_create_nonce( 'vv_frontend' ), 'member_no' => (string) $alice->member_no, 'email' => 'alice@example.com', 'pin' => 'A2B3C4' ];
+		$_POST = [ 'vv_frontend_nonce' => wp_create_nonce( 'vv_frontend' ), 'member_no' => (string) $alice->member_no, 'pin' => 'A2B3C4' ];
 		$html  = vv_shortcode_activate();
 		vv_assert( str_contains( $html, 'Erfolgreich' ), '[FU007#AK03] Abstimmungscode erfolgreich erzeugt' );
 		$alice = vv_row( 'voting_voters', "WHERE id = {$alice->id}" );
@@ -299,7 +299,7 @@ switch ( $step ) {
 		// Wiederholter Versuch mit altem Link → abgelehnt.
 		$_SERVER['REQUEST_METHOD'] = 'POST';
 		$_GET    = [ 'poll' => $alice->poll_id, 'token' => $alice->activation_token ];
-		$_POST   = [ 'vv_frontend_nonce' => wp_create_nonce( 'vv_frontend' ), 'member_no' => (string) $alice->member_no, 'email' => 'alice@example.com', 'pin' => 'B2C3D4' ];
+		$_POST   = [ 'vv_frontend_nonce' => wp_create_nonce( 'vv_frontend' ), 'member_no' => (string) $alice->member_no, 'pin' => 'B2C3D4' ];
 		$html    = vv_shortcode_activate();
 		vv_assert( str_contains( $html, 'Ungültiger oder bereits benutzter Aktivierungslink' ), '[FU007#AK03] zweitverwendung abgelehnt' );
 
@@ -320,7 +320,7 @@ switch ( $step ) {
 		// Folgeschritte laufen.
 		$_SERVER['REQUEST_METHOD'] = 'POST';
 		$_GET  = [ 'poll' => $alice->poll_id, 'token' => $alice->activation_token ];
-		$_POST = [ 'vv_frontend_nonce' => wp_create_nonce( 'vv_frontend' ), 'member_no' => (string) $alice->member_no, 'email' => 'alice@example.com', 'pin' => 'A2B3C4' ];
+		$_POST = [ 'vv_frontend_nonce' => wp_create_nonce( 'vv_frontend' ), 'member_no' => (string) $alice->member_no, 'pin' => 'A2B3C4' ];
 		$html  = vv_shortcode_activate();
 		vv_assert( str_contains( $html, 'Erfolgreich' ), '[FU005#AK04] neuer Abstimmungscode nach Reset erzeugbar' );
 		break;
@@ -335,12 +335,11 @@ switch ( $step ) {
 		$_SERVER['REQUEST_METHOD'] = 'POST';
 		$_POST = [
 			'member_no' => (string) $alice->member_no,
-			'email'     => 'alice@example.com',
 			'pin'       => 'A2B3C4',
 			'option'    => 'ja',
 		];
 		try {
-			$receipt = vv_cast_vote( $poll->id, $alice->member_no, 'alice@example.com', 'A2B3C4', 'ja' );
+			$receipt = vv_cast_vote( $poll->id, $alice->member_no, 'A2B3C4', 'ja' );
 			vv_assert( false, '[FU008#AK02] Stimme außerhalb des Zeitraums muss zurückgewiesen werden' );
 		} catch ( RuntimeException $e ) {
 			vv_assert( str_contains( $e->getMessage(), 'nicht aktiv' ), '[FU008#AK02] Zeitraum-Prüfung: außerhalb der Frist abgelehnt (' . $e->getMessage() . ')' );
@@ -363,14 +362,14 @@ switch ( $step ) {
 
 		// [FU008#AK02] falscher Abstimmungscode.
 		try {
-			vv_cast_vote( $poll->id, (string) $alice->member_no, 'alice@example.com', '999999', 'ja' );
+			vv_cast_vote( $poll->id, (string) $alice->member_no, '999999', 'ja' );
 			vv_assert( false, 'falscher Abstimmungscode springt durch' );
 		} catch ( RuntimeException $e ) {
 			vv_assert( str_contains( $e->getMessage(), 'Abstimmungscode ist falsch' ), '[FU008#AK02] falscher Abstimmungscode abgelehnt' );
 		}
 
 		// [FU008#AK02/03] korrekte Stimme: dicke und positive Zufriedenheit.
-		$receipt = vv_cast_vote( $poll->id, (string) $alice->member_no, 'alice@example.com', 'A2B3C4', 'ja' );
+		$receipt = vv_cast_vote( $poll->id, (string) $alice->member_no, 'A2B3C4', 'ja' );
 		vv_assert( (bool) preg_match( '/^[0-9a-f]{64}$/', $receipt ), '[FU008#AK03] Receipt (sha256) erzeugt' );
 
 		$poll  = vv_row( 'voting_polls', "WHERE id = '{$poll->id}'" );
@@ -390,7 +389,7 @@ switch ( $step ) {
 		$poll  = vv_row( 'voting_polls', "WHERE id = '{$alice->poll_id}'" );
 
 		try {
-			vv_cast_vote( $poll->id, (string) $alice->member_no, 'alice@example.com', 'A2B3C4', 'nein' );
+			vv_cast_vote( $poll->id, (string) $alice->member_no, 'A2B3C4', 'nein' );
 			vv_assert( false, 'Doppelvoting geschafft' );
 		} catch ( RuntimeException $e ) {
 			vv_assert( str_contains( $e->getMessage(), 'bereits abgestimmt' ), '[FU008#AK02] Doppelvoting verhindert' );
@@ -406,12 +405,12 @@ switch ( $step ) {
 	case 'vote_guard_tamper': {
 		$alice = vv_row( 'voting_voters', "WHERE email = 'alice@example.com'" );
 		$poll  = vv_row( 'voting_polls', "WHERE id = '{$alice->poll_id}'" );
-		// Betrugsversuch: gleiche Mitgliedsnummer, aber fremde E-Mail.
+		// Betrugsversuch: unbekannte Mitgliedsnummer.
 		try {
-			vv_cast_vote( $poll->id, (string) $alice->member_no, 'fake@other.org', 'A2B3C4', 'ja' );
+			vv_cast_vote( $poll->id, '999', 'A2B3C4', 'ja' );
 			vv_assert( false, 'Betrug klappt' );
 		} catch ( RuntimeException $e ) {
-			vv_assert( str_contains( $e->getMessage(), 'nicht zusammen' ), '[FU008#AK02] Mitgliedsnummer+Mail Kombination nötig' );
+			vv_assert( str_contains( $e->getMessage(), 'Mitgliedsnummer nicht gefunden' ), '[FU008#AK02] unbekannte Mitgliedsnummer abgelehnt' );
 		}
 		break;
 	}
@@ -440,10 +439,10 @@ switch ( $step ) {
 		$bob = vv_row( 'voting_voters', "WHERE email = 'bob@example.org'" );
 		$_SERVER['REQUEST_METHOD'] = 'POST';
 		$_GET  = [ 'poll' => $poll->id, 'token' => $bob->activation_token ];
-		$_POST = [ 'vv_frontend_nonce' => wp_create_nonce( 'vv_frontend' ), 'member_no' => (string) $bob->member_no, 'email' => 'bob@example.org', 'pin' => 'B2C3D4' ];
+		$_POST = [ 'vv_frontend_nonce' => wp_create_nonce( 'vv_frontend' ), 'member_no' => (string) $bob->member_no, 'pin' => 'B2C3D4' ];
 		$html  = vv_shortcode_activate();
 		vv_assert( str_contains( $html, 'Erfolgreich' ), 'bob aktiviert für Ergebnisfall' );
-		$r2 = vv_cast_vote( $poll->id, (string) $bob->member_no, 'bob@example.org', 'B2C3D4', 'nein' );
+		$r2 = vv_cast_vote( $poll->id, (string) $bob->member_no, 'B2C3D4', 'nein' );
 		vv_assert( (bool) preg_match( '/^[0-9a-f]{64}$/', $r2 ), 'bob-Stimme als Receipt' );
 
 		// Admin beendet die Abstimmung (active -> closed).
@@ -631,7 +630,7 @@ switch ( $step ) {
 
 		// [FU008#AK01] [FU008#AK04] POST-Ablauf über den Shortcode:
 		$_GET  = [ 'poll' => $pid ];
-		$_POST = [ 'vv_frontend_nonce' => wp_create_nonce( 'vv_frontend' ), 'member_no' => '\777', 'email' => 'e2e@example.org', 'pin' => 'C2D3E4', 'option' => 'ja' ];
+		$_POST = [ 'vv_frontend_nonce' => wp_create_nonce( 'vv_frontend' ), 'member_no' => '\777', 'pin' => 'C2D3E4', 'option' => 'ja' ];
 		$html  = vv_shortcode_form();
 		vv_assert( (bool) preg_match( '/vv-receipt[^<]*<\/?code[^>]*>[0-9a-f]{64}/', strip_tags( $html, '<code>' ) ) || str_contains( $html, 'vv-receipt' ), '[FU008#AK04] Shortcode zeigt Receipt-Hash im Browser an' );
 		vv_assert( (int) $wpdb->get_var( "SELECT COUNT(*) FROM wpx_voting_ballots WHERE poll_id = '$pid'" ) === 1, '[FU008#AK04] Formular-POST hat Urne befüllt (genau 1 Stimme)' );

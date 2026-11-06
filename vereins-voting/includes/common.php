@@ -144,7 +144,7 @@ function vv_rate_clear( $scope, $id ) {
  * [FU008#AK03] Stimmabgabe in einer Transaktion.
  * Gibt den Receipt-Hash zurück oder wirft RuntimeException mit verständlicher Meldung.
  */
-function vv_cast_vote( $poll_id, $member_no, $email, $pin, $option ) {
+function vv_cast_vote( $poll_id, $member_no, $pin, $option ) {
 	global $wpdb;
 
 	$option = strtolower( trim( (string) $option ) );
@@ -191,18 +191,22 @@ function vv_cast_vote( $poll_id, $member_no, $email, $pin, $option ) {
 			throw new RuntimeException( 'Die Abstimmung ist derzeit nicht aktiv (Status oder Zeitraum).' );
 		}
 
-		// Zeile atomar sperren FOR UPDATE, damit Doppelvoting ausgeschlossen ist.
-		$voter = $wpdb->get_row( $wpdb->prepare(
+		// [FU003#AK02] Zeile atomar sperren FOR UPDATE, damit Doppelvoting
+		// ausgeschlossen ist. Die Mitgliedsnummer ist je Abstimmung eindeutig.
+		$rows = $wpdb->get_results( $wpdb->prepare(
 			"SELECT id, pin_hash, has_voted FROM {$wpdb->prefix}voting_voters
-			 WHERE poll_id = %s AND member_no = %s AND email = %s FOR UPDATE",
+			 WHERE poll_id = %s AND member_no = %s FOR UPDATE",
 			$poll_id,
-			$member_no,
-			$email
+			$member_no
 		) );
 
-		if ( ! $voter ) {
-			throw new RuntimeException( 'Mitgliedsnummer und E-Mail passen nicht zusammen.' );
+		if ( ! $rows ) {
+			throw new RuntimeException( 'Mitgliedsnummer nicht gefunden.' );
 		}
+		if ( count( $rows ) > 1 ) {
+			throw new RuntimeException( 'Für diese Mitgliedsnummer sind mehrere Einträge vorhanden. Bitte an die Verwaltung wenden.' );
+		}
+		$voter = $rows[0];
 
 		if ( (int) $voter->has_voted !== 0 ) {
 			throw new RuntimeException( 'Du hast für diese Abstimmung bereits abgestimmt.' );

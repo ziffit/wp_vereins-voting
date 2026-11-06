@@ -21,7 +21,7 @@ function vv_mail_defaults() {
 		'footer'       => '',
 		'activate_url' => '',
 		'rate'         => 10,
-		'poll_text'    => "{question}\r\n\r\nAbstimmungszeitraum: {start} – {end}\r\nBitte halte deine Mitgliedsnummer und E-Mail-Adresse bereit.",
+		'poll_text'    => "{question}\r\n\r\nAbstimmungszeitraum: {start} – {end}\r\nBitte halte deine Mitgliedsnummer bereit.",
 	];
 }
 

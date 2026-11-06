@@ -59,11 +59,16 @@ return [
 		vv_check( 0 === vv_fx_voter_count( $pid ), '[FU002#AK10] nichts gespeichert' );
 
 		vv_fx_voter( $pid, '201', 'geschaeftsstelle@example.org' );
-		vv_fx_http( [], [ 'poll' => $pid, 'member_no' => '201', 'email' => 'Geschaeftsstelle@example.org' ] );
+		vv_fx_http( [], [ 'poll' => $pid, 'member_no' => '201', 'email' => 'andere@example.org' ] );
 		[ , $dupe ] = vv_fx_run( 'vv_add_voter' );
 		vv_check( str_contains( (string) $dupe, 'voter_duplicate=1' ),
-			'[FU002#AK10] Duplikat (case-insensitiv) wird abgewiesen' );
+			'[FU002#AK10] Duplikat wird über die Mitgliedsnummer erkannt' );
 		vv_check( 1 === vv_fx_voter_count( $pid ), '[FU002#AK10] kein doppelter Eintrag' );
+
+		vv_fx_http( [], [ 'poll' => $pid, 'member_no' => '202', 'email' => 'geschaeftsstelle@example.org' ] );
+		[ $kind ] = vv_fx_run( 'vv_add_voter' );
+		vv_check( 'redirect' === $kind && 2 === vv_fx_voter_count( $pid ),
+			'[FU002#AK10] gleiche E-Mail bei anderer Mitgliedsnummer erlaubt' );
 	},
 
 	'test_09_fu002_ak10_handanlage_nur_bei_laufender_wahl' => function () {
@@ -107,18 +112,18 @@ return [
 			'[FU005#AK06] nach der Stimmabgabe keine Änderung' );
 	},
 
-	'test_09_fu005_ak06_email_duplikat_wird_abgewiesen' => function () {
+	'test_09_fu005_ak06_gleiche_email_bei_anderer_person_erlaubt' => function () {
 		$pid = vv_fx_poll( [ 'status' => 'active' ] );
 		[ $vid ] = vv_fx_voter( $pid, '101', 'eins@example.org' );
-		vv_fx_voter( $pid, '101', 'zwei@example.org' );
+		vv_fx_voter( $pid, '102', 'zwei@example.org' );
 
 		vv_fx_http( [], [ 'poll' => $pid, 'voter_id' => $vid, 'email' => 'ZWEI@example.org' ] );
 		[ , $url ] = vv_fx_run( 'vv_update_voter_email' );
 
 		global $wpdb;
 		$email = $wpdb->get_var( $wpdb->prepare( 'SELECT email FROM ' . vv_tbl( 'voting_voters' ) . ' WHERE id = %d', $vid ) );
-		vv_check( str_contains( (string) $url, 'email_error=1' ) && 'eins@example.org' === $email,
-			'[FU005#AK06] Duplikat (Mitgliedsnummer + E-Mail) verhindert die Änderung' );
+		vv_check( str_contains( (string) $url, 'email_updated=1' ) && 'ZWEI@example.org' === $email,
+			'[FU005#AK06] bereits verwendete E-Mail bei anderer Mitgliedsnummer ist erlaubt' );
 	},
 
 	'test_09_fu005_ak06_einladung_manuell_erneut_senden' => function () {

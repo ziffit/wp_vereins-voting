@@ -77,7 +77,7 @@ return [
 		vv_fx_http( [], [ 'vv_action' => 'import_csv', 'poll' => $pid ],
 			vv_fx_csv_upload( "Mitgliedsnummer;E-Mail;Vorname;Name\n101;A@x.org;Anna;Albern\n101;a@x.org;Anna;Albern\n101;a@X.ORG;Anna;Albern\n" ) );
 		vv_fx_run( 'vv_import_csv' );
-		vv_check( 1 === vv_fx_voter_count( $pid ), '[FU003#AK02] Duplikat (gleiche Mitgliedsnummer + E-Mail) verhindert, auch bei Groß-Klein' );
+		vv_check( 1 === vv_fx_voter_count( $pid ), '[FU003#AK02] Duplikat (gleiche Mitgliedsnummer) verhindert, auch bei abweichender E-Mail' );
 
 		// [FU003#AK02] Re-Import trägt leere Namensfelder nach …
 		$v = vv_fx_voter_row( 'a@x.org' );
@@ -108,11 +108,11 @@ return [
 		vv_check( 2 === vv_fx_voter_count( $pid ),
 			'[FU003#AK02] gleiche E-Mail für verschiedene Mitgliedsnummern erlaubt (z. B. Ehepaare)' );
 
-		// Gleiche Kombination wird weiterhin als Duplikat behandelt:
+		// Dieselbe Mitgliedsnummer wird unabhängig von der E-Mail als Duplikat behandelt:
 		vv_fx_http( [], [ 'vv_action' => 'import_csv', 'poll' => $pid ],
-			vv_fx_csv_upload( "Mitgliedsnummer;E-Mail;Vorname;Name\n201;Paar@Example.org;Anna;Albern\n" ) );
+			vv_fx_csv_upload( "Mitgliedsnummer;E-Mail;Vorname;Name\n201;andere@example.org;Anna;Albern\n" ) );
 		vv_fx_run( 'vv_import_csv' );
-		vv_check( 2 === vv_fx_voter_count( $pid ), '[FU003#AK02] Mitgliedsnummer + E-Mail bleibt eindeutig' );
+		vv_check( 2 === vv_fx_voter_count( $pid ), '[FU003#AK02] Mitgliedsnummer bleibt eindeutig' );
 	},
 
 	'test_03_fu003_ak03_zeilen_ohne_pflichtwerte_uebersprungen' => function () {

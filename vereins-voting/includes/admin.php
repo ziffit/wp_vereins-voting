@@ -296,10 +296,9 @@ function vv_add_voter() {
 
 	$exists = $wpdb->get_var( $wpdb->prepare(
 		"SELECT id FROM {$wpdb->prefix}voting_voters
-		 WHERE poll_id = %s AND member_no = %s AND LOWER(email) = %s",
+		 WHERE poll_id = %s AND member_no = %s",
 		$poll_id,
-		$member_no,
-		strtolower( $email )
+		$member_no
 	) );
 	if ( $exists ) {
 		wp_safe_redirect( admin_url( $base . '&voter_duplicate=1' ) );
@@ -345,7 +344,7 @@ function vv_update_voter_email() {
 	}
 
 	$voter = $wpdb->get_row( $wpdb->prepare(
-		"SELECT id, member_no, has_voted FROM {$wpdb->prefix}voting_voters WHERE id = %d AND poll_id = %s",
+		"SELECT id, has_voted FROM {$wpdb->prefix}voting_voters WHERE id = %d AND poll_id = %s",
 		$voter_id,
 		$poll_id
 	) );
@@ -355,20 +354,6 @@ function vv_update_voter_email() {
 
 	$email = sanitize_email( wp_unslash( $_POST['email'] ?? '' ) );
 	if ( ! is_email( $email ) ) {
-		wp_safe_redirect( admin_url( $base . '&email_error=1' ) );
-		exit;
-	}
-
-	// [FU003#AK02] Eindeutig bleibt Mitgliedsnummer + E-Mail; die eigene Zeile zählt nicht.
-	$exists = $wpdb->get_var( $wpdb->prepare(
-		"SELECT id FROM {$wpdb->prefix}voting_voters
-		 WHERE poll_id = %s AND member_no = %s AND LOWER(email) = %s AND id <> %d",
-		$poll_id,
-		$voter->member_no,
-		strtolower( $email ),
-		$voter_id
-	) );
-	if ( $exists ) {
 		wp_safe_redirect( admin_url( $base . '&email_error=1' ) );
 		exit;
 	}
@@ -707,17 +692,16 @@ function vv_import_csv() {
 			return;
 		}
 
-		// [FU003#AK02] Duplikatschutz pro Abstimmung über Mitgliedsnummer UND
-		// E-Mail (E-Mail case-insensitiv). Dieselbe E-Mail für eine andere
-		// Mitgliedsnummer ist zulässig (z. B. Ehepaare).
+		// [FU003#AK02] Duplikatschutz pro Abstimmung nur über die
+		// Mitgliedsnummer; dieselbe E-Mail ist bei verschiedenen
+		// Mitgliedsnummern zulässig (z. B. Ehepaare).
 		// Bei Altdaten ohne Namen werden leere Namensfelder nachgetragen,
 		// vorhandene Werte bleiben unangetastet.
 		$exists = $wpdb->get_row( $wpdb->prepare(
 			"SELECT id, first_name, last_name FROM {$wpdb->prefix}voting_voters
-			 WHERE poll_id = %s AND member_no = %s AND LOWER(email) = %s",
+			 WHERE poll_id = %s AND member_no = %s",
 			$poll_id,
-			$member_no,
-			strtolower( $email )
+			$member_no
 		) );
 		if ( $exists ) {
 			$fill = [];
@@ -1086,12 +1070,12 @@ function vv_render_members_table( $poll ) {
 	if ( isset( $_GET['voter_error'] ) ) {
 		echo '<div class="notice notice-error"><p>Mitgliedsnummer und eine gültige E-Mail-Adresse sind erforderlich.</p></div>';
 	} elseif ( isset( $_GET['voter_duplicate'] ) ) {
-		echo '<div class="notice notice-error"><p>Diese Kombination aus Mitgliedsnummer und E-Mail ist bereits vorhanden.</p></div>';
+		echo '<div class="notice notice-error"><p>Diese Mitgliedsnummer ist bereits vorhanden.</p></div>';
 	}
 	if ( isset( $_GET['email_updated'] ) ) {
 		echo '<div class="notice notice-success is-dismissible"><p>E-Mail-Adresse geändert. Die Einladung kann erneut gesendet werden.</p></div>';
 	} elseif ( isset( $_GET['email_error'] ) ) {
-		echo '<div class="notice notice-error"><p>E-Mail-Adresse nicht geändert: Bitte eine gültige, noch nicht verwendete Adresse angeben.</p></div>';
+		echo '<div class="notice notice-error"><p>E-Mail-Adresse nicht geändert: Bitte eine gültige Adresse angeben.</p></div>';
 	}
 	if ( isset( $_GET['resent'] ) ) {
 		echo '<div class="notice notice-success is-dismissible"><p>Einladung erneut versendet.</p></div>';

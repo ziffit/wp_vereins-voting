@@ -7,16 +7,24 @@ return [
 	'test_07_fu008_ak01_unbekannte_option' => function () {
 		$pid = vv_fx_poll();
 		try {
-			vv_cast_vote( $pid, '101', 'a@b.org', 'A2B3C4', 'vielleicht' );
+			vv_cast_vote( $pid, '101', 'A2B3C4', 'vielleicht' );
 			vv_check( false, 'unbekannte Option erfolgreich ?!' );
 		} catch ( RuntimeException $e ) {
 			vv_check( str_contains( $e->getMessage(), 'Bitte wähle' ), '[FU008#AK01] nur ja/nein/enthaltung erlaubt' );
 		}
 	},
 
+	'test_07_fu008_ak01_formular_ohne_email' => function () {
+		$pid = vv_fx_poll();
+		vv_fx_http( [ 'poll' => $pid ] );
+		$html = vv_shortcode_form();
+		vv_check( str_contains( $html, 'name="member_no"' ) && ! str_contains( $html, 'name="email"' ),
+			'[FU008#AK01] Stimmformular fragt nur Mitgliedsnummer, Code und Option ab' );
+	},
+
 	'test_07_fu008_ak01_unbekannte_abstimmung' => function () {
 		try {
-			vv_cast_vote( '00000000-0000-4000-8000-000000000000', '101', 'a@b.org', 'A2B3C4', 'ja' );
+			vv_cast_vote( '00000000-0000-4000-8000-000000000000', '101', 'A2B3C4', 'ja' );
 			vv_check( false, 'unbekannte Abstimmung erfolgreich ?!' );
 		} catch ( RuntimeException $e ) {
 			vv_check( str_contains( $e->getMessage(), 'nicht gefunden' ), '[FU008#AK01] unbekannte Abstimmung abgelehnt' );
@@ -28,7 +36,7 @@ return [
 		$pid = vv_fx_poll( [ 'start_off' => '+1 day', 'end_off' => '+2 days', 'status' => 'draft' ] );
 		vv_fx_voter( $pid, '101', 'a@b.org', 't1', 'A2B3C4' );
 		try {
-			vv_cast_vote( $pid, '101', 'a@b.org', 'A2B3C4', 'ja' );
+			vv_cast_vote( $pid, '101', 'A2B3C4', 'ja' );
 			vv_check( false, 'abstimmen vor Start ?!' );
 		} catch ( RuntimeException $e ) {
 			vv_check( str_contains( $e->getMessage(), 'nicht aktiv' ), '[FU008#AK02] Abstimmen nur innerhalb des Zeitraums' );
@@ -41,7 +49,7 @@ return [
 		$pid = vv_fx_poll( [ 'start_off' => '-2 days', 'end_off' => '-1 day', 'status' => 'active' ] );
 		vv_fx_voter( $pid, '101', 'a@b.org', 't1', 'A2B3C4' );
 		try {
-			vv_cast_vote( $pid, '101', 'a@b.org', 'A2B3C4', 'ja' );
+			vv_cast_vote( $pid, '101', 'A2B3C4', 'ja' );
 			vv_check( false, 'abstimmen nach Ende ?!' );
 		} catch ( RuntimeException $e ) {
 			vv_check( str_contains( $e->getMessage(), 'nicht aktiv' ), '[FU008#AK02] Abstimmung nach end_dt abgelehnt, auch bei Status active' );
@@ -52,7 +60,7 @@ return [
 	'test_07_fu008_ak02_zeitraum_autoaktivierung' => function () {
 		$pid = vv_fx_poll( [ 'start_off' => '-1 hour', 'end_off' => '+1 day', 'status' => 'draft' ] );
 		vv_fx_voter( $pid, '101', 'a@b.org', 't1', 'A2B3C4' );
-		$receipt = vv_cast_vote( $pid, '101', 'a@b.org', 'A2B3C4', 'ja' );
+		$receipt = vv_cast_vote( $pid, '101', 'A2B3C4', 'ja' );
 		vv_check( 'active' === vv_fx_poll_row( $pid )->status, '[FU008#AK02] draft wird im Zeitraum automatisch aktiviert' );
 		vv_check( (bool) preg_match( '/^[0-9a-f]{64}$/', $receipt ), '[FU008#AK03] sha256 Receipt erzeugt (64 hex)' );
 	},
@@ -61,7 +69,7 @@ return [
 		$pid = vv_fx_poll();
 		vv_fx_voter( $pid, '101', 'a@b.org', 't1', 'A2B3C4' );
 		try {
-			vv_cast_vote( $pid, '101', 'a@b.org', '999999', 'ja' );
+			vv_cast_vote( $pid, '101', '999999', 'ja' );
 			vv_check( false, 'falscher Abstimmungscode erfolgreich ?!' );
 		} catch ( RuntimeException $e ) {
 			vv_check( str_contains( $e->getMessage(), 'Abstimmungscode ist falsch' ), '[FU008#AK02] falscher Abstimmungscode abgelehnt (password_verify)' );
@@ -69,19 +77,36 @@ return [
 		vv_check( 0 === vv_fx_ballots_count( $pid ), '[FU008#AK02] keine Urne bei falscher Abstimmungscode' );
 
 		// Groß-/Kleinschreibung egal und Rand-Whitespace egal:
-		$receipt = vv_cast_vote( $pid, '101', 'a@b.org', 'a2b3c4', 'ja' );
+		$receipt = vv_cast_vote( $pid, '101', 'a2b3c4', 'ja' );
 		vv_check( (bool) preg_match( '/^[0-9a-f]{64}$/', $receipt ), '[FU008#AK02] Abstimmungscode groß-/klein-insensitiv akzeptiert' );
 	},
 
-	'test_07_fu008_ak02_email_mitgliedsnr_zusammen' => function () {
+	'test_07_fu008_ak02_unbekannte_mitgliedsnummer' => function () {
 		$pid = vv_fx_poll();
 		vv_fx_voter( $pid, '101', 'a@b.org', 't1', 'A2B3C4' );
 		try {
-			vv_cast_vote( $pid, '101', 'fremd@b.org', 'A2B3C4', 'ja' );
-			vv_check( false, 'fremde E-Mail erfolgreich ?!' );
+			vv_cast_vote( $pid, '999', 'A2B3C4', 'ja' );
+			vv_check( false, 'unbekannte Mitgliedsnummer erfolgreich ?!' );
 		} catch ( RuntimeException $e ) {
-			vv_check( str_contains( $e->getMessage(), 'zusammen' ), '[FU008#AK02] Mitgliedsnummer + E-Mail müssen zusammenpassen' );
+			vv_check( str_contains( $e->getMessage(), 'Mitgliedsnummer nicht gefunden' ), '[FU008#AK02] unbekannte Mitgliedsnummer abgelehnt' );
 		}
+		vv_check( 0 === vv_fx_ballots_count( $pid ), '[FU008#AK02] keine Urne bei unbekannter Mitgliedsnummer' );
+	},
+
+	'test_07_fu008_ak02_mehrere_zeilen_abgelehnt' => function () {
+		global $wpdb;
+		$pid = vv_fx_poll();
+		$tbl = vv_tbl( 'voting_voters' );
+		$wpdb->query( "ALTER TABLE `$tbl` DROP INDEX poll_member" );
+		vv_fx_voter( $pid, '101', 'a@b.org', 't1', 'A2B3C4' );
+		vv_fx_voter( $pid, '101', 'b@b.org', 't2', 'A2B3C4' );
+		try {
+			vv_cast_vote( $pid, '101', 'A2B3C4', 'ja' );
+			vv_check( false, 'mehrdeutige Mitgliedsnummer erfolgreich ?!' );
+		} catch ( RuntimeException $e ) {
+			vv_check( str_contains( $e->getMessage(), 'mehrere Einträge' ), '[FU008#AK02] mehrdeutige Mitgliedsnummer abgelehnt' );
+		}
+		vv_check( 0 === vv_fx_ballots_count( $pid ), '[FU008#AK02] keine Urne bei mehrdeutiger Mitgliedsnummer' );
 	},
 
 	'test_07_fu008_ak03_transaktion_commit' => function () {
@@ -89,7 +114,7 @@ return [
 		$pid = vv_fx_poll();
 		vv_fx_voter( $pid, '101', 'a@b.org', 't1', 'A2B3C4' );
 
-		$receipt = vv_cast_vote( $pid, '101', 'a@b.org', 'A2B3C4', 'ja' );
+		$receipt = vv_cast_vote( $pid, '101', 'A2B3C4', 'ja' );
 		vv_check( (bool) preg_match( '/^[0-9a-f]{64}$/', $receipt ), '[FU008#AK03] Receipt = sha256-64hex' );
 
 		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . vv_tbl( 'voting_voters' ) . ' WHERE poll_id = %s', $pid ) );
@@ -111,9 +136,9 @@ return [
 	'test_07_fu008_ak02_doppelvoting' => function () {
 		$pid = vv_fx_poll();
 		vv_fx_voter( $pid, '101', 'a@b.org', 't1', 'A2B3C4' );
-		vv_cast_vote( $pid, '101', 'a@b.org', 'A2B3C4', 'ja' );
+		vv_cast_vote( $pid, '101', 'A2B3C4', 'ja' );
 		try {
-			vv_cast_vote( $pid, '101', 'a@b.org', 'A2B3C4', 'nein' );
+			vv_cast_vote( $pid, '101', 'A2B3C4', 'nein' );
 			vv_check( false, 'Doppelvoting erfolgreich ?!' );
 		} catch ( RuntimeException $e ) {
 			vv_check( str_contains( $e->getMessage(), 'bereits abgestimmt' ), '[FU008#AK02] Doppelvoting verhindert (has_voted)' );
@@ -124,7 +149,7 @@ return [
 	'test_07_fu008_ak04_formular_erfolgsanzeige' => function () {
 		$pid = vv_fx_poll();
 		vv_fx_voter( $pid, '101', 'a@b.org', 't1', 'A2B3C4' );
-		vv_fx_http( [ 'poll' => $pid ], [ 'vv_frontend_nonce' => vv_fx_nonce(), 'member_no' => '101', 'email' => 'a@b.org', 'pin' => 'A2B3C4', 'option' => 'nein' ] );
+		vv_fx_http( [ 'poll' => $pid ], [ 'vv_frontend_nonce' => vv_fx_nonce(), 'member_no' => '101', 'pin' => 'A2B3C4', 'option' => 'nein' ] );
 		$html = vv_shortcode_form();
 		vv_check( str_contains( $html, 'vv-receipt' ) && str_contains( $html, 'Stimme wurde gezählt' ),
 			'[FU008#AK04] Shortcode zeigt Receipt-Hash nach Erfolg im Browser' );
@@ -144,7 +169,7 @@ return [
 		// Fehlerfall zeigt Formular wieder + Nachbericht:
 		$pid2 = vv_fx_poll();
 		vv_fx_voter( $pid2, '202', 'c@d.org', 't2', 'B2C3D4' );
-		vv_fx_http( [ 'poll' => $pid2 ], [ 'vv_frontend_nonce' => vv_fx_nonce(), 'member_no' => '202', 'email' => 'c@d.org', 'pin' => '000000', 'option' => 'ja' ] );
+		vv_fx_http( [ 'poll' => $pid2 ], [ 'vv_frontend_nonce' => vv_fx_nonce(), 'member_no' => '202', 'pin' => '000000', 'option' => 'ja' ] );
 		$html2 = vv_shortcode_form();
 		vv_check( str_contains( $html2, '<form' ) && str_contains( $html2, 'Abstimmungscode ist falsch' ),
 			'[FU008#AK04] Fehler: Formular bleibt mit Fehlermeldung' );
@@ -161,7 +186,7 @@ return [
 			$pid
 		) );
 		vv_fx_voter( $pid, '101', 'a@b.org', 't1', 'A2B3C4' );
-		$receipt = vv_cast_vote( $pid, '101', 'a@b.org', 'A2B3C4', 'ja' );
+		$receipt = vv_cast_vote( $pid, '101', 'A2B3C4', 'ja' );
 		vv_check( (bool) preg_match( '/^[0-9a-f]{64}$/', $receipt ), '[FU008#AK02] Abstimmung funktioniert auch mit T-Format-Datum' );
 	},
 
@@ -170,7 +195,7 @@ return [
 		vv_fx_voter( $pid, '101', 'a@b.org', 't1', 'A2B3C4' );
 
 		// POST ohne Nonce darf keine Stimme zählen.
-		vv_fx_http( [ 'poll' => $pid ], [ 'member_no' => '101', 'email' => 'a@b.org', 'pin' => 'A2B3C4', 'option' => 'ja' ] );
+		vv_fx_http( [ 'poll' => $pid ], [ 'member_no' => '101', 'pin' => 'A2B3C4', 'option' => 'ja' ] );
 		$html = vv_shortcode_form();
 		vv_check( str_contains( $html, 'Sicherheitsprüfung' ), '[FU008#AK05] POST ohne Nonce abgelehnt' );
 		vv_check( 0 === vv_fx_ballots_count( $pid ), '[FU008#AK05] ohne Nonce landet keine Stimme in der Urne' );
@@ -183,14 +208,14 @@ return [
 
 		for ( $i = 0; $i < 5; $i++ ) {
 			try {
-				vv_cast_vote( $pid, '101', 'a@b.org', '999999', 'ja' );
+				vv_cast_vote( $pid, '101', '999999', 'ja' );
 			} catch ( RuntimeException $e ) {
 				// erwartet: Abstimmungscode ist falsch
 			}
 		}
 
 		try {
-			vv_cast_vote( $pid, '101', 'a@b.org', 'A2B3C4', 'ja' );
+			vv_cast_vote( $pid, '101', 'A2B3C4', 'ja' );
 			vv_check( false, 'sechste Stimme trotz Sperre durchgelassen ?!' );
 		} catch ( RuntimeException $e ) {
 			vv_check( str_contains( $e->getMessage(), 'Zu viele Fehlversuche' ), '[FU008#AK05] Brute-Force-Bremse nach 5 Fehlversuchen aktiv' );

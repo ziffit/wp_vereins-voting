@@ -25,8 +25,8 @@ WordPress-Plugin „vereins-voting": anonymes Abstimmungssystem für Vereine
 - Drei isolierte Tabellen: `voting_polls`, `voting_voters`, `voting_ballots`.
   **Keine Foreign Keys**, keine Verknüpfung von Identitäts- und Urne-Tabelle.
 - Poll-IDs sind zufällige UUIDs (`CHAR(36)`), nie aufsteigende Zahlen (FU002#AK07).
-- Eindeutig je Wahl ist `(poll_id, member_no, email)`; die E-Mail allein
-  **nicht** (Ehepaare teilen sich eine Adresse, FU003#AK02).
+- Eindeutig je Wahl ist `(poll_id, member_no)`; die E-Mail ist nur
+  Kontaktdaten und darf mehrfach vorkommen (Ehepaare, FU003#AK02).
 - PIN nur als `password_hash()` / `password_verify()`, niemals Klartext.
 - Stimmabgabe in einer Transaktion mit Zeilensperre; `receipt_hash` = sha256
   (64 hex, UNIQUE). Die Urne speichert **nur** `poll_id`, `vote_option`, `receipt_hash`.

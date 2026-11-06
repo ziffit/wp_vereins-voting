@@ -82,9 +82,10 @@ return [
 		$pid = vv_fx_poll( [ 'title' => 'Abstimmungfrage', 'question' => 'Ja oder Nein?' ] );
 		vv_fx_http( [ 'poll' => $pid ] );
 		$html = vv_shortcode_form();
-		foreach ( [ 'Mitgliedsnummer', 'E-Mail', 'Abstimmungscode', 'value="ja"', 'value="nein"', 'value="enthaltung"' ] as $needle ) {
+		foreach ( [ 'Mitgliedsnummer', 'Abstimmungscode', 'value="ja"', 'value="nein"', 'value="enthaltung"' ] as $needle ) {
 			vv_check( str_contains( $html, $needle ), "[FU008#AK01] Formularfeld $needle vorhanden" );
 		}
+		vv_check( ! str_contains( $html, 'name="email"' ), '[FU008#AK01] kein E-Mail-Feld im Stimmformular' );
 		vv_check( str_contains( $html, '<h2>' . esc_html( vv_fx_poll_row( $pid )->title ) . '</h2>' ),
 			'[FU008#AK01] Titel steht als h2 über dem Stimmformular' );
 	},

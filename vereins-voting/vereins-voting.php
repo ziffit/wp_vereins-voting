@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       vereins-voting
  * Description:       Vereins-Abstimmungen: Einladung per E-Mail-Link, Aktivierung mit systemgeneriertem Abstimmungscode, anonyme Stimmurne mit Receipt-Hash.
- * Version:           1.6.6
+ * Version:           1.6.7
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Felix Tensing
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Direktzugriff verweigern.
 }
 
-define( 'VEREINS_VOTING_VERSION', '1.6.6' );
+define( 'VEREINS_VOTING_VERSION', '1.6.7' );
 
 /*
  * [FU001#AK02] Bei Deaktivierung/Deinstallation werden KEINE Daten gelöscht —
@@ -56,8 +56,8 @@ function vv_create_schema() {
 
 	// [FU001] Berechtigte + Wahl-Code-Hashes. Kein Foreign Key zur Urne.
 	// first_name/last_name (optional) dienen nur der persönlichen Ansprache.
-	// [FU003#AK02] Eindeutig ist die Kombination Mitgliedsnummer + E-Mail:
-	// dieselbe E-Mail darf mehrfach vorkommen (z. B. Ehepaare).
+	// [FU003#AK02] Eindeutig ist die Mitgliedsnummer; die E-Mail ist nur
+	// Kontaktdaten und darf mehrfach vorkommen (z. B. Ehepaare).
 	$voters = "{$wpdb->prefix}voting_voters";
 	dbDelta(
 		"CREATE TABLE $voters (
@@ -76,7 +76,7 @@ function vv_create_schema() {
 			invite_attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY  (id),
-			UNIQUE KEY poll_member_email (poll_id, member_no, email),
+			UNIQUE KEY poll_member (poll_id, member_no),
 			KEY activation_token (activation_token)
 		) $charset"
 	);
@@ -108,10 +108,39 @@ function vv_maybe_upgrade() {
 	if ( get_option( 'vv_db_version' ) === VEREINS_VOTING_VERSION ) {
 		return;
 	}
+	vv_ensure_member_unique_key();
 	vv_upgrade_poll_ids_to_uuid();
 	vv_create_schema();
 }
 add_action( 'plugins_loaded', 'vv_maybe_upgrade' );
+
+/**
+ * [FU003#AK02] Ab 1.6.7 ist nur noch die Mitgliedsnummer je Abstimmung
+ * eindeutig. Altdubletten werden bereinigt (bevorzugt eine bereits
+ * abgestimmte Zeile, sonst die älteste) und der alte Unique-Key ersetzt.
+ */
+function vv_ensure_member_unique_key() {
+	global $wpdb;
+
+	$table = "{$wpdb->prefix}voting_voters";
+	if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) ) {
+		return;
+	}
+
+	$wpdb->query(
+		"DELETE v FROM `$table` v
+		 JOIN `$table` keep ON keep.poll_id = v.poll_id AND keep.member_no = v.member_no
+		 WHERE keep.has_voted > v.has_voted
+		    OR ( keep.has_voted = v.has_voted AND keep.id < v.id )"
+	);
+
+	if ( $wpdb->get_var( $wpdb->prepare( "SHOW INDEX FROM `$table` WHERE Key_name = %s", 'poll_member_email' ) ) ) {
+		$wpdb->query( "ALTER TABLE `$table` DROP INDEX poll_member_email" );
+	}
+	if ( ! $wpdb->get_var( $wpdb->prepare( "SHOW INDEX FROM `$table` WHERE Key_name = %s", 'poll_member' ) ) ) {
+		$wpdb->query( "ALTER TABLE `$table` ADD UNIQUE KEY poll_member (poll_id, member_no)" );
+	}
+}
 
 /** [FU001#AK03] Alte Zahlen-IDs (BIGINT) auf UUID-Spalten und -Werte heben. */
 function vv_upgrade_poll_ids_to_uuid() {

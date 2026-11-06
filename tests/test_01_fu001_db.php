@@ -40,6 +40,58 @@ return [
 			'[FU008#AK03] Urne ausschließlich poll_id/vote_option/receipt_hash (kein created_at, kein id)' );
 	},
 
+	'test_01_fu003_ak02_nur_mitgliedsnummer_eindeutig' => function () {
+		global $wpdb;
+		$pid = vv_fx_poll();
+		vv_fx_voter( $pid, '101', 'a@example.org', 'tok1' );
+
+		$dup = $wpdb->query( $wpdb->prepare(
+			'INSERT INTO ' . vv_tbl( 'voting_voters' ) . ' (poll_id, member_no, email, activation_token) VALUES (%s, %s, %s, %s)',
+			$pid, '101', 'b@example.org', 'tok2'
+		) );
+		vv_check( false === $dup, '[FU003#AK02] gleiche Mitgliedsnummer mit anderer E-Mail wird abgewiesen' );
+
+		vv_fx_voter( $pid, '102', 'a@example.org', 'tok3' );
+		vv_check( 2 === vv_fx_voter_count( $pid ), '[FU003#AK02] gleiche E-Mail bei verschiedenen Mitgliedsnummern erlaubt' );
+	},
+
+	'test_01_fu001_ak03_dubletten_werden_bereinigt' => function () {
+		global $wpdb;
+		$pid = vv_fx_poll();
+		$tbl = vv_tbl( 'voting_voters' );
+
+		// Altzustand simulieren: alter Key, absichtlich doppelte Mitgliedsnummer.
+		$wpdb->query( "ALTER TABLE `$tbl` DROP INDEX poll_member" );
+		$wpdb->query( "ALTER TABLE `$tbl` ADD UNIQUE KEY poll_member_email (poll_id, member_no, email)" );
+		$wpdb->query( $wpdb->prepare(
+			"INSERT INTO `$tbl` (poll_id, member_no, email, has_voted, activation_token) VALUES (%s, '77', 'alt@example.org', 0, 'tokA')",
+			$pid
+		) );
+		$wpdb->query( $wpdb->prepare(
+			"INSERT INTO `$tbl` (poll_id, member_no, email, has_voted, activation_token) VALUES (%s, '77', 'neu@example.org', 1, 'tokB')",
+			$pid
+		) );
+		vv_fx_voter( $pid, '78', 'neu@example.org', 'tokC' );
+
+		update_option( 'vv_db_version', '1.6.6' );
+		vv_maybe_upgrade();
+
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT member_no, email, has_voted FROM `$tbl` WHERE poll_id = %s ORDER BY member_no", $pid ) );
+		vv_check( 2 === count( $rows ), '[FU001#AK03] Altdublette je Mitgliedsnummer wird beim Upgrade entfernt' );
+		vv_check( '77' === $rows[0]->member_no && 'neu@example.org' === $rows[0]->email && 1 === (int) $rows[0]->has_voted,
+			'[FU001#AK03] bereits abgestimmte Zeile hat beim Bereinigen Vorrang' );
+		vv_check( '78' === $rows[1]->member_no && 'neu@example.org' === $rows[1]->email,
+			'[FU003#AK02] gleiche E-Mail einer anderen Mitgliedsnummer bleibt erhalten' );
+
+		$keys = $wpdb->get_col( $wpdb->prepare(
+			"SELECT DISTINCT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s",
+			VV_DB_NAME,
+			$tbl
+		) );
+		vv_check( in_array( 'poll_member', $keys, true ) && ! in_array( 'poll_member_email', $keys, true ),
+			'[FU003#AK02] neuer UNIQUE-Key poll_member ist gesetzt (Indizes: ' . implode( ',', $keys ) . ')' );
+	},
+
 	'test_01_fu001_ak02_neue_spalten_v152' => function () {
 		$vcols = vv_cols( 'voting_voters' );
 		vv_check( in_array( 'pin_set_at', $vcols, true ),

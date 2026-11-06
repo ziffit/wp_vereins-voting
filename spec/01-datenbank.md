@@ -28,9 +28,9 @@ Bei der Plugin-Aktivierung legt das System drei isolierte Tabellen an:
   `wp_voting_ballots` besteht ausschließlich aus `poll_id`, `vote_option`
   und `receipt_hash` (Primärschlüssel) – ohne Zeitstempel und ohne laufende
   Nummer, damit keine Korrelation mit `voted_at` möglich ist (FU008#AK03).
-  Eindeutig ist die
-  Kombination `(poll_id, member_no, email)`; die E-Mail-Adresse allein ist
-  nicht eindeutig (Ehepaare können sie teilen).
+  Eindeutig ist
+  `(poll_id, member_no)`; die E-Mail-Adresse ist reine Kontaktdaten und
+  darf bei verschiedenen Mitgliedsnummern mehrfach vorkommen (Ehepaare).
 
 - **[FU001#AK02]** Bei der Deaktivierung oder Deinstallation bleiben die
   Daten erhalten (oder werden gemäß Einstellungen behandelt; Standard:
@@ -43,3 +43,7 @@ Bei der Plugin-Aktivierung legt das System drei isolierte Tabellen an:
   mitgeführt. Bestandszeilen aus 1.4 erhalten `invited_at = NULL` und
   `invite_attempts = 0`; sie werden beim Upgrade **nicht automatisch**
   versendet, sondern erst nach ausdrücklichem Start durch den Admin.
+  Beim Upgrade auf 1.6.7 wird der alte Unique-Key
+  `(poll_id, member_no, email)` durch `(poll_id, member_no)` ersetzt;
+  Altdubletten je Mitgliedsnummer werden dabei bereinigt (eine bereits
+  abgestimmte Zeile hat Vorrang, sonst bleibt die älteste).

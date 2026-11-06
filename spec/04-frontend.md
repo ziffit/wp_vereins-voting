@@ -14,7 +14,7 @@ damit schwache Codes (Geburtstage, Namen, einfache Muster) nicht entstehen.
 - **[FU007#AK01]** Beim Aufrufen mit gültigem `token` und passender `poll_id`
   erzeugt das System serverseitig einen Abstimmungscode (6 Zeichen aus A–Z ohne
   I/O und 2–9, mindestens 1 Buchstabe und 1 Ziffer) und zeigt ihn
-  schreibgeschützt an. Das Formular fragt Mitgliedsnummer und E-Mail ab;
+  schreibgeschützt an. Das Formular fragt nur die Mitgliedsnummer ab;
   mit „Neuen Code erzeugen“ (Link) lädt die Seite sich selbst neu — inklusive
   aller URL-Parameter (auch `page_id`) — und erzeugt so einen neuen Code,
   ohne als Fehlversuch zu zählen oder den Token zu verbrauchen.
@@ -38,7 +38,7 @@ damit schwache Codes (Geburtstage, Namen, einfache Muster) nicht entstehen.
   mit der `poll`-ID direkt dorthin.
 
 - **[FU007#AK04]** Das Formular ist durch ein Nonce gegen CSRF geschützt;
-  nach 5 Fehlversuchen (falsche Mitgliedsdaten oder ungültiger Code) ist
+  nach 5 Fehlversuchen (falsche Mitgliedsnummer oder ungültiger Code) ist
   die Aktivierung für 15 Minuten gesperrt.
 
 - **[FU007#AK05]** Jede Ausgabe der drei Shortcodes `[verein_voting_activate]`,
@@ -59,14 +59,14 @@ Das eigentliche Stimmformular während des aktiven Abstimmungszeitraums.
 
 ### Akzeptanzkriterien
 
-- **[FU008#AK01]** Das Formular fragt Mitgliedsnummer, E-Mail, den
+- **[FU008#AK01]** Das Formular fragt Mitgliedsnummer, den
   persönlichen Abstimmungscode (Groß-/Kleinschreibung egal) und die Stimmoption
   (Radio-Buttons: Ja / Nein / Enthaltung) ab.
 
 - **[FU008#AK02]** Das System validiert bei der Absendung:
 
   1. Liegt das aktuelle Datum im Zeitraum `start_date` bis `end_date`?
-  2. Existiert die Kombination aus Mitgliedsnummer und E-Mail?
+  2. Existiert die Mitgliedsnummer?
   3. Hat das Mitglied `has_voted == 0`?
   4. Ist der eingegebene Abstimmungscode korrekt (`password_verify()`)?
 

@@ -94,7 +94,7 @@ löschen.
   Vorname/Name). Das ist für Mitglieder ohne eigene E-Mail-Adresse gedacht,
   die in der Geschäftsstelle abstimmen; eine gemeinsame E-Mail-Adresse ist
   zulässig. Es gilt derselbe Duplikatschutz wie beim Import
-  (Mitgliedsnummer + E-Mail, case-insensitiv); für die Person wird ein
+  (nur Mitgliedsnummer); für die Person wird ein
   sicherer `activation_token` erzeugt. Im Status `draft` erfolgt die
   Teilnehmerpflege über den CSV-Import, bei `closed` ist keine Anlage möglich.
 
@@ -115,9 +115,9 @@ Import einer Mitgliederliste per CSV-Upload pro Abstimmung.
   mit einer Meldung ab, die die erkannten Spalten nennt.
 
 - **[FU003#AK02]** Das System validiert die E-Mail-Adressen und verhindert
-  doppelte Einträge pro Abstimmung: eindeutig ist die Kombination aus
-  Mitgliedsnummer und E-Mail (E-Mail case-insensitiv). Dieselbe E-Mail-Adresse
-  darf für verschiedene Mitgliedsnummern mehrfach vorkommen (z. B. Ehepaare).
+  doppelte Einträge pro Abstimmung: eindeutig ist die Mitgliedsnummer.
+  Dieselbe E-Mail-Adresse darf für verschiedene Mitgliedsnummern mehrfach
+  vorkommen (z. B. Ehepaare).
   Für jeden Datensatz wird ein eindeutiger, sicherer `activation_token`
   generiert. Vorname und Nachname werden als `first_name`/`last_name`
   gespeichert (max. 100 Zeichen). Bei einem erneuten Import werden leere
@@ -246,8 +246,8 @@ Stimmgeheimnisses.
 - **[FU005#AK06]** In der Teilnehmerliste kann der Administrator die
   E-Mail-Adresse einer Person ändern, solange diese noch nicht abgestimmt
   hat (`has_voted = 0`) und die Abstimmung nicht `closed` ist. Geprüft wird
-  eine gültige Adresse und der Duplikatschutz aus FU003#AK02 (die eigene
-  Zeile zählt nicht mit). Nach der Änderung gilt die Einladung wieder als
+  nur eine gültige Adresse; eine bereits verwendete Adresse ist zulässig.
+  Nach der Änderung gilt die Einladung wieder als
   offen (`invited_at` und `invite_attempts` zurückgesetzt). Zusätzlich kann
   er die Einladung für eine Person direkt aus der Liste erneut senden,
   solange ein `activation_token` existiert, die Person nicht abgestimmt hat,
